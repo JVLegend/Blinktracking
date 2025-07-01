@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "maxDuration": 300
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1",
+      "headers": {
+        "x-vercel-max-memory": "3008"
+      }
+    },
+    {
+      "src": "/api/extract-points",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept"
+      }
+    }
+  ],
+  "env": {
+    "PYTHONPATH": ".",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "buildCommand": "pip install -r requirements.txt && npm run build",
+  "installCommand": "npm install",
+  "outputDirectory": ".next"
+} 
