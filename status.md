@@ -128,3 +128,4 @@
 - Implementado sistema de feedback visual para posicionamento
 - Integrado com o sistema de navegação do Next.js
 - Adicionado suporte a TypeScript para melhor manutenção 
+- [Em andamento] Otimização da página de análise de coordenadas: será implementado downsampling dos dados e seleção de pontos para o usuário para evitar travamentos e melhorar a performance dos gráficos. Troca de biblioteca gráfica será considerada se necessário. 

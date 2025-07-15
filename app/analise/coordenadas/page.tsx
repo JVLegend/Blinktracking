@@ -8,6 +8,8 @@ import { Label } from "@/ui/label"
 import { Upload, LineChart } from "lucide-react"
 import { toast } from "sonner"
 import PlotlyComponent from "@/components/plotly/PlotlyComponent"
+import { Button } from "@/components/ui/button"
+import { Loader2 } from "lucide-react"
 
 interface DataPoint {
   // Campos comuns
@@ -38,12 +40,15 @@ interface DataPoint {
 export default function CoordenadasPage() {
   const [data, setData] = useState<any[]>([]);
   const [method, setMethod] = useState<string>('');
+  const [selectedPoints, setSelectedPoints] = useState<number[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
+      setLoading(true);
       const text = await file.text();
       const rows = text.split("\n").filter(row => row.trim());
       const headers = rows[0].split(",");
@@ -58,80 +63,80 @@ export default function CoordenadasPage() {
 
       setData(parsedData);
       setMethod(parsedData[0]?.method || '');
+      // Seleciona todos os pontos por padrão
+      if (parsedData[0]?.method === 'dlib') {
+        setSelectedPoints([37, 38, 40, 41]);
+      } else {
+        setSelectedPoints([1,2,3,4,5,6,7,8,9]);
+      }
+      setLoading(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
       toast.error("Erro ao processar o arquivo");
+      setLoading(false);
     }
   };
+
+  // Função de downsampling
+  function downsample(arr: any[], maxPoints: number) {
+    if (arr.length <= maxPoints) return arr;
+    const step = Math.ceil(arr.length / maxPoints);
+    return arr.filter((_, i) => i % step === 0);
+  }
 
   const getPlotData = () => {
     if (!data.length) return [];
 
     if (method === 'dlib') {
-      return [
-        {
-          type: "scatter",
-          mode: "lines+markers",
-          name: "Olho Esquerdo",
-          x: data.map(d => parseFloat(d["37_x"])),
-          y: data.map(d => parseFloat(d["37_y"])),
-        },
-        {
-          type: "scatter",
-          mode: "lines+markers",
-          name: "Olho Direito",
-          x: data.map(d => parseFloat(d["41_x"])),
-          y: data.map(d => parseFloat(d["41_y"])),
-        }
-      ];
+      // Permitir seleção de pontos dlib
+      const points = selectedPoints.length ? selectedPoints : [37, 38, 40, 41];
+      return points.map((pt) => ({
+        type: "scatter",
+        mode: "lines+markers",
+        name: `Ponto ${pt}`,
+        x: downsample(data.map(d => parseFloat(d[`${pt}_x`])), 1000),
+        y: downsample(data.map(d => parseFloat(d[`${pt}_y`])), 1000),
+      }));
     } else {
       // MediaPipe - Todos os pontos
-      const plotData = [];
-      
-      // Olho direito - pontos superiores
-      for (let i = 1; i <= 7; i++) {
-        plotData.push({
-          type: "scatter",
-          mode: "lines+markers",
-          name: `Direito Superior ${i}`,
-          x: data.map(d => parseFloat(d[`right_upper_${i}_x`])),
-          y: data.map(d => parseFloat(d[`right_upper_${i}_y`])),
-        });
-      }
-
-      // Olho direito - pontos inferiores
-      for (let i = 1; i <= 9; i++) {
-        plotData.push({
-          type: "scatter",
-          mode: "lines+markers",
-          name: `Direito Inferior ${i}`,
-          x: data.map(d => parseFloat(d[`right_lower_${i}_x`])),
-          y: data.map(d => parseFloat(d[`right_lower_${i}_y`])),
-        });
-      }
-
-      // Olho esquerdo - pontos superiores
-      for (let i = 1; i <= 7; i++) {
-        plotData.push({
-          type: "scatter",
-          mode: "lines+markers",
-          name: `Esquerdo Superior ${i}`,
-          x: data.map(d => parseFloat(d[`left_upper_${i}_x`])),
-          y: data.map(d => parseFloat(d[`left_upper_${i}_y`])),
-        });
-      }
-
-      // Olho esquerdo - pontos inferiores
-      for (let i = 1; i <= 9; i++) {
-        plotData.push({
-          type: "scatter",
-          mode: "lines+markers",
-          name: `Esquerdo Inferior ${i}`,
-          x: data.map(d => parseFloat(d[`left_lower_${i}_x`])),
-          y: data.map(d => parseFloat(d[`left_lower_${i}_y`])),
-        });
-      }
-
+      // Permitir seleção de pontos MediaPipe
+      const plotData: any[] = [];
+      selectedPoints.forEach((i) => {
+        // Olho direito - superiores
+        if (i <= 7) {
+          plotData.push({
+            type: "scatter",
+            mode: "lines+markers",
+            name: `Direito Superior ${i}`,
+            x: downsample(data.map(d => parseFloat(d[`right_upper_${i}_x`])), 1000),
+            y: downsample(data.map(d => parseFloat(d[`right_upper_${i}_y`])), 1000),
+          });
+          plotData.push({
+            type: "scatter",
+            mode: "lines+markers",
+            name: `Esquerdo Superior ${i}`,
+            x: downsample(data.map(d => parseFloat(d[`left_upper_${i}_x`])), 1000),
+            y: downsample(data.map(d => parseFloat(d[`left_upper_${i}_y`])), 1000),
+          });
+        }
+        // Olho direito/esquerdo - inferiores
+        if (i <= 9) {
+          plotData.push({
+            type: "scatter",
+            mode: "lines+markers",
+            name: `Direito Inferior ${i}`,
+            x: downsample(data.map(d => parseFloat(d[`right_lower_${i}_x`])), 1000),
+            y: downsample(data.map(d => parseFloat(d[`right_lower_${i}_y`])), 1000),
+          });
+          plotData.push({
+            type: "scatter",
+            mode: "lines+markers",
+            name: `Esquerdo Inferior ${i}`,
+            x: downsample(data.map(d => parseFloat(d[`left_lower_${i}_x`])), 1000),
+            y: downsample(data.map(d => parseFloat(d[`left_lower_${i}_y`])), 1000),
+          });
+        }
+      });
       return plotData;
     }
   };
@@ -165,11 +170,44 @@ export default function CoordenadasPage() {
                     onChange={handleFileUpload}
                   />
                 </div>
+                {/* Seleção de pontos */}
+                {method === 'dlib' && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[37, 38, 40, 41].map(pt => (
+                      <Button
+                        key={pt}
+                        variant={selectedPoints.includes(pt) ? "secondary" : "outline"}
+                        onClick={() => setSelectedPoints(prev => prev.includes(pt) ? prev.filter(p => p !== pt) : [...prev, pt])}
+                      >
+                        Ponto {pt}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                {method !== 'dlib' && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {[1,2,3,4,5,6,7,8,9].map(pt => (
+                      <Button
+                        key={pt}
+                        variant={selectedPoints.includes(pt) ? "secondary" : "outline"}
+                        onClick={() => setSelectedPoints(prev => prev.includes(pt) ? prev.filter(p => p !== pt) : [...prev, pt])}
+                      >
+                        Ponto {pt}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {data.length > 0 && (
+          {/* Loading Spinner */}
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="animate-spin h-12 w-12 text-primary" />
+              <span className="ml-4">Carregando dados...</span>
+            </div>
+          ) : (
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
