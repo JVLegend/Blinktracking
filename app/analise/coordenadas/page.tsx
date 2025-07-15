@@ -42,6 +42,7 @@ export default function CoordenadasPage() {
   const [method, setMethod] = useState<string>('');
   const [selectedPoints, setSelectedPoints] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
+  const [maxPoints, setMaxPoints] = useState(1000);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -63,12 +64,8 @@ export default function CoordenadasPage() {
 
       setData(parsedData);
       setMethod(parsedData[0]?.method || '');
-      // Seleciona todos os pontos por padrão
-      if (parsedData[0]?.method === 'dlib') {
-        setSelectedPoints([37, 38, 40, 41]);
-      } else {
-        setSelectedPoints([1,2,3,4,5,6,7,8,9]);
-      }
+      // Começa com todos os pontos desmarcados
+      setSelectedPoints([]);
       setLoading(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
@@ -78,9 +75,9 @@ export default function CoordenadasPage() {
   };
 
   // Função de downsampling
-  function downsample(arr: any[], maxPoints: number) {
-    if (arr.length <= maxPoints) return arr;
-    const step = Math.ceil(arr.length / maxPoints);
+  function downsample(arr: any[], max: number) {
+    if (arr.length <= max) return arr;
+    const step = Math.ceil(arr.length / max);
     return arr.filter((_, i) => i % step === 0);
   }
 
@@ -94,8 +91,8 @@ export default function CoordenadasPage() {
         type: "scatter",
         mode: "lines+markers",
         name: `Ponto ${pt}`,
-        x: downsample(data.map(d => parseFloat(d[`${pt}_x`])), 1000),
-        y: downsample(data.map(d => parseFloat(d[`${pt}_y`])), 1000),
+        x: downsample(data.map(d => parseFloat(d[`${pt}_x`])), maxPoints),
+        y: downsample(data.map(d => parseFloat(d[`${pt}_y`])), maxPoints),
       }));
     } else {
       // MediaPipe - Todos os pontos
@@ -108,15 +105,15 @@ export default function CoordenadasPage() {
             type: "scatter",
             mode: "lines+markers",
             name: `Direito Superior ${i}`,
-            x: downsample(data.map(d => parseFloat(d[`right_upper_${i}_x`])), 1000),
-            y: downsample(data.map(d => parseFloat(d[`right_upper_${i}_y`])), 1000),
+            x: downsample(data.map(d => parseFloat(d[`right_upper_${i}_x`])), maxPoints),
+            y: downsample(data.map(d => parseFloat(d[`right_upper_${i}_y`])), maxPoints),
           });
           plotData.push({
             type: "scatter",
             mode: "lines+markers",
             name: `Esquerdo Superior ${i}`,
-            x: downsample(data.map(d => parseFloat(d[`left_upper_${i}_x`])), 1000),
-            y: downsample(data.map(d => parseFloat(d[`left_upper_${i}_y`])), 1000),
+            x: downsample(data.map(d => parseFloat(d[`left_upper_${i}_x`])), maxPoints),
+            y: downsample(data.map(d => parseFloat(d[`left_upper_${i}_y`])), maxPoints),
           });
         }
         // Olho direito/esquerdo - inferiores
@@ -125,15 +122,15 @@ export default function CoordenadasPage() {
             type: "scatter",
             mode: "lines+markers",
             name: `Direito Inferior ${i}`,
-            x: downsample(data.map(d => parseFloat(d[`right_lower_${i}_x`])), 1000),
-            y: downsample(data.map(d => parseFloat(d[`right_lower_${i}_y`])), 1000),
+            x: downsample(data.map(d => parseFloat(d[`right_lower_${i}_x`])), maxPoints),
+            y: downsample(data.map(d => parseFloat(d[`right_lower_${i}_y`])), maxPoints),
           });
           plotData.push({
             type: "scatter",
             mode: "lines+markers",
             name: `Esquerdo Inferior ${i}`,
-            x: downsample(data.map(d => parseFloat(d[`left_lower_${i}_x`])), 1000),
-            y: downsample(data.map(d => parseFloat(d[`left_lower_${i}_y`])), 1000),
+            x: downsample(data.map(d => parseFloat(d[`left_lower_${i}_x`])), maxPoints),
+            y: downsample(data.map(d => parseFloat(d[`left_lower_${i}_y`])), maxPoints),
           });
         }
       });
@@ -197,6 +194,15 @@ export default function CoordenadasPage() {
                     ))}
                   </div>
                 )}
+                {/* Controle de quantidade de pontos */}
+                <div className="flex items-center gap-2 mt-4">
+                  <Label htmlFor="maxPoints">Máx. pontos por série:</Label>
+                  <span className="font-mono px-2">{maxPoints}</span>
+                  <Button size="sm" variant="outline" onClick={() => setMaxPoints(1000)} disabled={maxPoints === 1000}>Padrão (1000)</Button>
+                  <Button size="sm" variant="outline" onClick={() => setMaxPoints(5000)} disabled={maxPoints === 5000}>5.000</Button>
+                  <Button size="sm" variant="outline" onClick={() => setMaxPoints(10000)} disabled={maxPoints === 10000}>10.000</Button>
+                  <Button size="sm" variant="outline" onClick={() => setMaxPoints(50000)} disabled={maxPoints === 50000}>50.000</Button>
+                </div>
               </div>
             </CardContent>
           </Card>
