@@ -196,10 +196,17 @@ def main():
         # Gerar nome do arquivo de saída
         output_filename = f"processed_{os.path.basename(args.video_path)}"
         output_path = os.path.join(args.tmp_dir, output_filename)
+        print(f"[LOG] Caminho do arquivo de saída: {output_path}", file=sys.stderr)
+        sys.stderr.flush()
         
         success = process_video(args.video_path, output_path)
-        if not success:
-            sys.exit(1)
+        
+        # Verificar se o arquivo foi realmente criado
+        if os.path.exists(output_path):
+            print(f"[LOG] Arquivo de saída criado com sucesso: {output_path}", file=sys.stderr)
+        else:
+            print(f"[ERRO] Arquivo de saída NÃO foi criado: {output_path}", file=sys.stderr)
+        sys.stderr.flush()
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}), file=sys.stderr)
         sys.exit(1)

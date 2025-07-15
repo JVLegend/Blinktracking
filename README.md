@@ -81,3 +81,20 @@ yarn dev
 3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
 4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
+
+## Teste manual do script Python (MediaPipe)
+
+Para testar manualmente a geração de vídeo com MediaPipe, siga os passos abaixo:
+
+1. Certifique-se de ter um vídeo de teste salvo na pasta `tmp/` (exemplo: `tmp/input_teste.mp4`).
+2. Execute o seguinte comando no terminal, ajustando os caminhos conforme necessário:
+
+```sh
+python scripts/process_video_mediapipe.py tmp/input_teste.mp4 tmp/ models/shape_predictor_68_face_landmarks.dat
+```
+
+- O terceiro argumento (`models/shape_predictor_68_face_landmarks.dat`) é obrigatório na chamada, mas **não é utilizado** pelo MediaPipe. Pode ser qualquer arquivo existente.
+- O script irá processar o vídeo e salvar o resultado na mesma pasta `tmp/`, com o nome `processed_input_teste.mp4`.
+- Verifique no terminal as mensagens de log para confirmar se o arquivo foi criado com sucesso.
+
+Se houver algum erro, copie a mensagem exibida no terminal para análise.

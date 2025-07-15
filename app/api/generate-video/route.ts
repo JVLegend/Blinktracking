@@ -136,6 +136,16 @@ export async function POST(req: NextRequest) {
                             // Ler o arquivo de vídeo processado
                             const videoOutputPath = path.join(tmpDir, result.outputFile);
                             
+                            // Log extra para checar existência do arquivo
+                            const exists = await fs.access(videoOutputPath).then(() => true).catch(() => false);
+                            console.log("[LOG] Arquivo de saída existe?", exists, videoOutputPath);
+                            
+                            if (!exists) {
+                                await writer.write(encoder.encode('data: ' + JSON.stringify({ error: "Arquivo de saída não encontrado: " + videoOutputPath }) + '\n\n'));
+                                await writer.close();
+                                return;
+                            }
+                            
                             console.log("Lendo arquivo de vídeo:", videoOutputPath);
                             const videoData = await readFile(videoOutputPath);
                             
