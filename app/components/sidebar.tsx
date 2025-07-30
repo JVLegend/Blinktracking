@@ -13,7 +13,7 @@ import {
   FileText, 
   Code, 
   Lightbulb, 
-  Stethoscope,
+  Eye,
   User
 } from "lucide-react"
 
@@ -36,7 +36,7 @@ export function Sidebar() {
       <div className="p-6 border-b border-sidebar-border bg-sidebar">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Stethoscope className="w-6 h-6 text-primary-foreground" />
+            <Eye className="w-6 h-6 text-primary-foreground" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-sidebar-foreground">SmartBlink</h1>
@@ -95,7 +95,7 @@ export function Sidebar() {
           {/* Funcionalidades */}
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
-              Funcionalidades
+              Análise de Vídeos
             </h2>
             <div className="space-y-1">
               <Link 
@@ -128,7 +128,7 @@ export function Sidebar() {
           {/* Análise */}
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
-              Análise
+              Análise de Planilhas
             </h2>
             <div className="space-y-1">
               <Link 
