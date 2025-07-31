@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { VideoSelector } from "../../components/VideoSelector"
 
 export default function ExtrairPontosPage() {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -36,11 +37,13 @@ export default function ExtrairPontosPage() {
   const [showInfo, setShowInfo] = useState(false)
   const [allPoints, setAllPoints] = useState<any[]>([])
   const [isDownloadingModel, setIsDownloadingModel] = useState(false)
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
+  const [selectedVideoFilename, setSelectedVideoFilename] = useState<string | null>(null)
   const videoRef = useRef<HTMLInputElement>(null)
 
   const processVideo = async (method: "normal" | "potente") => {
-    if (!videoRef.current?.files?.[0]) {
-      toast.error("Por favor, selecione um vídeo")
+    if (!selectedVideoUrl || !selectedVideoFilename) {
+      toast.error("Por favor, selecione um vídeo dos arquivos armazenados")
       return
     }
 
@@ -53,7 +56,8 @@ export default function ExtrairPontosPage() {
     setIsDownloadingModel(false)
 
     const formData = new FormData()
-    formData.append("video", videoRef.current.files[0])
+    formData.append("videoUrl", selectedVideoUrl)
+    formData.append("videoFilename", selectedVideoFilename)
     formData.append("method", method)
 
     try {
@@ -275,24 +279,26 @@ export default function ExtrairPontosPage() {
         </div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Carregar Vídeo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4">
-                <div>
-                  <Label htmlFor="video">Selecione um vídeo</Label>
-                  <Input
-                    id="video"
-                    type="file"
-                    accept="video/*"
-                    ref={videoRef}
-                    className="mt-2"
-                  />
+          <VideoSelector 
+            selectedVideo={selectedVideoUrl}
+            onVideoSelect={(url, filename) => {
+              setSelectedVideoUrl(url)
+              setSelectedVideoFilename(filename)
+            }}
+          />
+
+          {selectedVideoUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Processar Vídeo Selecionado
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">Vídeo Selecionado:</p>
+                  <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                 </div>
                 <div className="flex gap-4">
                   <Button 
@@ -305,7 +311,7 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Normal"
+                      "Extração Normal (dlib)"
                     )}
                   </Button>
                   <Button 
@@ -318,13 +324,13 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Potente"
+                      "Extração Potente (MediaPipe)"
                     )}
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {processedData.length > 0 && (
             <Card>

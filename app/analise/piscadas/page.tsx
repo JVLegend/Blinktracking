@@ -14,11 +14,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Clock, Upload, Eye, Download, BarChart3 } from "lucide-react"
+import { Clock, Upload, Eye, Download, BarChart3, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
+import { CSVSelector } from "../../components/CSVSelector"
 
 export default function AnalysePiscadasPage() {
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null)
+  const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null)
   const [analysisData, setAnalysisData] = useState<any[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [statistics, setStatistics] = useState({
@@ -29,19 +31,9 @@ export default function AnalysePiscadasPage() {
     shortestBlink: 0
   })
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file && file.type === 'text/csv') {
-      setUploadedFile(file)
-      toast.success("Arquivo CSV carregado com sucesso!")
-    } else {
-      toast.error("Por favor, selecione um arquivo CSV válido")
-    }
-  }
-
   const analyzeBlinkData = async () => {
-    if (!uploadedFile) {
-      toast.error("Por favor, carregue um arquivo CSV primeiro")
+    if (!selectedCSVUrl || !selectedCSVFilename) {
+      toast.error("Por favor, selecione uma planilha primeiro")
       return
     }
 
@@ -49,8 +41,12 @@ export default function AnalysePiscadasPage() {
     
     try {
       // Simular análise de dados (aqui você implementaria a lógica real)
-      const formData = new FormData()
-      formData.append('file', uploadedFile)
+      // Buscar o arquivo do blob storage
+      const response = await fetch(selectedCSVUrl);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar arquivo');
+      }
+      const csvText = await response.text();
       
       // Dados simulados para demonstração
       const mockData = [
@@ -115,53 +111,47 @@ export default function AnalysePiscadasPage() {
           </p>
         </div>
 
-        {/* Upload Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              Carregar Dados
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="csv-file">Arquivo CSV com coordenadas</Label>
-              <Input
-                id="csv-file"
-                type="file"
-                accept=".csv"
-                onChange={handleFileUpload}
-                className="mt-1"
-              />
-            </div>
-            
-            {uploadedFile && (
+        {/* Selection Section */}
+        <CSVSelector 
+          selectedCSV={selectedCSVUrl}
+          onCSVSelect={(url, filename) => {
+            setSelectedCSVUrl(url)
+            setSelectedCSVFilename(filename)
+          }}
+        />
+
+        {selectedCSVUrl && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5" />
+                Processar Planilha Selecionada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm">
-                  <strong>Arquivo:</strong> {uploadedFile.name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Tamanho: {(uploadedFile.size / 1024).toFixed(2)} KB
+                  <strong>Planilha:</strong> {selectedCSVFilename}
                 </p>
               </div>
-            )}
 
-            <Button 
-              onClick={analyzeBlinkData}
-              disabled={!uploadedFile || isAnalyzing}
-              className="w-full"
-            >
-              {isAnalyzing ? (
-                <>Analisando Piscadas...</>
-              ) : (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Analisar Piscadas
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button 
+                onClick={analyzeBlinkData}
+                disabled={isAnalyzing}
+                className="w-full"
+              >
+                {isAnalyzing ? (
+                  <>Analisando Piscadas...</>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Analisar Piscadas
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Statistics Cards */}
         {analysisData.length > 0 && (

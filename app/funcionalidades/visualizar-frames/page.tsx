@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { VideoSelector } from "../../components/VideoSelector";
 
 interface ExtractedFrame {
   frameNumber: string;
@@ -122,7 +123,8 @@ interface DataPoint {
 }
 
 export default function VisualizarFramesPage() {
-  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null);
+  const [selectedVideoFilename, setSelectedVideoFilename] = useState<string | null>(null);
   const [currentFrameInput, setCurrentFrameInput] = useState<string>('');
   const [extractedFrames, setExtractedFrames] = useState<ExtractedFrame[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -147,33 +149,10 @@ export default function VisualizarFramesPage() {
   const canvasRefs = useRef<{[key: string]: HTMLCanvasElement}>({});
   const [facialPoints, setFacialPoints] = useState<any>(null);
 
-  const handleVideoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    console.log("Video uploaded:", file.name);
-    setVideoFile(file);
-    setCurrentFrameInput("");
-    setExtractedFrames([]);
-
-    // Criar URL temporária para o vídeo
-    const videoUrl = URL.createObjectURL(file);
-    if (videoPlayerRef.current) {
-      videoPlayerRef.current.src = videoUrl;
-      videoPlayerRef.current.onloadedmetadata = () => {
-        if (videoPlayerRef.current) {
-          const fps = 30; // Assumindo 30 fps
-          const duration = videoPlayerRef.current.duration;
-          setTotalFrames(Math.floor(duration * fps));
-        }
-      };
-    }
-
-    toast.success("Vídeo carregado com sucesso!");
-  };
+  // Função removida - não é mais necessária com VideoSelector
 
   const handleExtractFrame = async () => {
-    if (!videoFile || !currentFrameInput) {
+    if (!selectedVideoUrl || !currentFrameInput) {
       toast.error("Por favor, selecione um vídeo e digite o número do frame.");
       return;
     }
@@ -194,7 +173,8 @@ export default function VisualizarFramesPage() {
 
     try {
       const formData = new FormData();
-      formData.append("video", videoFile);
+      formData.append("videoUrl", selectedVideoUrl);
+      formData.append("videoFilename", selectedVideoFilename || "");
       formData.append("frame", currentFrameInput);
 
       const response = await fetch("/api/extract-frame", {
@@ -267,7 +247,7 @@ export default function VisualizarFramesPage() {
   };
 
   const extractSequentialFrames = async () => {
-    if (!videoFile || extractedFrames.length >= 4) return;
+    if (!selectedVideoUrl || extractedFrames.length >= 4) return;
     
     const remainingSlots = 4 - extractedFrames.length;
     const interval = Math.floor(totalFrames / (remainingSlots + 1));
@@ -275,7 +255,8 @@ export default function VisualizarFramesPage() {
     for (let i = 1; i <= remainingSlots; i++) {
       const frameNumber = (interval * i).toString();
       const formData = new FormData();
-      formData.append("video", videoFile);
+      formData.append("videoUrl", selectedVideoUrl);
+      formData.append("videoFilename", selectedVideoFilename || "");
       formData.append("frame", frameNumber);
 
       try {
@@ -298,7 +279,7 @@ export default function VisualizarFramesPage() {
 
   const processVideo = async (method: "dlib" | "mediapipe") => {
     console.log(`processVideo chamado com método: ${method}`);
-    if (!videoFile || extractedFrames.length === 0) {
+    if (!selectedVideoUrl || extractedFrames.length === 0) {
         toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
         return;
     }
@@ -309,7 +290,8 @@ export default function VisualizarFramesPage() {
     setLogs(prev => [...prev, "Iniciando processamento..."]);
 
     const formData = new FormData();
-    formData.append('video', videoFile);
+    formData.append('videoUrl', selectedVideoUrl);
+    formData.append('videoFilename', selectedVideoFilename || "");
     formData.append('method', method);
 
     setLogs(prev => [...prev, "Enviando vídeo..."]);
@@ -543,7 +525,7 @@ export default function VisualizarFramesPage() {
   );
 
   const handleProcessDlib = async () => {
-    if (!videoFile || extractedFrames.length === 0) {
+    if (!selectedVideoUrl || extractedFrames.length === 0) {
         toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
         return;
     }
@@ -551,7 +533,8 @@ export default function VisualizarFramesPage() {
     setIsProcessing(true);
     try {
         const formData = new FormData();
-        formData.append('video', videoFile);
+        formData.append('videoUrl', selectedVideoUrl);
+        formData.append('videoFilename', selectedVideoFilename || "");
         formData.append('method', 'dlib');
 
         console.log("Enviando vídeo para processamento...");
@@ -584,7 +567,7 @@ export default function VisualizarFramesPage() {
   };
 
   const handleProcessMediaPipe = async () => {
-    if (!videoFile || extractedFrames.length === 0) {
+    if (!selectedVideoUrl || extractedFrames.length === 0) {
         toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
         return;
     }
@@ -592,7 +575,8 @@ export default function VisualizarFramesPage() {
     setIsProcessing(true);
     try {
         const formData = new FormData();
-        formData.append('video', videoFile);
+        formData.append('videoUrl', selectedVideoUrl);
+        formData.append('videoFilename', selectedVideoFilename || "");
         formData.append('method', 'mediapipe');
 
         console.log("Enviando vídeo para processamento...");
@@ -639,57 +623,35 @@ export default function VisualizarFramesPage() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload dos Arquivos
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-4">
-                <div>
-                  <Label htmlFor="video">Vídeo Original</Label>
-                  <input
-                    id="video"
-                    type="file"
-                    accept="video/*"
-                    onChange={handleVideoUpload}
-                    className="block w-full text-sm text-slate-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-primary file:text-primary-foreground
-                      hover:file:bg-primary/90
-                      cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="csv">Arquivo CSV com Pontos</Label>
-                  <input
-                    id="csv"
-                    ref={csvInputRef}
-                    type="file"
-                    accept=".csv"
-                    className="block w-full text-sm text-slate-500
-                      file:mr-4 file:py-2 file:px-4
-                      file:rounded-full file:border-0
-                      file:text-sm file:font-semibold
-                      file:bg-primary file:text-primary-foreground
-                      hover:file:bg-primary/90
-                      cursor-pointer"
-                  />
-                </div>
-              </div>
-              {videoFile && (
+          <VideoSelector 
+            selectedVideo={selectedVideoUrl}
+            onVideoSelect={(url, filename) => {
+              setSelectedVideoUrl(url)
+              setSelectedVideoFilename(filename)
+              // Simular carregamento de vídeo para calcular frames
+              const fps = 30; // Assumindo 30 fps
+              const duration = 60; // Assumindo 60 segundos como exemplo
+              setTotalFrames(Math.floor(duration * fps));
+            }}
+          />
+
+          {selectedVideoUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileVideo className="h-5 w-5" />
+                  Vídeo Selecionado
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-semibold">Video Selecionado:</p>
-                  <p className="text-sm text-muted-foreground">{videoFile.name}</p>
+                  <p className="font-semibold">Vídeo Selecionado:</p>
+                  <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                   <p className="text-sm text-muted-foreground">Total de Frames: {totalFrames}</p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -715,7 +677,7 @@ export default function VisualizarFramesPage() {
                     />
                     <Button
                       onClick={handleExtractFrame}
-                      disabled={!videoFile || !currentFrameInput || isProcessingFrame || extractedFrames.length >= 4}
+                      disabled={!selectedVideoUrl || !currentFrameInput || isProcessingFrame || extractedFrames.length >= 4}
                     >
                       {isProcessingFrame ? (
                         "Extraindo..."
@@ -731,7 +693,7 @@ export default function VisualizarFramesPage() {
                 <Button
                   variant="outline"
                   onClick={extractSequentialFrames}
-                  disabled={!videoFile || extractedFrames.length >= 4}
+                  disabled={!selectedVideoUrl || extractedFrames.length >= 4}
                 >
                   Extrair Frames Sequenciais
                 </Button>

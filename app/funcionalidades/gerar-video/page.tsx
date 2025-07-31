@@ -17,9 +17,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { VideoSelector } from "../../components/VideoSelector"
 
 export default function GerarVideoPage() {
-  const [videoFile, setVideoFile] = useState<File | null>(null)
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
+  const [selectedVideoFilename, setSelectedVideoFilename] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [logs, setLogs] = useState<string[]>([])
@@ -28,8 +30,8 @@ export default function GerarVideoPage() {
 
   const handleProcess = async (method: 'dlib' | 'mediapipe') => {
     try {
-      if (!videoFile) {
-        toast.error("Por favor, faça upload de um vídeo primeiro");
+      if (!selectedVideoUrl || !selectedVideoFilename) {
+        toast.error("Por favor, selecione um vídeo dos arquivos armazenados");
         return;
       }
 
@@ -40,7 +42,8 @@ export default function GerarVideoPage() {
       setLogs(prev => [...prev, "Iniciando processamento..."]);
       
       const formData = new FormData();
-      formData.append('video', videoFile);
+      formData.append('videoUrl', selectedVideoUrl);
+      formData.append('videoFilename', selectedVideoFilename);
       formData.append('method', method);
 
       setLogs(prev => [...prev, "Enviando vídeo..."]);
@@ -108,7 +111,7 @@ export default function GerarVideoPage() {
                 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `processed_${videoFile.name}`;
+                a.download = `processed_${selectedVideoFilename}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -230,89 +233,67 @@ export default function GerarVideoPage() {
           <Film className="h-10 w-10 text-primary" />
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Upload do Vídeo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="video">Vídeo Original</Label>
-                <input
-                  id="video"
-                  type="file"
-                  accept="video/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) setVideoFile(file)
-                  }}
-                  className="block w-full text-sm text-slate-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-full file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary file:text-primary-foreground
-                    hover:file:bg-primary/90
-                    cursor-pointer"
-                />
-              </div>
-              {videoFile && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-semibold">Video Selecionado:</p>
-                  <p className="text-sm text-muted-foreground">{videoFile.name}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <div className="grid gap-6">
+          <VideoSelector 
+            selectedVideo={selectedVideoUrl}
+            onVideoSelect={(url, filename) => {
+              setSelectedVideoUrl(url)
+              setSelectedVideoFilename(filename)
+            }}
+          />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Film className="h-5 w-5" />
-                Processar Vídeo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={() => handleProcess('dlib')}
-                  disabled={isProcessing || !videoFile}
-                  variant="default"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin mr-2">⭮</div>
-                      Processando com Dlib...
-                    </>
-                  ) : (
-                    <>
-                      <Film className="h-4 w-4 mr-2" />
-                      Processar com Dlib
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => handleProcess('mediapipe')}
-                  disabled={isProcessing || !videoFile}
-                  variant="secondary"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin mr-2">⭮</div>
-                      Processando com MediaPipe...
-                    </>
-                  ) : (
-                    <>
-                      <Film className="h-4 w-4 mr-2" />
-                      Processar com MediaPipe
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          {selectedVideoUrl && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Film className="h-5 w-5" />
+                  Processar Vídeo Selecionado
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">Vídeo Selecionado:</p>
+                  <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => handleProcess('dlib')}
+                    disabled={isProcessing}
+                    variant="default"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin mr-2">⭮</div>
+                        Processando com Dlib...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="h-4 w-4 mr-2" />
+                        Processar com Dlib
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => handleProcess('mediapipe')}
+                    disabled={isProcessing}
+                    variant="secondary"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin mr-2">⭮</div>
+                        Processando com MediaPipe...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="h-4 w-4 mr-2" />
+                        Processar com MediaPipe
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {isProcessing && (

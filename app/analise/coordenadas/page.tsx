@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react"
-import { SidebarInset } from "@/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
-import { Input } from "@/ui/input"
-import { Label } from "@/ui/label"
-import { Upload, LineChart } from "lucide-react"
+import { SidebarInset } from "@/components/ui/sidebar"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Upload, LineChart, FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 import PlotlyComponent from "@/components/plotly/PlotlyComponent"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { CSVSelector } from "../../components/CSVSelector"
 
 interface DataPoint {
   // Campos comuns
@@ -43,14 +44,25 @@ export default function CoordenadasPage() {
   const [selectedPoints, setSelectedPoints] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [maxPoints, setMaxPoints] = useState(1000);
+  const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null);
+  const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleCSVLoad = async () => {
+    if (!selectedCSVUrl) {
+      toast.error("Por favor, selecione uma planilha primeiro");
+      return;
+    }
 
     try {
       setLoading(true);
-      const text = await file.text();
+      
+      // Buscar o arquivo do blob storage
+      const response = await fetch(selectedCSVUrl);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar arquivo');
+      }
+      
+      const text = await response.text();
       const rows = text.split("\n").filter(row => row.trim());
       const headers = rows[0].split(",");
       const parsedData = rows.slice(1).map(row => {
@@ -66,6 +78,7 @@ export default function CoordenadasPage() {
       setMethod(parsedData[0]?.method || '');
       // Começa com todos os pontos desmarcados
       setSelectedPoints([]);
+      toast.success("Planilha carregada com sucesso!");
       setLoading(false);
     } catch (error) {
       console.error("Erro ao processar arquivo:", error);
@@ -149,25 +162,44 @@ export default function CoordenadasPage() {
         </div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Upload className="h-6 w-6 text-primary" />
-                <CardTitle>Upload do CSV</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="csv">Arquivo CSV</Label>
-                  <Input 
-                    id="csv" 
-                    type="file" 
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                  />
+          <CSVSelector 
+            selectedCSV={selectedCSVUrl}
+            onCSVSelect={(url, filename) => {
+              setSelectedCSVUrl(url)
+              setSelectedCSVFilename(filename)
+            }}
+          />
+
+          {selectedCSVUrl && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-6 w-6 text-primary" />
+                  <CardTitle>Processar Planilha Selecionada</CardTitle>
                 </div>
-                {/* Seleção de pontos */}
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">Planilha Selecionada:</p>
+                  <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
+                </div>
+                
+                <Button 
+                  onClick={handleCSVLoad}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Carregando...
+                    </>
+                  ) : (
+                    "Carregar e Analisar Planilha"
+                  )}
+                </Button>
+                
+                                {/* Seleção de pontos */}
                 {method === 'dlib' && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {[37, 38, 40, 41].map(pt => (
@@ -203,9 +235,9 @@ export default function CoordenadasPage() {
                   <Button size="sm" variant="outline" onClick={() => setMaxPoints(10000)} disabled={maxPoints === 10000}>10.000</Button>
                   <Button size="sm" variant="outline" onClick={() => setMaxPoints(50000)} disabled={maxPoints === 50000}>50.000</Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Loading Spinner */}
           {loading ? (

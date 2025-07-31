@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { SidebarInset } from "@/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card"
-import { Input } from "@/ui/input"
-import { Label } from "@/ui/label"
+import { SidebarInset } from "@/components/ui/sidebar"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Activity, FileSpreadsheet, Eye, LineChart, Upload, Info, Ruler, Timer, FileDown } from "lucide-react"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { CSVSelector } from "../../components/CSVSelector"
 
 // Atualizar a importação do Plot
 const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default), {
@@ -285,6 +286,8 @@ export default function EstatisticasPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [blinkDetails, setBlinkDetails] = useState<BlinkDetail[]>([])
+  const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null)
+  const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null)
 
   const downloadBlinkDetails = () => {
     const headers = "Eye,Blink_Number,Start_Frame,End_Frame,Start_Time_Seconds,End_Time_Seconds,Duration_Seconds,Seconds_Since_Last_Blink,Is_Complete\n"
@@ -695,19 +698,23 @@ export default function EstatisticasPage() {
     }
   }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    setIsLoading(true);
-    setError(null);
-    
-    const file = event.target.files?.[0];
-    if (!file) {
-        toast.error("Nenhum arquivo selecionado");
-        setIsLoading(false);
-        return;
+  const handleCSVLoad = async () => {
+    if (!selectedCSVUrl) {
+      toast.error("Por favor, selecione uma planilha primeiro");
+      return;
     }
 
+    setIsLoading(true);
+    setError(null);
+
     try {
-        const text = await file.text();
+        // Buscar o arquivo do blob storage
+        const response = await fetch(selectedCSVUrl);
+        if (!response.ok) {
+          throw new Error('Erro ao carregar arquivo');
+        }
+        
+        const text = await response.text();
         // Ajuste para lidar com diferentes separadores
         const rows = text.split("\n").filter(row => row.trim()).map(row => {
             // Verifica se a linha usa | como separador
@@ -897,25 +904,40 @@ export default function EstatisticasPage() {
         </div>
 
         <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Upload className="h-6 w-6 text-primary" />
-                <CardTitle>Upload do CSV</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4">
-                <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="csv">Arquivo CSV</Label>
-                  <Input 
-                    id="csv" 
-                    type="file" 
-                    accept=".csv"
-                    onChange={handleFileUpload}
-                    disabled={isLoading}
-                  />
+          <CSVSelector 
+            selectedCSV={selectedCSVUrl}
+            onCSVSelect={(url, filename) => {
+              setSelectedCSVUrl(url)
+              setSelectedCSVFilename(filename)
+            }}
+          />
+
+          {selectedCSVUrl && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-6 w-6 text-primary" />
+                  <CardTitle>Processar Planilha Selecionada</CardTitle>
                 </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="font-semibold">Planilha Selecionada:</p>
+                  <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
+                </div>
+                
+                <Button 
+                  onClick={handleCSVLoad}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  {isLoading ? (
+                    "Processando arquivo..."
+                  ) : (
+                    "Carregar e Analisar Planilha"
+                  )}
+                </Button>
+                
                 {isLoading && (
                   <div className="text-sm text-muted-foreground">
                     Processando arquivo...
@@ -931,9 +953,9 @@ export default function EstatisticasPage() {
                     {data.length} pontos carregados
                   </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {data.length > 0 && metrics && (
             <>
