@@ -2,9 +2,14 @@
 
 import { SidebarInset } from "@/components/ui/sidebar";
 import { BentoCard, BentoGrid } from "@/components/ui/bento-grid";
-import { Scan, Video, Image, BarChart3, PieChart, Clock, Eye, Upload, FileVideo, FileSpreadsheet } from "lucide-react";
+import { Scan, Video, Image, BarChart3, PieChart, Clock, Eye, Upload, FileVideo, FileSpreadsheet, CheckCircle, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useFileUpload } from "./hooks/useFileUpload";
+import { useStoredFiles } from "./hooks/useStoredFiles";
+import { StoredFiles } from "./components/StoredFiles";
+import { useRef } from "react";
 
 const videoFeatures = [
   {
@@ -67,9 +72,73 @@ const csvFeatures = [
 ];
 
 export default function HomePage() {
+  const videoUpload = useFileUpload();
+  const csvUpload = useFileUpload();
+  const { refresh: refreshStoredFiles } = useStoredFiles();
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleVideoUpload = () => {
+    videoInputRef.current?.click();
+  };
+
+  const handleCsvUpload = () => {
+    csvInputRef.current?.click();
+  };
+
+  const handleVideoFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        await videoUpload.uploadFile(file);
+        // Atualizar lista de arquivos após upload bem-sucedido
+        refreshStoredFiles();
+      } catch (error) {
+        console.error('Erro no upload do vídeo:', error);
+      }
+    }
+  };
+
+  const handleCsvFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      try {
+        await csvUpload.uploadFile(file);
+        // Atualizar lista de arquivos após upload bem-sucedido
+        refreshStoredFiles();
+      } catch (error) {
+        console.error('Erro no upload do CSV:', error);
+      }
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
     <SidebarInset>
       <div className="flex-1 space-y-8 p-8">
+        {/* Hidden file inputs */}
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept=".mov,video/quicktime"
+          onChange={handleVideoFileChange}
+          className="hidden"
+        />
+        <input
+          ref={csvInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleCsvFileChange}
+          className="hidden"
+        />
+
         {/* Header Section */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-secondary/5 rounded-2xl -m-4" />
@@ -115,12 +184,63 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-4">
-              <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700">
-                <Upload className="w-4 h-4 mr-2" />
-                Selecionar Vídeo (.MOV)
-              </Button>
+              {videoUpload.uploadedFile ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Upload concluído!</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium">{videoUpload.uploadedFile.filename}</p>
+                    <p>{formatFileSize(videoUpload.uploadedFile.size)}</p>
+                  </div>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => videoUpload.reset()}
+                  >
+                    Enviar outro vídeo
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={handleVideoUpload}
+                    disabled={videoUpload.isUploading}
+                  >
+                    {videoUpload.isUploading ? (
+                      <>Enviando...</>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Selecionar Vídeo (.MOV)
+                      </>
+                    )}
+                  </Button>
+                  
+                  {videoUpload.isUploading && (
+                    <div className="space-y-2">
+                      <Progress value={videoUpload.progress} className="w-full" />
+                      <p className="text-sm text-muted-foreground">
+                        {videoUpload.progress}% enviado
+                      </p>
+                    </div>
+                  )}
+                  
+                  {videoUpload.error && (
+                    <div className="flex items-center justify-center gap-2 text-red-600">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">{videoUpload.error}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <p className="text-sm text-muted-foreground">
-                Formatos suportados: .MOV
+                Formatos suportados: .MOV (máx. 500MB)
               </p>
             </CardContent>
           </Card>
@@ -137,16 +257,70 @@ export default function HomePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center space-y-4">
-              <Button size="lg" className="w-full bg-green-600 hover:bg-green-700">
-                <Upload className="w-4 h-4 mr-2" />
-                Selecionar Planilha (.CSV)
-              </Button>
+              {csvUpload.uploadedFile ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Upload concluído!</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium">{csvUpload.uploadedFile.filename}</p>
+                    <p>{formatFileSize(csvUpload.uploadedFile.size)}</p>
+                  </div>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => csvUpload.reset()}
+                  >
+                    Enviar outra planilha
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={handleCsvUpload}
+                    disabled={csvUpload.isUploading}
+                  >
+                    {csvUpload.isUploading ? (
+                      <>Enviando...</>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Selecionar Planilha (.CSV)
+                      </>
+                    )}
+                  </Button>
+                  
+                  {csvUpload.isUploading && (
+                    <div className="space-y-2">
+                      <Progress value={csvUpload.progress} className="w-full" />
+                      <p className="text-sm text-muted-foreground">
+                        {csvUpload.progress}% enviado
+                      </p>
+                    </div>
+                  )}
+                  
+                  {csvUpload.error && (
+                    <div className="flex items-center justify-center gap-2 text-red-600">
+                      <AlertCircle className="w-4 h-4" />
+                      <span className="text-sm">{csvUpload.error}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
               <p className="text-sm text-muted-foreground">
-                Formatos suportados: .CSV
+                Formatos suportados: .CSV (máx. 500MB)
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Stored Files Section */}
+        <StoredFiles onRefresh={refreshStoredFiles} />
 
         {/* Video Features Section */}
         <div className="space-y-6">
@@ -156,7 +330,12 @@ export default function HomePage() {
             </div>
             <div>
               <h2 className="text-2xl font-semibold">Funcionalidades para Vídeo</h2>
-              <p className="text-muted-foreground">Disponíveis após upload de arquivo .MOV</p>
+              <p className="text-muted-foreground">
+                {videoUpload.uploadedFile 
+                  ? "✅ Vídeo enviado - funcionalidades disponíveis" 
+                  : "Disponíveis após upload de arquivo .MOV"
+                }
+              </p>
             </div>
           </div>
           
@@ -175,7 +354,12 @@ export default function HomePage() {
             </div>
             <div>
               <h2 className="text-2xl font-semibold">Funcionalidades para Planilha</h2>
-              <p className="text-muted-foreground">Disponíveis após upload de arquivo .CSV</p>
+              <p className="text-muted-foreground">
+                {csvUpload.uploadedFile 
+                  ? "✅ Planilha enviada - funcionalidades disponíveis" 
+                  : "Disponíveis após upload de arquivo .CSV"
+                }
+              </p>
             </div>
           </div>
           
