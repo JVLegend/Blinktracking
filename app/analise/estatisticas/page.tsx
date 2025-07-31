@@ -706,14 +706,14 @@ export default function EstatisticasPage() {
 
     setIsLoading(true);
     setError(null);
-
+    
     try {
         // Buscar o arquivo do blob storage
         const response = await fetch(selectedCSVUrl);
         if (!response.ok) {
           throw new Error('Erro ao carregar arquivo');
-        }
-        
+    }
+
         const text = await response.text();
         // Ajuste para lidar com diferentes separadores
         const rows = text.split("\n").filter(row => row.trim()).map(row => {
@@ -913,14 +913,14 @@ export default function EstatisticasPage() {
           />
 
           {selectedCSVUrl && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
                   <FileSpreadsheet className="h-6 w-6 text-primary" />
                   <CardTitle>Processar Planilha Selecionada</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Planilha Selecionada:</p>
                   <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
@@ -953,8 +953,8 @@ export default function EstatisticasPage() {
                     {data.length} pontos carregados
                   </div>
                 )}
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
           )}
 
           {data.length > 0 && metrics && (

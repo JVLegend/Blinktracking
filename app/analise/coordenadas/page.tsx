@@ -171,14 +171,14 @@ export default function CoordenadasPage() {
           />
 
           {selectedCSVUrl && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
                   <FileSpreadsheet className="h-6 w-6 text-primary" />
                   <CardTitle>Processar Planilha Selecionada</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Planilha Selecionada:</p>
                   <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
@@ -199,7 +199,7 @@ export default function CoordenadasPage() {
                   )}
                 </Button>
                 
-                                {/* Seleção de pontos */}
+                {/* Seleção de pontos */}
                 {method === 'dlib' && (
                   <div className="flex flex-wrap gap-2 mt-2">
                     {[37, 38, 40, 41].map(pt => (
@@ -234,9 +234,9 @@ export default function CoordenadasPage() {
                   <Button size="sm" variant="outline" onClick={() => setMaxPoints(5000)} disabled={maxPoints === 5000}>5.000</Button>
                   <Button size="sm" variant="outline" onClick={() => setMaxPoints(10000)} disabled={maxPoints === 10000}>10.000</Button>
                   <Button size="sm" variant="outline" onClick={() => setMaxPoints(50000)} disabled={maxPoints === 50000}>50.000</Button>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
           )}
 
           {/* Loading Spinner */}

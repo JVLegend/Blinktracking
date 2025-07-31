@@ -1,75 +1,80 @@
-import { NextRequest } from "next/server"
-import { spawn } from "child_process"
-import { writeFile, mkdir, readFile } from "fs/promises"
-import path from "path"
-import { existsSync } from "fs"
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server"
+import { BACKEND_URL, REQUEST_TIMEOUT } from '@/lib/config'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 export async function POST(request: Request): Promise<Response> {
   try {
     const formData = await request.formData()
-    const video = formData.get("video") as File
+    const videoUrl = formData.get("videoUrl") as string
+    const videoFilename = formData.get("videoFilename") as string
     const frame = formData.get("frame") as string
 
-    if (!video || !frame) {
+    if (!videoUrl || !videoFilename || !frame) {
       return NextResponse.json(
-        { error: "Vídeo ou número do frame não fornecido" },
+        { error: "URL do vídeo, nome do arquivo ou número do frame não fornecido" },
         { status: 400 }
       )
     }
 
-    // Criar diretório temporário se não existir
-    const tempDir = path.join(process.cwd(), "temp")
-    await mkdir(tempDir, { recursive: true })
+    // Buscar o vídeo do blob storage
+    const videoResponse = await fetch(videoUrl)
+    if (!videoResponse.ok) {
+      return NextResponse.json(
+        { error: "Erro ao baixar vídeo do storage" },
+        { status: 500 }
+      )
+    }
 
-    // Salvar o vídeo temporariamente
-    const videoBuffer = Buffer.from(await video.arrayBuffer())
-    const videoPath = path.join(tempDir, `input_${Date.now()}.mp4`)
-    await writeFile(videoPath, videoBuffer)
+    const videoBlob = await videoResponse.blob()
 
-    return new Promise((resolve, reject) => {
-      const pythonProcess = spawn("python", [
-        "scripts/extract_frame.py",
-        videoPath,
-        frame
-      ], {
-        env: { ...process.env, PYTHONIOENCODING: "utf-8" }
-      })
+    // Criar FormData para o backend
+    const backendFormData = new FormData()
+    backendFormData.append('video', videoBlob, videoFilename)
+    backendFormData.append('frame_number', frame)
 
-      const chunks: Buffer[] = []
-
-      pythonProcess.stdout.on("data", (data) => {
-        chunks.push(Buffer.from(data))
-      })
-
-      pythonProcess.stderr.on("data", (data) => {
-        console.error(`Python Error: ${data.toString()}`)
-      })
-
-      pythonProcess.on("close", (code) => {
-        if (code !== 0) {
-          resolve(NextResponse.json(
-            { error: "Erro ao extrair frame" },
-            { status: 500 }
-          ))
-          return
-        }
-
-        const buffer = Buffer.concat(chunks)
-        resolve(new Response(buffer, {
-          headers: {
-            "Content-Type": "image/jpeg",
-            "Cache-Control": "no-cache"
-          }
-        }))
-      })
-
-      pythonProcess.on("error", (error) => {
-        reject(error)
-      })
+    // Enviar para o backend Flask
+    const backendResponse = await fetch(`${BACKEND_URL}/extract-frame`, {
+      method: 'POST',
+      body: backendFormData,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT)
     })
+
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text()
+      return NextResponse.json(
+        { error: `Erro no backend: ${errorText}` },
+        { status: backendResponse.status }
+      )
+    }
+
+    const result = await backendResponse.json()
+
+    if (result.success && result.frame_base64) {
+      // Retornar a imagem como base64
+      return NextResponse.json({
+        success: true,
+        frame: result.frame_base64
+      })
+    } else {
+      return NextResponse.json(
+        { error: result.error || "Erro ao extrair frame" },
+        { status: 500 }
+      )
+    }
+
   } catch (error) {
-    console.error("Erro:", error)
+    console.error("Erro na API extract-frame:", error)
+    
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return NextResponse.json(
+        { error: "Timeout: processamento demorou mais que o esperado" },
+        { status: 408 }
+      )
+    }
+
     return NextResponse.json(
       { error: "Erro ao processar requisição" },
       { status: 500 }

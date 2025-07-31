@@ -49,3 +49,7 @@ public/generated_videos/
 
 # Frames extraídos
 public/frames/
+
+.env
+env
+*.env

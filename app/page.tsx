@@ -363,11 +363,11 @@ export default function HomePage() {
             </div>
           </div>
           
-          <BentoGrid>
+        <BentoGrid>
             {csvFeatures.map((feature) => (
-              <BentoCard key={feature.name} {...feature} />
-            ))}
-          </BentoGrid>
+            <BentoCard key={feature.name} {...feature} />
+          ))}
+        </BentoGrid>
         </div>
       </div>
     </SidebarInset>

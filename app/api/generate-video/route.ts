@@ -1,196 +1,121 @@
-import { NextRequest } from 'next/server';
-import { spawn } from 'child_process';
-import path from 'path';
-import { writeFile, mkdir, readFile } from 'fs/promises';
-import fs from 'node:fs/promises';
-import { exec } from 'child_process';
-import util from 'util';
-import os from 'os';
+import { NextRequest, NextResponse } from 'next/server'
+import { BACKEND_URL, REQUEST_TIMEOUT } from '@/lib/config'
 
-const execPromise = util.promisify(exec);
-
-// Função para determinar o comando Python correto
-const getPythonCommand = () => {
-    return os.platform() === 'win32' ? 'python' : 'python3';
-};
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
-
-// Configuração específica para o tamanho do corpo da requisição
-export const fetchCache = 'force-no-store';
-export const revalidate = 0;
-
-export const route = {
-    api: {
-        bodyParser: false,
-    },
-}
-
-// Função auxiliar para criar nome de arquivo único
-function getUniqueFilename(prefix: string, extension: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}${extension}`;
-}
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 export async function POST(req: NextRequest) {
-    const encoder = new TextEncoder();
+  const encoder = new TextEncoder()
 
-    try {
-        // Criar diretório temporário se não existir
-        const tmpDir = path.join(process.cwd(), 'tmp');
-        await mkdir(tmpDir, { recursive: true });
+  try {
+    // Processar o FormData
+    const formData = await req.formData()
+    const videoUrl = formData.get('videoUrl') as string
+    const videoFilename = formData.get('videoFilename') as string
+    const method = formData.get('method') as string
 
-        // Processar o FormData
-        const formData = await req.formData();
-        const video = formData.get('video') as File;
-        const method = formData.get('method') as string;
-
-        if (!video || !method) {
-            return new Response(
-                encoder.encode('data: ' + JSON.stringify({ error: "Vídeo ou método não fornecido" }) + '\n\n'),
-                { status: 400, headers: { 'Content-Type': 'text/event-stream' } }
-            );
-        }
-
-        // Gerar nomes únicos para os arquivos temporários
-        const videoPath = path.join(tmpDir, getUniqueFilename('input', '.mp4'));
-
-        try {
-            // Salvar vídeo temporariamente
-            const videoBuffer = Buffer.from(await video.arrayBuffer());
-            await writeFile(videoPath, videoBuffer);
-
-            // Criar stream de resposta
-            const stream = new TransformStream();
-            const writer = stream.writable.getWriter();
-
-            // Executar script Python
-            const pythonCommand = getPythonCommand();
-            const scriptPath = path.join(process.cwd(), "scripts", 
-                method === "dlib" ? "process_video_dlib.py" : "process_video_mediapipe.py"
-            );
-
-            // Preparar argumentos
-            const pythonArgs = [
-                scriptPath,
-                videoPath,
-                tmpDir,
-                path.join(process.cwd(), "models", "shape_predictor_68_face_landmarks.dat")
-            ];
-
-            console.log("Executando comando:", pythonCommand, pythonArgs);
-            const pythonProcess = spawn(pythonCommand, pythonArgs);
-
-            let outputData = '';
-            let errorData = '';
-
-            pythonProcess.stdout.on('data', async (data) => {
-                const str = data.toString();
-                console.log("Python stdout:", str);
-                outputData += str;
-
-                // Verificar se há informação de progresso
-                if (str.includes("Progresso:")) {
-                    const progressMatch = str.match(/Progresso: (\d+)/);
-                    if (progressMatch) {
-                        const progress = parseInt(progressMatch[1]);
-                        await writer.write(encoder.encode('data: ' + JSON.stringify({ progress }) + '\n\n'));
-                    }
-                }
-            });
-
-            pythonProcess.stderr.on('data', async (data) => {
-                const str = data.toString();
-                console.error("Python stderr:", str);
-                if (!str.includes("INFO:") && !str.includes("TensorFlow") && !str.includes("UserWarning")) {
-                    errorData += str;
-                }
-                // Verificar se há informação de progresso no stderr também
-                if (str.includes("Progresso:")) {
-                    const progressMatch = str.match(/Progresso: (\d+)/);
-                    if (progressMatch) {
-                        const progress = parseInt(progressMatch[1]);
-                        await writer.write(encoder.encode('data: ' + JSON.stringify({ progress }) + '\n\n'));
-                    }
-                }
-            });
-
-            pythonProcess.on("close", async (code) => {
-                try {
-                    if (code !== 0) {
-                        console.error("Erro no script Python:", errorData);
-                        await writer.write(encoder.encode('data: ' + JSON.stringify({ error: "Erro ao processar o vídeo: " + errorData }) + '\n\n'));
-                        await writer.close();
-                    } else {
-                        try {
-                            console.log("Tentando parsear saída:", outputData);
-                            const result = JSON.parse(outputData);
-                            
-                            if (!result.success) {
-                                await writer.write(encoder.encode('data: ' + JSON.stringify({ error: result.error || "Erro ao processar o vídeo" }) + '\n\n'));
-                                await writer.close();
-                                return;
-                            }
-                            
-                            // Ler o arquivo de vídeo processado
-                            const videoOutputPath = path.join(tmpDir, result.outputFile);
-                            
-                            // Log extra para checar existência do arquivo
-                            const exists = await fs.access(videoOutputPath).then(() => true).catch(() => false);
-                            console.log("[LOG] Arquivo de saída existe?", exists, videoOutputPath);
-                            
-                            if (!exists) {
-                                await writer.write(encoder.encode('data: ' + JSON.stringify({ error: "Arquivo de saída não encontrado: " + videoOutputPath }) + '\n\n'));
-                                await writer.close();
-                                return;
-                            }
-                            
-                            console.log("Lendo arquivo de vídeo:", videoOutputPath);
-                            const videoData = await readFile(videoOutputPath);
-                            
-                            // Enviar o vídeo processado
-                            await writer.write(encoder.encode('data: ' + JSON.stringify({ 
-                                status: 'complete',
-                                videoData: videoData.toString('base64')
-                            }) + '\n\n'));
-                            await writer.close();
-
-                            // Limpar arquivo de vídeo processado
-                            await fs.unlink(videoOutputPath).catch(() => {});
-                        } catch (error) {
-                            console.error("Erro ao processar resultado:", error, "Output:", outputData);
-                            await writer.write(encoder.encode('data: ' + JSON.stringify({ error: "Erro ao processar resultado do vídeo" }) + '\n\n'));
-                            await writer.close();
-                        }
-                    }
-                } finally {
-                    // Limpar arquivo de vídeo temporário
-                    await fs.unlink(videoPath).catch(() => {});
-                }
-            });
-
-            return new Response(stream.readable, {
-                headers: {
-                    'Content-Type': 'text/event-stream',
-                    'Cache-Control': 'no-cache',
-                    'Connection': 'keep-alive'
-                }
-            });
-
-        } catch (error) {
-            console.error("Erro ao processar vídeo:", error);
-            return new Response(
-                encoder.encode('data: ' + JSON.stringify({ error: "Erro interno ao processar o vídeo" }) + '\n\n'),
-                { status: 500, headers: { 'Content-Type': 'text/event-stream' } }
-            );
-        }
-
-    } catch (error) {
-        console.error("Erro na rota:", error);
-        return new Response(
-            encoder.encode('data: ' + JSON.stringify({ error: "Erro interno do servidor" }) + '\n\n'),
-            { status: 500, headers: { 'Content-Type': 'text/event-stream' } }
-        );
+    if (!videoUrl || !videoFilename || !method) {
+      return new Response(
+        encoder.encode('data: ' + JSON.stringify({ error: "URL do vídeo, nome do arquivo ou método não fornecido" }) + '\n\n'),
+        { status: 400, headers: { 'Content-Type': 'text/event-stream' } }
+      )
     }
+
+    // Buscar o vídeo do blob storage
+    const videoResponse = await fetch(videoUrl)
+    if (!videoResponse.ok) {
+      return new Response(
+        encoder.encode('data: ' + JSON.stringify({ error: "Erro ao baixar vídeo do storage" }) + '\n\n'),
+        { status: 500, headers: { 'Content-Type': 'text/event-stream' } }
+      )
+    }
+
+    const videoBlob = await videoResponse.blob()
+
+    // Criar FormData para o backend
+    const backendFormData = new FormData()
+    backendFormData.append('video', videoBlob, videoFilename)
+    backendFormData.append('method', method)
+
+    // Criar stream de resposta
+    const stream = new TransformStream()
+    const writer = stream.writable.getWriter()
+
+    // Enviar para o backend Flask
+    const backendResponse = await fetch(`${BACKEND_URL}/process-video`, {
+      method: 'POST',
+      body: backendFormData,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT)
+    })
+
+    if (!backendResponse.ok) {
+      const errorText = await backendResponse.text()
+      await writer.write(encoder.encode('data: ' + JSON.stringify({ error: `Erro no backend: ${errorText}` }) + '\n\n'))
+      await writer.close()
+      return new Response(stream.readable, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      })
+    }
+
+    const result = await backendResponse.json()
+
+    if (result.success) {
+      // Verificar se há arquivo de output
+      if (result.output_file) {
+        // Baixar o arquivo processado do backend
+        const downloadResponse = await fetch(`${BACKEND_URL}/download/${result.output_file}`)
+        if (downloadResponse.ok) {
+          const videoData = await downloadResponse.arrayBuffer()
+          await writer.write(encoder.encode('data: ' + JSON.stringify({ 
+            status: 'complete',
+            videoData: Buffer.from(videoData).toString('base64'),
+            message: 'Vídeo processado com sucesso!'
+          }) + '\n\n'))
+        } else {
+          await writer.write(encoder.encode('data: ' + JSON.stringify({ 
+            error: "Erro ao baixar vídeo processado" 
+          }) + '\n\n'))
+        }
+      } else {
+        await writer.write(encoder.encode('data: ' + JSON.stringify({ 
+          status: 'complete',
+          message: result.output || 'Processamento concluído'
+        }) + '\n\n'))
+      }
+    } else {
+      await writer.write(encoder.encode('data: ' + JSON.stringify({ 
+        error: result.error || "Erro ao processar o vídeo" 
+      }) + '\n\n'))
+    }
+
+    await writer.close()
+
+    return new Response(stream.readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      }
+    })
+
+  } catch (error) {
+    console.error("Erro na API generate-video:", error)
+    
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return new Response(
+        encoder.encode('data: ' + JSON.stringify({ error: "Timeout: processamento demorou mais que o esperado" }) + '\n\n'),
+        { status: 408, headers: { 'Content-Type': 'text/event-stream' } }
+      )
+    }
+
+    return new Response(
+      encoder.encode('data: ' + JSON.stringify({ error: "Erro interno do servidor" }) + '\n\n'),
+      { status: 500, headers: { 'Content-Type': 'text/event-stream' } }
+    )
+  }
 } 

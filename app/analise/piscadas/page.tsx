@@ -121,36 +121,36 @@ export default function AnalysePiscadasPage() {
         />
 
         {selectedCSVUrl && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
                 <FileSpreadsheet className="h-5 w-5" />
                 Processar Planilha Selecionada
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm">
                   <strong>Planilha:</strong> {selectedCSVFilename}
                 </p>
               </div>
 
-              <Button 
-                onClick={analyzeBlinkData}
+            <Button 
+              onClick={analyzeBlinkData}
                 disabled={isAnalyzing}
-                className="w-full"
-              >
-                {isAnalyzing ? (
-                  <>Analisando Piscadas...</>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Analisar Piscadas
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+              className="w-full"
+            >
+              {isAnalyzing ? (
+                <>Analisando Piscadas...</>
+              ) : (
+                <>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Analisar Piscadas
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
         )}
 
         {/* Statistics Cards */}

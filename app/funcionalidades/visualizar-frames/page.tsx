@@ -636,21 +636,21 @@ export default function VisualizarFramesPage() {
           />
 
           {selectedVideoUrl && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                   <FileVideo className="h-5 w-5" />
                   Vídeo Selecionado
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Vídeo Selecionado:</p>
                   <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                   <p className="text-sm text-muted-foreground">Total de Frames: {totalFrames}</p>
                 </div>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
           )}
 
           <Card>

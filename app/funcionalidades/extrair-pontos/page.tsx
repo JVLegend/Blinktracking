@@ -32,10 +32,10 @@ export default function ExtrairPontosPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [processedData, setProcessedData] = useState<any[]>([])
+  const [allPoints, setAllPoints] = useState<any[]>([])
   const [logs, setLogs] = useState<string[]>([])
   const [totalPoints, setTotalPoints] = useState(0)
   const [showInfo, setShowInfo] = useState(false)
-  const [allPoints, setAllPoints] = useState<any[]>([])
   const [isDownloadingModel, setIsDownloadingModel] = useState(false)
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string | null>(null)
   const [selectedVideoFilename, setSelectedVideoFilename] = useState<string | null>(null)
@@ -54,6 +54,8 @@ export default function ExtrairPontosPage() {
     setTotalPoints(0)
     setAllPoints([])
     setIsDownloadingModel(false)
+    
+    console.log("Iniciando processamento com método:", method) // DEBUG
 
     const formData = new FormData()
     formData.append("videoUrl", selectedVideoUrl)
@@ -74,6 +76,8 @@ export default function ExtrairPontosPage() {
 
       const data = await response.json()
       
+      console.log("Resposta recebida do backend:", data) // DEBUG
+      
       if (data.status === 'downloading_model') {
         setIsDownloadingModel(true)
         toast.loading("Baixando modelo do dlib... Isso pode levar alguns minutos na primeira vez.", {
@@ -85,16 +89,28 @@ export default function ExtrairPontosPage() {
 
       if (data.progress !== undefined) {
         setProgress(data.progress)
+        console.log("Progress atualizado:", data.progress) // DEBUG
       }
+      
       if (data.points) {
+        console.log("Pontos recebidos:", data.points.length, "pontos") // DEBUG
         setProcessedData(data.points.slice(0, 20))
         setAllPoints(data.points)
       }
+      
       if (data.totalPoints) {
+        console.log("Total de pontos:", data.totalPoints) // DEBUG
         setTotalPoints(data.totalPoints)
       }
       
-      toast.success("Pontos extraídos com sucesso!")
+      // Verificar se realmente há dados
+      if (data.success && data.points && data.points.length > 0) {
+        toast.success(`Pontos extraídos com sucesso! ${data.points.length} frames processados`)
+      } else if (data.success) {
+        toast.warning("Processamento concluído, mas nenhum ponto foi extraído")
+      } else {
+        toast.error(data.error || "Erro desconhecido no processamento")
+      }
     } catch (error) {
       console.error("Erro completo:", error)
       toast.error(`Erro ao processar vídeo: ${error}`)
@@ -205,69 +221,11 @@ export default function ExtrairPontosPage() {
     }
   };
 
-  const InfoDialog = () => (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="absolute top-8 right-8">
-          <Info className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Extração de Pontos Faciais</DialogTitle>
-          <DialogDescription>
-            Como funciona o processo de extração de pontos
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 pt-4">
-          <div>
-            <h3 className="font-semibold mb-2">Métodos de Extração</h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-semibold">Extração Normal (dlib)</h4>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  <li>Usa a biblioteca dlib para detecção facial</li>
-                  <li>Mais preciso em condições normais de iluminação</li>
-                  <li>Melhor para vídeos com faces bem visíveis</li>
-                  <li>Requer download do modelo predictor</li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold">Extração Potente (MediaPipe)</h4>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                  <li>Usa o MediaPipe Face Mesh para detecção facial</li>
-                  <li>Mais robusto em condições variadas</li>
-                  <li>Melhor para vídeos com iluminação desafiadora</li>
-                  <li>Não requer download de modelos adicionais</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-2">O Processo</h3>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-              <li>Upload do vídeo para processamento</li>
-              <li>Detecção facial em cada frame</li>
-              <li>Extração dos pontos faciais</li>
-              <li>Exportação dos dados em CSV</li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-2">Resultados</h3>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-              <li>Tabela com coordenadas dos pontos</li>
-              <li>Arquivo CSV para análise posterior</li>
-            </ul>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+  
 
   return (
     <SidebarInset>
       <div className="flex-1 space-y-6 p-8 relative">
-        <InfoDialog />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Extração de Pontos</h1>
@@ -311,7 +269,7 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Normal (dlib)"
+                      "Extração Normal"
                     )}
                   </Button>
                   <Button 
@@ -324,7 +282,7 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Potente (MediaPipe)"
+                      "Extração Potente"
                     )}
                   </Button>
                 </div>

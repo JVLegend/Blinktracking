@@ -243,56 +243,56 @@ export default function GerarVideoPage() {
           />
 
           {selectedVideoUrl && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                   <Film className="h-5 w-5" />
                   Processar Vídeo Selecionado
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Vídeo Selecionado:</p>
                   <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Button
-                    onClick={() => handleProcess('dlib')}
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => handleProcess('dlib')}
                     disabled={isProcessing}
-                    variant="default"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin mr-2">⭮</div>
-                        Processando com Dlib...
-                      </>
-                    ) : (
-                      <>
-                        <Film className="h-4 w-4 mr-2" />
-                        Processar com Dlib
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => handleProcess('mediapipe')}
+                  variant="default"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin mr-2">⭮</div>
+                      Processando com Dlib...
+                    </>
+                  ) : (
+                    <>
+                      <Film className="h-4 w-4 mr-2" />
+                      Processar com Dlib
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={() => handleProcess('mediapipe')}
                     disabled={isProcessing}
-                    variant="secondary"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin mr-2">⭮</div>
-                        Processando com MediaPipe...
-                      </>
-                    ) : (
-                      <>
-                        <Film className="h-4 w-4 mr-2" />
-                        Processar com MediaPipe
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                  variant="secondary"
+                >
+                  {isProcessing ? (
+                    <>
+                      <div className="animate-spin mr-2">⭮</div>
+                      Processando com MediaPipe...
+                    </>
+                  ) : (
+                    <>
+                      <Film className="h-4 w-4 mr-2" />
+                      Processar com MediaPipe
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
           )}
         </div>
 
