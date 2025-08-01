@@ -50,19 +50,31 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const result = await backendResponse.json()
-
-    if (result.success && result.frame_base64) {
-      // Retornar a imagem como base64
-      return NextResponse.json({
-        success: true,
-        frame: result.frame_base64
+    // Verificar se a resposta é uma imagem JPEG
+    const contentType = backendResponse.headers.get("content-type")
+    if (contentType?.includes("image/jpeg")) {
+      // Retornar a imagem diretamente
+      const imageBlob = await backendResponse.blob()
+      return new Response(imageBlob, {
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Content-Disposition': `attachment; filename=frame_${frame}.jpg`
+        }
       })
     } else {
-      return NextResponse.json(
-        { error: result.error || "Erro ao extrair frame" },
-        { status: 500 }
-      )
+      // Tentar processar como JSON (para erros)
+      try {
+        const result = await backendResponse.json()
+        return NextResponse.json(
+          { error: result.error || "Erro ao extrair frame" },
+          { status: 500 }
+        )
+      } catch {
+        return NextResponse.json(
+          { error: "Resposta inválida do servidor" },
+          { status: 500 }
+        )
+      }
     }
 
   } catch (error) {
