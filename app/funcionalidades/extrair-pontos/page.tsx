@@ -230,7 +230,7 @@ export default function ExtrairPontosPage() {
           <div>
             <h1 className="text-3xl font-bold">Extração de Pontos</h1>
             <p className="text-muted-foreground mt-2">
-              Extraia pontos faciais de vídeos usando dlib ou MediaPipe
+              Extraia pontos faciais de vídeos
             </p>
           </div>
           <Eye className="h-10 w-10 text-primary" />

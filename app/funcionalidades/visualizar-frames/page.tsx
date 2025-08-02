@@ -572,36 +572,75 @@ export default function VisualizarFramesPage() {
         return;
     }
 
+    console.log("=== INICIANDO PROCESSAMENTO MEDIAPIPE ===");
+    console.log("Video URL:", selectedVideoUrl);
+    console.log("Video Filename:", selectedVideoFilename);
+    console.log("Frames extraídos:", extractedFrames.length);
+
     setIsProcessing(true);
+    setProgress(0);
+    setLogs(["Iniciando processamento..."]);
+
     try {
         const formData = new FormData();
         formData.append('videoUrl', selectedVideoUrl);
         formData.append('videoFilename', selectedVideoFilename || "");
         formData.append('method', 'mediapipe');
 
-        console.log("Enviando vídeo para processamento...");
+        setLogs(prev => [...prev, "Enviando requisição para o servidor..."]);
+        console.log("Enviando requisição para /api/generate-video...");
+        
         const response = await fetch('/api/generate-video', {
             method: 'POST',
             body: formData,
         });
 
+        console.log("Resposta recebida. Status:", response.status);
+        setLogs(prev => [...prev, `Resposta recebida: ${response.status}`]);
+
         if (!response.ok) {
             const errorData = await response.json();
+            console.error("Erro na resposta:", errorData);
+            setLogs(prev => [...prev, `Erro: ${errorData.error}`]);
             throw new Error(errorData.error || 'Erro ao processar vídeo');
         }
 
-        // Processar resposta como vídeo
-        const blob = await response.blob();
-        const videoUrl = URL.createObjectURL(blob);
-        
-        // Atualizar o player de vídeo com o resultado processado
-        if (videoPlayerRef.current) {
-            videoPlayerRef.current.src = videoUrl;
+        setLogs(prev => [...prev, "Processando resposta..."]);
+        console.log("Processando resposta JSON...");
+        const result = await response.json();
+        console.log("Resultado:", result);
+
+        if (result.error) {
+            setLogs(prev => [...prev, `Erro: ${result.error}`]);
+            throw new Error(result.error);
         }
 
-        toast.success("Vídeo processado com sucesso!");
+        if (result.status === 'complete' && result.videoData) {
+            setLogs(prev => [...prev, "Vídeo processado com sucesso!"]);
+            console.log("Vídeo processado com sucesso!");
+            // Converter base64 para blob
+            const videoBlob = new Blob(
+                [Uint8Array.from(atob(result.videoData), c => c.charCodeAt(0))],
+                { type: 'video/mp4' }
+            );
+            
+            // Atualizar o player de vídeo
+            if (videoPlayerRef.current) {
+                const url = URL.createObjectURL(videoBlob);
+                videoPlayerRef.current.src = url;
+            }
+
+            toast.success("Vídeo processado com sucesso!");
+        } else {
+            setLogs(prev => [...prev, result.message || "Processamento concluído"]);
+            toast.success(result.message || "Processamento concluído");
+        }
+
+        setProgress(100);
+        console.log("=== FIM DO PROCESSAMENTO MEDIAPIPE ===");
     } catch (error) {
         console.error('Erro:', error);
+        setLogs(prev => [...prev, `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`]);
         toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
     } finally {
         setIsProcessing(false);
