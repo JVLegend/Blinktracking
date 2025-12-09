@@ -630,10 +630,33 @@ export default function CoordenadasPage() {
 
                       {/* Desenhar pontos */}
                       {normalizedPoints.map((point, idx) => {
-                        // Para CSV de todos os pontos, usar cor única
-                        const config = point.group === 'all_points'
-                          ? { color: '#00FF00', label: 'P' }
-                          : pointsConfig[point.group as keyof typeof pointsConfig];
+                        // Função para verificar se o ponto é do olho
+                        const isEyePoint = (pointIndex: number): boolean => {
+                          // Índices dos olhos do MediaPipe (rightEyeUpper0/Lower0 e leftEyeUpper0/Lower0)
+                          const eyeIndices = [
+                            // Right eye
+                            246, 161, 160, 159, 158, 157, 173, // upper
+                            33, 7, 163, 144, 145, 153, 154, 155, 133, // lower
+                            // Left eye
+                            466, 388, 387, 386, 385, 384, 398, // upper
+                            263, 249, 390, 373, 374, 380, 381, 382, 362 // lower
+                          ];
+                          return eyeIndices.includes(pointIndex);
+                        };
+
+                        // Determinar cor do ponto
+                        let config;
+                        if (point.group === 'all_points') {
+                          // Extrair índice do label (ex: "P123" -> 123)
+                          const pointIndex = parseInt(point.label.substring(1));
+                          const isEye = isEyePoint(pointIndex);
+                          config = {
+                            color: isEye ? '#FF0000' : '#00FF00', // Vermelho para olhos, verde para resto
+                            label: 'P'
+                          };
+                        } else {
+                          config = pointsConfig[point.group as keyof typeof pointsConfig];
+                        }
 
                         return (
                           <g key={idx}>
@@ -668,7 +691,7 @@ export default function CoordenadasPage() {
 
                   {/* Legenda */}
                   <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {Object.entries(pointsConfig).map(([group, config]) => (
+                    {csvType === 'eyes_only' && Object.entries(pointsConfig).map(([group, config]) => (
                       <div key={group} className="flex items-center gap-2">
                         <div
                           className="w-4 h-4 rounded-full border-2 border-white"
@@ -679,6 +702,18 @@ export default function CoordenadasPage() {
                         </span>
                       </div>
                     ))}
+                    {csvType === 'all_points' && (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full border-2 border-white bg-red-500" />
+                          <span className="text-sm">Pontos dos Olhos (32 pontos)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full border-2 border-white bg-green-500" />
+                          <span className="text-sm">Outros Pontos (446 pontos)</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -691,9 +726,24 @@ export default function CoordenadasPage() {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
                     {currentFramePoints.map((point, idx) => {
-                      const config = point.group === 'all_points'
-                        ? { color: '#00FF00', label: 'P' }
-                        : pointsConfig[point.group as keyof typeof pointsConfig];
+                      // Determinar cor (mesma lógica da visualização)
+                      let config;
+                      if (point.group === 'all_points') {
+                        const eyeIndices = [
+                          246, 161, 160, 159, 158, 157, 173,
+                          33, 7, 163, 144, 145, 153, 154, 155, 133,
+                          466, 388, 387, 386, 385, 384, 398,
+                          263, 249, 390, 373, 374, 380, 381, 382, 362
+                        ];
+                        const pointIndex = parseInt(point.label.substring(1));
+                        const isEye = eyeIndices.includes(pointIndex);
+                        config = {
+                          color: isEye ? '#FF0000' : '#00FF00',
+                          label: 'P'
+                        };
+                      } else {
+                        config = pointsConfig[point.group as keyof typeof pointsConfig];
+                      }
 
                       return (
                         <div key={idx} className="p-3 bg-muted rounded-lg">
