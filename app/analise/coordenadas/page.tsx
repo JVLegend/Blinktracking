@@ -15,8 +15,9 @@ import { CSVSelector } from "../../components/CSVSelector"
 interface MediaPipePoint {
   x: number;
   y: number;
+  z?: number; // Opcional para CSV de todos os pontos
   label: string;
-  group: 'right_upper' | 'right_lower' | 'left_upper' | 'left_lower';
+  group: 'right_upper' | 'right_lower' | 'left_upper' | 'left_lower' | 'all_points';
 }
 
 interface FrameData {
@@ -24,6 +25,8 @@ interface FrameData {
   method: string;
   [key: string]: any;
 }
+
+type CSVType = 'eyes_only' | 'all_points' | 'unknown';
 
 export default function CoordenadasPage() {
   const [data, setData] = useState<FrameData[]>([]);
@@ -34,9 +37,10 @@ export default function CoordenadasPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(30); // FPS
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [csvType, setCSVType] = useState<CSVType>('unknown');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Configuração dos pontos do MediaPipe
+  // Configuração dos pontos do MediaPipe (apenas olhos)
   const pointsConfig = {
     right_upper: { count: 7, color: '#0000FF', label: 'RU' },
     right_lower: { count: 9, color: '#FF0000', label: 'RL' },
@@ -44,9 +48,29 @@ export default function CoordenadasPage() {
     left_lower: { count: 9, color: '#8000FF', label: 'LL' }
   };
 
+  // Detectar tipo de CSV baseado nos headers
+  const detectCSVType = (headers: string[]): CSVType => {
+    // Verificar se tem colunas de pontos dos olhos
+    const hasEyePoints = headers.some(h =>
+      h.includes('right_upper_') || h.includes('right_lower_') ||
+      h.includes('left_upper_') || h.includes('left_lower_')
+    );
+
+    // Verificar se tem colunas de todos os pontos
+    const hasAllPoints = headers.some(h => h.match(/^point_\d+_[xyz]$/));
+
+    if (hasAllPoints) return 'all_points';
+    if (hasEyePoints) return 'eyes_only';
+    return 'unknown';
+  };
+
   const processCSVText = (text: string) => {
     const rows = text.split("\n").filter(row => row.trim());
     const headers = rows[0].split(",");
+
+    // Detectar tipo de CSV
+    const detectedType = detectCSVType(headers);
+    setCSVType(detectedType);
 
     const parsedData: FrameData[] = rows.slice(1).map((row, idx) => {
       const values = row.split(",");
@@ -134,25 +158,44 @@ export default function CoordenadasPage() {
     const frameData = data[currentFrame];
     const points: MediaPipePoint[] = [];
 
-    // Processar cada grupo de pontos
-    Object.entries(pointsConfig).forEach(([group, config]) => {
-      for (let i = 1; i <= config.count; i++) {
-        const x = frameData[`${group}_${i}_x`];
-        const y = frameData[`${group}_${i}_y`];
+    if (csvType === 'eyes_only') {
+      // Processar CSV de pontos dos olhos
+      Object.entries(pointsConfig).forEach(([group, config]) => {
+        for (let i = 1; i <= config.count; i++) {
+          const x = frameData[`${group}_${i}_x`];
+          const y = frameData[`${group}_${i}_y`];
+
+          if (x !== undefined && y !== undefined) {
+            points.push({
+              x,
+              y,
+              label: `${config.label}${i}`,
+              group: group as any
+            });
+          }
+        }
+      });
+    } else if (csvType === 'all_points') {
+      // Processar CSV de todos os pontos (478 pontos)
+      for (let i = 0; i < 478; i++) {
+        const x = frameData[`point_${i}_x`];
+        const y = frameData[`point_${i}_y`];
+        const z = frameData[`point_${i}_z`];
 
         if (x !== undefined && y !== undefined) {
           points.push({
             x,
             y,
-            label: `${config.label}${i}`,
-            group: group as any
+            z,
+            label: `P${i}`,
+            group: 'all_points'
           });
         }
       }
-    });
+    }
 
     return points;
-  }, [data, currentFrame]);
+  }, [data, currentFrame, csvType]);
 
   // Função para extrair o número do label (ex: "RU1" -> 1)
   const getLabelNumber = (label: string): number => {
@@ -164,7 +207,41 @@ export default function CoordenadasPage() {
   const { normalizedPoints, eyeContours } = useMemo(() => {
     if (!currentFramePoints.length) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
 
-    // Separar pontos por olho e tipo (upper/lower) e ordenar pela ordem natural (1,2,3...)
+    // Se for CSV de todos os pontos, usar lógica simplificada
+    if (csvType === 'all_points') {
+      const allX = currentFramePoints.map(p => p.x);
+      const allY = currentFramePoints.map(p => p.y);
+      const minX = Math.min(...allX);
+      const maxX = Math.max(...allX);
+      const minY = Math.min(...allY);
+      const maxY = Math.max(...allY);
+
+      const frameWidth = maxX - minX || 1;
+      const frameHeight = maxY - minY || 1;
+
+      const canvasWidth = 600;
+      const canvasHeight = 400;
+
+      const scaleX = canvasWidth / frameWidth;
+      const scaleY = canvasHeight / frameHeight;
+      const scale = Math.min(scaleX, scaleY) * 0.9;
+
+      const offsetX = (canvasWidth - frameWidth * scale) / 2;
+      const offsetY = (canvasHeight - frameHeight * scale) / 2;
+
+      const normalized = currentFramePoints.map(p => ({
+        ...p,
+        x: (p.x - minX) * scale + offsetX,
+        y: (p.y - minY) * scale + offsetY
+      }));
+
+      return {
+        normalizedPoints: normalized,
+        eyeContours: { right: [], left: [] }
+      };
+    }
+
+    // Lógica para CSV de pontos dos olhos
     const rightUpper = currentFramePoints
       .filter(p => p.group === 'right_upper')
       .sort((a, b) => getLabelNumber(a.label) - getLabelNumber(b.label));
@@ -243,7 +320,7 @@ export default function CoordenadasPage() {
         left: leftContour
       }
     };
-  }, [currentFramePoints]);
+  }, [currentFramePoints, csvType]);
 
   // Calcular dimensões do canvas
   const canvasDimensions = useMemo(() => {
@@ -411,11 +488,28 @@ export default function CoordenadasPage() {
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-semibold">Arquivo Carregado:</p>
                       <p className="text-lg">
                         {uploadedFile?.name || selectedCSVFilename || 'CSV carregado'}
                       </p>
+                      <div className="mt-2">
+                        {csvType === 'eyes_only' && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            👁️ Pontos dos Olhos (32 pontos)
+                          </span>
+                        )}
+                        {csvType === 'all_points' && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            🎯 Todos os Pontos Faciais (478 pontos)
+                          </span>
+                        )}
+                        {csvType === 'unknown' && (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            ❓ Formato Desconhecido
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Total de Frames</p>
@@ -536,31 +630,36 @@ export default function CoordenadasPage() {
 
                       {/* Desenhar pontos */}
                       {normalizedPoints.map((point, idx) => {
-                        const config = pointsConfig[point.group];
+                        // Para CSV de todos os pontos, usar cor única
+                        const config = point.group === 'all_points'
+                          ? { color: '#00FF00', label: 'P' }
+                          : pointsConfig[point.group as keyof typeof pointsConfig];
 
                         return (
                           <g key={idx}>
                             <circle
                               cx={point.x}
                               cy={point.y}
-                              r="8"
+                              r={csvType === 'all_points' ? "3" : "8"}
                               fill={config.color}
                               stroke="white"
                               strokeWidth="2"
                             />
-                            <text
-                              x={point.x}
-                              y={point.y - 14}
-                              fontSize="12"
-                              fontWeight="bold"
-                              textAnchor="middle"
-                              fill={config.color}
-                              stroke="white"
-                              strokeWidth="0.5"
-                              paintOrder="stroke"
-                            >
-                              {point.label}
-                            </text>
+                            {csvType === 'eyes_only' && (
+                              <text
+                                x={point.x}
+                                y={point.y - 14}
+                                fontSize="12"
+                                fontWeight="bold"
+                                textAnchor="middle"
+                                fill={config.color}
+                                stroke="white"
+                                strokeWidth="0.5"
+                                paintOrder="stroke"
+                              >
+                                {point.label}
+                              </text>
+                            )}
                           </g>
                         );
                       })}
@@ -591,17 +690,24 @@ export default function CoordenadasPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-96 overflow-y-auto">
-                    {currentFramePoints.map((point, idx) => (
-                      <div key={idx} className="p-3 bg-muted rounded-lg">
-                        <div className="font-semibold text-sm" style={{ color: pointsConfig[point.group].color }}>
-                          {point.label}
+                    {currentFramePoints.map((point, idx) => {
+                      const config = point.group === 'all_points'
+                        ? { color: '#00FF00', label: 'P' }
+                        : pointsConfig[point.group as keyof typeof pointsConfig];
+
+                      return (
+                        <div key={idx} className="p-3 bg-muted rounded-lg">
+                          <div className="font-semibold text-sm" style={{ color: config.color }}>
+                            {point.label}
+                          </div>
+                          <div className="text-xs mt-1">
+                            <div>X: {point.x.toFixed(2)}</div>
+                            <div>Y: {point.y.toFixed(2)}</div>
+                            {point.z !== undefined && <div>Z: {point.z.toFixed(2)}</div>}
+                          </div>
                         </div>
-                        <div className="text-xs mt-1">
-                          <div>X: {point.x.toFixed(2)}</div>
-                          <div>Y: {point.y.toFixed(2)}</div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

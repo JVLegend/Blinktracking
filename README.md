@@ -113,9 +113,13 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 
 ## Extração de Pontos Faciais
 
-### Método Rápido: CSV Direto (Recomendado)
+O projeto oferece três métodos de extração de pontos do MediaPipe, todos gerando CSV diretamente:
 
-Use o script `extract_points_to_csv.py` para extrair pontos e gerar CSV diretamente com barra de progresso:
+### 1. Pontos dos Olhos (Recomendado para Análise de Piscadas)
+
+Extrai apenas os pontos do contorno dos olhos (32 pontos totais):
+- Olho Direito: 7 pontos superiores + 9 pontos inferiores
+- Olho Esquerdo: 7 pontos superiores + 9 pontos inferiores
 
 ```bash
 # Uso básico (CSV salvo no mesmo diretório do vídeo)
@@ -126,37 +130,107 @@ python scripts/extract_points_to_csv.py caminho/video.mp4 saida/dados.csv
 ```
 
 **Características:**
-- ✅ Gera CSV diretamente (sem JSON intermediário)
+- ✅ Arquivo CSV compacto e rápido
+- ✅ Ideal para análise de piscadas
 - ✅ Barra de progresso no terminal
-- ✅ Estatísticas de processamento (taxa de detecção de faces)
-- ✅ Usa índices corretos do MediaPipe (rightEyeUpper0/Lower0)
+- ✅ Estatísticas de detecção
+- ✅ Usa índices oficiais do MediaPipe (rightEyeUpper0/Lower0)
 
 **Exemplo de saída:**
 ```
-📹 Vídeo: narciso_2644.MOV
+📹 Vídeo: video.mp4
 📊 Total de frames: 1500
 ⏱️  FPS: 30.00
-💾 Salvando em: .\tmp\narciso_2644.csv
+💾 Salvando em: video.csv
 
 🔍 Processando |████████████████████| 1500/1500 [00:45<00:00, 33.2frame/s]
 
 ✅ Processamento concluído!
 📊 Frames processados: 1500
 👤 Frames com face detectada: 1487 (99.1%)
-💾 CSV salvo em: .\tmp\narciso_2644.csv
+💾 CSV salvo em: video.csv
 ```
 
-### Método Tradicional: JSON → CSV
+---
 
-Se preferir o fluxo tradicional em duas etapas:
+### 2. Todos os Pontos Faciais (Análise Completa)
+
+Extrai TODOS os 478 pontos do MediaPipe Face Mesh (incluindo íris):
 
 ```bash
-# 1. Extrair pontos para JSON
-python scripts/extract_points_mediapipe.py video.mp4 > saida/pontos.json
+# Uso básico
+python scripts/extract_all_points_to_csv.py caminho/video.mp4
 
-# 2. Converter JSON para CSV
-python scripts/convert_json_to_csv.py saida/
+# Especificar caminho de saída
+python scripts/extract_all_points_to_csv.py caminho/video.mp4 saida/completo.csv
 ```
+
+**Características:**
+- ✅ 478 pontos faciais completos (x, y, z)
+- ✅ Inclui: olhos, íris, boca, nariz, contorno facial, sobrancelhas
+- ✅ Coordenadas 3D (x, y, z)
+- ✅ Útil para análise facial completa
+
+**⚠️ Atenção:** Gera arquivos CSV grandes (pode chegar a centenas de MB dependendo do vídeo)
+
+**Exemplo de saída:**
+```
+📹 Vídeo: video.mp4
+📊 Resolução: 1920x1080
+📊 Total de frames: 1500
+⏱️  FPS: 30.00
+💾 Salvando em: video_all_points.csv
+🎯 Extraindo TODOS os 478 pontos do MediaPipe Face Mesh
+
+🔍 Processando |████████████████████| 1500/1500 [01:20<00:00, 18.7frame/s]
+
+✅ Processamento concluído!
+📊 Frames processados: 1500
+👤 Frames com face detectada: 1487 (99.1%)
+💾 CSV salvo em: video_all_points.csv
+📦 Tamanho do arquivo: 245.67 MB
+🎯 Total de pontos por frame: 478 (x, y, z)
+```
+
+---
+
+### 3. Processamento em Lote
+
+Para processar múltiplos vídeos de uma vez, use os scripts batch:
+
+#### Extrair pontos dos olhos (lote)
+```bash
+.\extract_all_points.bat
+```
+- Processa todos os `.MOV` da pasta configurada
+- Gera arquivos CSV com pontos dos olhos
+
+#### Gerar vídeos com pontos desenhados (lote)
+```bash
+.\process_all_videos.bat
+```
+- Processa todos os `.MOV` da pasta configurada
+- Gera vídeos MP4 com os pontos desenhados
+
+---
+
+## Estrutura dos Arquivos CSV
+
+### CSV de Pontos dos Olhos (32 pontos)
+```csv
+frame,method,right_upper_1_x,right_upper_1_y,...,left_lower_9_x,left_lower_9_y
+0,mediapipe,245.3,156.7,...,512.8,178.2
+1,mediapipe,246.1,157.2,...,513.5,178.9
+```
+
+### CSV de Todos os Pontos (478 pontos)
+```csv
+frame,method,face_detected,point_0_x,point_0_y,point_0_z,...,point_477_x,point_477_y,point_477_z
+0,mediapipe_full,1,320.5,240.3,12.5,...,450.2,380.7,8.3
+1,mediapipe_full,1,321.2,241.1,12.8,...,451.0,381.2,8.5
+```
+
+---
 
 ## Teste manual do script Python (MediaPipe)
 
