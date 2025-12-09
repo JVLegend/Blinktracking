@@ -113,9 +113,17 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 
 ## Extração de Pontos Faciais
 
-O projeto oferece três métodos de extração de pontos do MediaPipe, todos gerando CSV diretamente:
+### Resumo dos Scripts Disponíveis
 
-### 1. Pontos dos Olhos (Recomendado para Análise de Piscadas)
+| Script | Saída | Pontos | Tamanho | Uso Recomendado |
+|--------|-------|--------|---------|-----------------|
+| `extract_points_to_csv.py` | 📊 **CSV** | 32 (olhos) | ~70 MB | ✅ Análise de piscadas |
+| `extract_all_points_to_csv.py` | 📊 **CSV** | 478 (face completa) | ~1 GB | Análise facial completa |
+| `process_video_mediapipe.py` | 🎥 **MP4** | Visualização | Igual ao original | Vídeo com pontos desenhados |
+
+---
+
+### 1. Pontos dos Olhos - CSV (Recomendado para Piscadas)
 
 Extrai apenas os pontos do contorno dos olhos (32 pontos totais):
 - Olho Direito: 7 pontos superiores + 9 pontos inferiores
@@ -130,7 +138,7 @@ python scripts/extract_points_to_csv.py caminho/video.mp4 saida/dados.csv
 ```
 
 **Características:**
-- ✅ Arquivo CSV compacto e rápido
+- ✅ Arquivo CSV compacto e rápido (~70 MB para vídeo de 3 min)
 - ✅ Ideal para análise de piscadas
 - ✅ Barra de progresso no terminal
 - ✅ Estatísticas de detecção
@@ -153,7 +161,7 @@ python scripts/extract_points_to_csv.py caminho/video.mp4 saida/dados.csv
 
 ---
 
-### 2. Todos os Pontos Faciais (Análise Completa)
+### 2. Todos os Pontos Faciais - CSV (Análise Completa)
 
 Extrai TODOS os 478 pontos do MediaPipe Face Mesh (incluindo íris):
 
@@ -171,7 +179,7 @@ python scripts/extract_all_points_to_csv.py caminho/video.mp4 saida/completo.csv
 - ✅ Coordenadas 3D (x, y, z)
 - ✅ Útil para análise facial completa
 
-**⚠️ Atenção:** Gera arquivos CSV grandes (pode chegar a centenas de MB dependendo do vídeo)
+**⚠️ Atenção:** Gera arquivos CSV grandes (~1 GB para vídeo de 3 min)
 
 **Exemplo de saída:**
 ```
@@ -194,7 +202,23 @@ python scripts/extract_all_points_to_csv.py caminho/video.mp4 saida/completo.csv
 
 ---
 
-### 3. Processamento em Lote
+### 3. Vídeo com Pontos Desenhados - MP4
+
+Gera um vídeo com os pontos faciais desenhados sobre o vídeo original:
+
+```bash
+python scripts/process_video_mediapipe.py caminho/video.mp4 pasta_saida/
+```
+
+**Características:**
+- ✅ Vídeo MP4 com pontos desenhados
+- ✅ Útil para visualização e validação
+- ✅ Mostra todos os pontos do MediaPipe em tempo real
+- ❌ **NÃO gera CSV** (apenas vídeo)
+
+---
+
+### 4. Processamento em Lote
 
 Para processar múltiplos vídeos de uma vez, use os scripts batch:
 
