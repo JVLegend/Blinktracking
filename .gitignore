@@ -53,3 +53,5 @@ public/frames/
 .env
 env
 *.env
+/app/api/tmp-videos
+/public/uploads
