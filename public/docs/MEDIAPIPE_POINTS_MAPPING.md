@@ -4,74 +4,72 @@ Este documento explica o mapeamento entre os índices dos pontos do MediaPipe Fa
 
 ## Visão Geral
 
-O projeto utiliza **dois conjuntos diferentes de pontos** do MediaPipe:
+O projeto utiliza os **pontos oficiais do contorno do olho** do MediaPipe Face Mesh:
 
-1. **Pontos de Extração (CSV)** - Usados para gerar dados de análise
-2. **Pontos de Visualização (Vídeo)** - Usados apenas para renderizar o vídeo processado
-
-Este documento foca nos **pontos de extração** que aparecem no CSV.
+- `rightEyeUpper0` e `rightEyeLower0` para o olho direito
+- `leftEyeUpper0` e `leftEyeLower0` para o olho esquerdo
 
 ## Pontos Extraídos para CSV
 
 ### Olho Direito
 
-#### Pálpebra Superior (Right Upper)
+#### Pálpebra Superior (Right Upper) - `rightEyeUpper0`
 | Coluna CSV | Índice MediaPipe | Descrição |
 |------------|------------------|-----------|
-| `right_upper_1_x`, `right_upper_1_y` | 27 | Canto interno superior |
-| `right_upper_2_x`, `right_upper_2_y` | 29 | Ponto 2 da pálpebra superior |
-| `right_upper_3_x`, `right_upper_3_y` | 30 | Ponto 3 da pálpebra superior |
-| `right_upper_4_x`, `right_upper_4_y` | 31 | Ponto central superior |
-| `right_upper_5_x`, `right_upper_5_y` | 32 | Ponto 5 da pálpebra superior |
-| `right_upper_6_x`, `right_upper_6_y` | 33 | Ponto 6 da pálpebra superior |
-| `right_upper_7_x`, `right_upper_7_y` | 34 | Canto externo superior |
+| `right_upper_1_x`, `right_upper_1_y` | 246 | Canto externo superior |
+| `right_upper_2_x`, `right_upper_2_y` | 161 | Ponto 2 da pálpebra superior |
+| `right_upper_3_x`, `right_upper_3_y` | 160 | Ponto 3 da pálpebra superior |
+| `right_upper_4_x`, `right_upper_4_y` | 159 | Ponto central superior |
+| `right_upper_5_x`, `right_upper_5_y` | 158 | Ponto 5 da pálpebra superior |
+| `right_upper_6_x`, `right_upper_6_y` | 157 | Ponto 6 da pálpebra superior |
+| `right_upper_7_x`, `right_upper_7_y` | 173 | Canto interno superior |
 
-**Índices MediaPipe:** `[27, 29, 30, 31, 32, 33, 34]`
+**Índices MediaPipe:** `[246, 161, 160, 159, 158, 157, 173]`
 
-#### Pálpebra Inferior (Right Lower)
+#### Pálpebra Inferior (Right Lower) - `rightEyeLower0`
 | Coluna CSV | Índice MediaPipe | Descrição |
 |------------|------------------|-----------|
-| `right_lower_1_x`, `right_lower_1_y` | 35 | Canto interno inferior |
-| `right_lower_2_x`, `right_lower_2_y` | 36 | Ponto 2 da pálpebra inferior |
-| `right_lower_3_x`, `right_lower_3_y` | 37 | Ponto 3 da pálpebra inferior |
-| `right_lower_4_x`, `right_lower_4_y` | 38 | Ponto 4 da pálpebra inferior |
-| `right_lower_5_x`, `right_lower_5_y` | 39 | Ponto central inferior |
-| `right_lower_6_x`, `right_lower_6_y` | 40 | Ponto 6 da pálpebra inferior |
-| `right_lower_7_x`, `right_lower_7_y` | 41 | Ponto 7 da pálpebra inferior |
-| `right_lower_8_x`, `right_lower_8_y` | 42 | Ponto 8 da pálpebra inferior |
-| `right_lower_9_x`, `right_lower_9_y` | 43 | Canto externo inferior |
+| `right_lower_1_x`, `right_lower_1_y` | 33 | Canto interno inferior |
+| `right_lower_2_x`, `right_lower_2_y` | 7 | Ponto 2 da pálpebra inferior |
+| `right_lower_3_x`, `right_lower_3_y` | 163 | Ponto 3 da pálpebra inferior |
+| `right_lower_4_x`, `right_lower_4_y` | 144 | Ponto 4 da pálpebra inferior |
+| `right_lower_5_x`, `right_lower_5_y` | 145 | Ponto central inferior |
+| `right_lower_6_x`, `right_lower_6_y` | 153 | Ponto 6 da pálpebra inferior |
+| `right_lower_7_x`, `right_lower_7_y` | 154 | Ponto 7 da pálpebra inferior |
+| `right_lower_8_x`, `right_lower_8_y` | 155 | Ponto 8 da pálpebra inferior |
+| `right_lower_9_x`, `right_lower_9_y` | 133 | Canto externo inferior |
 
-**Índices MediaPipe:** `[35, 36, 37, 38, 39, 40, 41, 42, 43]`
+**Índices MediaPipe:** `[33, 7, 163, 144, 145, 153, 154, 155, 133]`
 
 ### Olho Esquerdo
 
-#### Pálpebra Superior (Left Upper)
+#### Pálpebra Superior (Left Upper) - `leftEyeUpper0`
 | Coluna CSV | Índice MediaPipe | Descrição |
 |------------|------------------|-----------|
-| `left_upper_1_x`, `left_upper_1_y` | 257 | Canto interno superior |
-| `left_upper_2_x`, `left_upper_2_y` | 259 | Ponto 2 da pálpebra superior |
-| `left_upper_3_x`, `left_upper_3_y` | 260 | Ponto 3 da pálpebra superior |
-| `left_upper_4_x`, `left_upper_4_y` | 261 | Ponto central superior |
-| `left_upper_5_x`, `left_upper_5_y` | 262 | Ponto 5 da pálpebra superior |
-| `left_upper_6_x`, `left_upper_6_y` | 263 | Ponto 6 da pálpebra superior |
-| `left_upper_7_x`, `left_upper_7_y` | 264 | Canto externo superior |
+| `left_upper_1_x`, `left_upper_1_y` | 466 | Canto externo superior |
+| `left_upper_2_x`, `left_upper_2_y` | 388 | Ponto 2 da pálpebra superior |
+| `left_upper_3_x`, `left_upper_3_y` | 387 | Ponto 3 da pálpebra superior |
+| `left_upper_4_x`, `left_upper_4_y` | 386 | Ponto central superior |
+| `left_upper_5_x`, `left_upper_5_y` | 385 | Ponto 5 da pálpebra superior |
+| `left_upper_6_x`, `left_upper_6_y` | 384 | Ponto 6 da pálpebra superior |
+| `left_upper_7_x`, `left_upper_7_y` | 398 | Canto interno superior |
 
-**Índices MediaPipe:** `[257, 259, 260, 261, 262, 263, 264]`
+**Índices MediaPipe:** `[466, 388, 387, 386, 385, 384, 398]`
 
-#### Pálpebra Inferior (Left Lower)
+#### Pálpebra Inferior (Left Lower) - `leftEyeLower0`
 | Coluna CSV | Índice MediaPipe | Descrição |
 |------------|------------------|-----------|
-| `left_lower_1_x`, `left_lower_1_y` | 265 | Canto interno inferior |
-| `left_lower_2_x`, `left_lower_2_y` | 266 | Ponto 2 da pálpebra inferior |
-| `left_lower_3_x`, `left_lower_3_y` | 267 | Ponto 3 da pálpebra inferior |
-| `left_lower_4_x`, `left_lower_4_y` | 268 | Ponto 4 da pálpebra inferior |
-| `left_lower_5_x`, `left_lower_5_y` | 269 | Ponto central inferior |
-| `left_lower_6_x`, `left_lower_6_y` | 270 | Ponto 6 da pálpebra inferior |
-| `left_lower_7_x`, `left_lower_7_y` | 271 | Ponto 7 da pálpebra inferior |
-| `left_lower_8_x`, `left_lower_8_y` | 272 | Ponto 8 da pálpebra inferior |
-| `left_lower_9_x`, `left_lower_9_y` | 273 | Canto externo inferior |
+| `left_lower_1_x`, `left_lower_1_y` | 263 | Canto interno inferior |
+| `left_lower_2_x`, `left_lower_2_y` | 249 | Ponto 2 da pálpebra inferior |
+| `left_lower_3_x`, `left_lower_3_y` | 390 | Ponto 3 da pálpebra inferior |
+| `left_lower_4_x`, `left_lower_4_y` | 373 | Ponto 4 da pálpebra inferior |
+| `left_lower_5_x`, `left_lower_5_y` | 374 | Ponto central inferior |
+| `left_lower_6_x`, `left_lower_6_y` | 380 | Ponto 6 da pálpebra inferior |
+| `left_lower_7_x`, `left_lower_7_y` | 381 | Ponto 7 da pálpebra inferior |
+| `left_lower_8_x`, `left_lower_8_y` | 382 | Ponto 8 da pálpebra inferior |
+| `left_lower_9_x`, `left_lower_9_y` | 362 | Canto externo inferior |
 
-**Índices MediaPipe:** `[265, 266, 267, 268, 269, 270, 271, 272, 273]`
+**Índices MediaPipe:** `[263, 249, 390, 373, 374, 380, 381, 382, 362]`
 
 ## Estrutura do CSV
 
@@ -97,25 +95,17 @@ left_lower_1_x, left_lower_1_y, ..., left_lower_9_x, left_lower_9_y
 ## Código Fonte
 
 Os pontos são extraídos no arquivo:
-- **`scripts/extract_points_mediapipe.py`** (linhas 41-44)
+- **`scripts/extract_points_mediapipe.py`** (linhas 41-48)
 
 ```python
-right_eye_upper = [27, 29, 30, 31, 32, 33, 34]
-right_eye_lower = [35, 36, 37, 38, 39, 40, 41, 42, 43]
-left_eye_upper = [257, 259, 260, 261, 262, 263, 264]
-left_eye_lower = [265, 266, 267, 268, 269, 270, 271, 272, 273]
+# rightEyeUpper0 e rightEyeLower0 da documentação oficial
+right_eye_upper = [246, 161, 160, 159, 158, 157, 173]
+right_eye_lower = [33, 7, 163, 144, 145, 153, 154, 155, 133]
+
+# leftEyeUpper0 e leftEyeLower0 da documentação oficial
+left_eye_upper = [466, 388, 387, 386, 385, 384, 398]
+left_eye_lower = [263, 249, 390, 373, 374, 380, 381, 382, 362]
 ```
-
-## Diferença: Extração vs Visualização
-
-⚠️ **IMPORTANTE:** Os pontos usados para visualização do vídeo são diferentes!
-
-### Pontos de Visualização (apenas para o vídeo processado)
-Arquivo: `scripts/process_video_mediapipe.py`
-
-- Inclui pontos adicionais como **íris** e **contorno completo**
-- Usa índices diferentes: 159, 160, 161, 163, 144, 145, etc.
-- **NÃO** são salvos no CSV
 
 ## Diagrama Visual
 
@@ -137,8 +127,9 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 
 - [MediaPipe Face Mesh](https://google.github.io/mediapipe/solutions/face_mesh.html)
 - [MediaPipe Face Mesh Canonical Model](https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png)
+- [Face Mesh Landmarks](https://github.com/google/mediapipe/blob/master/mediapipe/python/solutions/face_mesh_connections.py)
 
 ---
 
 **Última atualização:** 2025-12-09
-**Versão da documentação:** 2.0
+**Versão da documentação:** 3.0 (Índices corrigidos para pontos oficiais do contorno do olho)

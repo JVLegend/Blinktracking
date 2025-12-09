@@ -36,12 +36,16 @@ def extract_points_from_video(video_path):
         frame_count = 0
 
         # Índices dos pontos dos olhos no MediaPipe Face Mesh para EXTRAÇÃO DE DADOS (CSV)
-        # IMPORTANTE: Estes pontos são extraídos para análise e salvos no arquivo CSV.
-        # Os pontos de visualização do vídeo são diferentes (ver process_video_mediapipe.py).
-        right_eye_upper = [27, 29, 30, 31, 32, 33, 34]  # Pálpebra superior direita (right_upper_X)
-        right_eye_lower = [35, 36, 37, 38, 39, 40, 41, 42, 43]  # Pálpebra inferior direita (right_lower_X)
-        left_eye_upper = [257, 259, 260, 261, 262, 263, 264]  # Pálpebra superior esquerda (left_upper_X)
-        left_eye_lower = [265, 266, 267, 268, 269, 270, 271, 272, 273]  # Pálpebra inferior esquerda (left_lower_X)
+        # IMPORTANTE: Usando os índices CORRETOS do contorno do olho conforme documentação oficial do MediaPipe
+        # Referência: https://github.com/google/mediapipe/blob/master/mediapipe/modules/face_geometry/data/canonical_face_model_uv_visualization.png
+        
+        # rightEyeUpper0 e rightEyeLower0 da documentação oficial
+        right_eye_upper = [246, 161, 160, 159, 158, 157, 173]  # Pálpebra superior direita (right_upper_X)
+        right_eye_lower = [33, 7, 163, 144, 145, 153, 154, 155, 133]  # Pálpebra inferior direita (right_lower_X)
+        
+        # leftEyeUpper0 e leftEyeLower0 da documentação oficial
+        left_eye_upper = [466, 388, 387, 386, 385, 384, 398]  # Pálpebra superior esquerda (left_upper_X)
+        left_eye_lower = [263, 249, 390, 373, 374, 380, 381, 382, 362]  # Pálpebra inferior esquerda (left_lower_X)
 
         while True:
             ret, frame = cap.read()

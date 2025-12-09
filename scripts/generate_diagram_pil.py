@@ -6,33 +6,36 @@ def create_eye_points_diagram():
     Cria diagrama dos pontos do MediaPipe usando PIL
     """
 
-    # Pontos extraídos para o CSV
+    # Pontos extraídos para o CSV - ÍNDICES CORRETOS do MediaPipe Face Mesh
+    # Referência: rightEyeUpper0/Lower0 e leftEyeUpper0/Lower0 da documentação oficial
     points_config = {
-        'right_eye_upper': [27, 29, 30, 31, 32, 33, 34],
-        'right_eye_lower': [35, 36, 37, 38, 39, 40, 41, 42, 43],
-        'left_eye_upper': [257, 259, 260, 261, 262, 263, 264],
-        'left_eye_lower': [265, 266, 267, 268, 269, 270, 271, 272, 273]
+        'right_eye_upper': [246, 161, 160, 159, 158, 157, 173],
+        'right_eye_lower': [33, 7, 163, 144, 145, 153, 154, 155, 133],
+        'left_eye_upper': [466, 388, 387, 386, 385, 384, 398],
+        'left_eye_lower': [263, 249, 390, 373, 374, 380, 381, 382, 362]
     }
 
-    # Coordenadas aproximadas (normalizadas 0-1)
+    # Coordenadas aproximadas para formar o contorno do olho (normalizadas 0-1)
+    # Baseado na anatomia do olho: upper vai do canto interno ao externo pela pálpebra superior
+    # lower vai do canto externo ao interno pela pálpebra inferior
     right_eye_coords = {
-        # Upper eyelid
-        27: (0.35, 0.35), 29: (0.36, 0.34), 30: (0.37, 0.33), 31: (0.38, 0.33),
-        32: (0.39, 0.34), 33: (0.40, 0.35), 34: (0.41, 0.36),
-        # Lower eyelid
-        35: (0.35, 0.37), 36: (0.36, 0.38), 37: (0.37, 0.39), 38: (0.38, 0.40),
-        39: (0.39, 0.40), 40: (0.40, 0.39), 41: (0.41, 0.38), 42: (0.42, 0.37),
-        43: (0.43, 0.36),
+        # Upper eyelid (246->173): canto externo -> canto interno
+        246: (0.43, 0.34), 161: (0.41, 0.32), 160: (0.39, 0.31), 159: (0.37, 0.31),
+        158: (0.35, 0.32), 157: (0.33, 0.33), 173: (0.31, 0.35),
+        # Lower eyelid (33->133): canto interno -> canto externo
+        33: (0.31, 0.36), 7: (0.33, 0.38), 163: (0.35, 0.39), 144: (0.37, 0.40),
+        145: (0.39, 0.39), 153: (0.41, 0.38), 154: (0.42, 0.37), 155: (0.43, 0.36),
+        133: (0.44, 0.35),
     }
 
     left_eye_coords = {
-        # Upper eyelid
-        257: (0.65, 0.35), 259: (0.64, 0.34), 260: (0.63, 0.33), 261: (0.62, 0.33),
-        262: (0.61, 0.34), 263: (0.60, 0.35), 264: (0.59, 0.36),
-        # Lower eyelid
-        265: (0.65, 0.37), 266: (0.64, 0.38), 267: (0.63, 0.39), 268: (0.62, 0.40),
-        269: (0.61, 0.40), 270: (0.60, 0.39), 271: (0.59, 0.38), 272: (0.58, 0.37),
-        273: (0.57, 0.36),
+        # Upper eyelid (466->398): canto externo -> canto interno
+        466: (0.57, 0.34), 388: (0.59, 0.32), 387: (0.61, 0.31), 386: (0.63, 0.31),
+        385: (0.65, 0.32), 384: (0.67, 0.33), 398: (0.69, 0.35),
+        # Lower eyelid (263->362): canto interno -> canto externo
+        263: (0.69, 0.36), 249: (0.67, 0.38), 390: (0.65, 0.39), 373: (0.63, 0.40),
+        374: (0.61, 0.39), 380: (0.59, 0.38), 381: (0.58, 0.37), 382: (0.57, 0.36),
+        362: (0.56, 0.35),
     }
 
     all_coords = {**right_eye_coords, **left_eye_coords}

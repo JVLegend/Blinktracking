@@ -160,29 +160,28 @@ export default function FacialPointsPage() {
                     <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
                       <div className="card-body p-6">
                         <h4 className="font-semibold text-lg mb-4">Pontos Extraídos (CSV)</h4>
-                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na extração de dados para análise:</p>
+                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na extração de dados para análise (índices oficiais do contorno do olho):</p>
                         <ul className="space-y-2 opacity-70">
                           <li className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Olho Direito:
                             <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior (right_upper_X): [27, 29, 30, 31, 32, 33, 34]</li>
-                              <li>Pálpebra Inferior (right_lower_X): [35, 36, 37, 38, 39, 40, 41, 42, 43]</li>
+                              <li>Pálpebra Superior (rightEyeUpper0): [246, 161, 160, 159, 158, 157, 173]</li>
+                              <li>Pálpebra Inferior (rightEyeLower0): [33, 7, 163, 144, 145, 153, 154, 155, 133]</li>
                             </ul>
                           </li>
                           <li className="flex items-center gap-2 mt-4">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Olho Esquerdo:
                             <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior (left_upper_X): [257, 259, 260, 261, 262, 263, 264]</li>
-                              <li>Pálpebra Inferior (left_lower_X): [265, 266, 267, 268, 269, 270, 271, 272, 273]</li>
+                              <li>Pálpebra Superior (leftEyeUpper0): [466, 388, 387, 386, 385, 384, 398]</li>
+                              <li>Pálpebra Inferior (leftEyeLower0): [263, 249, 390, 373, 374, 380, 381, 382, 362]</li>
                             </ul>
                           </li>
                         </ul>
                         <div className="mt-4 p-3 bg-base-300 rounded-lg">
                           <p className="text-xs opacity-60">
-                            <strong>Nota:</strong> Estes são os pontos extraídos para o arquivo CSV.
-                            O vídeo processado utiliza pontos diferentes para visualização.
+                            <strong>Referência:</strong> Índices oficiais do MediaPipe Face Mesh para contorno dos olhos.
                           </p>
                         </div>
                       </div>
@@ -333,15 +332,13 @@ export default function FacialPointsPage() {
               <li className="flex items-start gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
                 <div>
-                  <strong>Pontos de Extração (CSV):</strong> Pontos 27-34, 35-43, 257-264, 265-273 -
-                  Utilizados para gerar os dados de análise no arquivo CSV
+                  <strong>Pontos de Extração (CSV):</strong> rightEyeUpper0 [246, 161, 160, 159, 158, 157, 173], rightEyeLower0 [33, 7, 163, 144, 145, 153, 154, 155, 133], leftEyeUpper0 [466, 388, 387, 386, 385, 384, 398], leftEyeLower0 [263, 249, 390, 373, 374, 380, 381, 382, 362] - Índices oficiais do contorno do olho
                 </div>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
                 <div>
-                  <strong>Pontos de Visualização (Vídeo):</strong> Pontos 159-161, 144-145, 153-158, etc. -
-                  Utilizados apenas para desenhar os pontos no vídeo processado, incluindo íris e contorno completo
+                  <strong>Pontos de Visualização (Vídeo):</strong> Mesmos pontos do CSV + pontos de íris [473-477, 468-472] para renderização visual completa
                 </div>
               </li>
             </ul>

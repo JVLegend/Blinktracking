@@ -1,175 +1,176 @@
 {
-  "description": "Mapeamento dos pontos do MediaPipe para colunas do CSV",
+  "description": "Mapeamento dos pontos do MediaPipe para colunas do CSV - Índices oficiais do contorno do olho",
+  "reference": "rightEyeUpper0/Lower0 e leftEyeUpper0/Lower0 da documentação oficial do MediaPipe",
   "csv_columns": {
     "right_upper_1": {
-      "mediapipe_index": 27,
+      "mediapipe_index": 246,
       "group": "right_eye_upper"
     },
     "right_upper_2": {
-      "mediapipe_index": 29,
+      "mediapipe_index": 161,
       "group": "right_eye_upper"
     },
     "right_upper_3": {
-      "mediapipe_index": 30,
+      "mediapipe_index": 160,
       "group": "right_eye_upper"
     },
     "right_upper_4": {
-      "mediapipe_index": 31,
+      "mediapipe_index": 159,
       "group": "right_eye_upper"
     },
     "right_upper_5": {
-      "mediapipe_index": 32,
+      "mediapipe_index": 158,
       "group": "right_eye_upper"
     },
     "right_upper_6": {
-      "mediapipe_index": 33,
+      "mediapipe_index": 157,
       "group": "right_eye_upper"
     },
     "right_upper_7": {
-      "mediapipe_index": 34,
+      "mediapipe_index": 173,
       "group": "right_eye_upper"
     },
     "right_lower_1": {
-      "mediapipe_index": 35,
+      "mediapipe_index": 33,
       "group": "right_eye_lower"
     },
     "right_lower_2": {
-      "mediapipe_index": 36,
+      "mediapipe_index": 7,
       "group": "right_eye_lower"
     },
     "right_lower_3": {
-      "mediapipe_index": 37,
+      "mediapipe_index": 163,
       "group": "right_eye_lower"
     },
     "right_lower_4": {
-      "mediapipe_index": 38,
+      "mediapipe_index": 144,
       "group": "right_eye_lower"
     },
     "right_lower_5": {
-      "mediapipe_index": 39,
+      "mediapipe_index": 145,
       "group": "right_eye_lower"
     },
     "right_lower_6": {
-      "mediapipe_index": 40,
+      "mediapipe_index": 153,
       "group": "right_eye_lower"
     },
     "right_lower_7": {
-      "mediapipe_index": 41,
+      "mediapipe_index": 154,
       "group": "right_eye_lower"
     },
     "right_lower_8": {
-      "mediapipe_index": 42,
+      "mediapipe_index": 155,
       "group": "right_eye_lower"
     },
     "right_lower_9": {
-      "mediapipe_index": 43,
+      "mediapipe_index": 133,
       "group": "right_eye_lower"
     },
     "left_upper_1": {
-      "mediapipe_index": 257,
+      "mediapipe_index": 466,
       "group": "left_eye_upper"
     },
     "left_upper_2": {
-      "mediapipe_index": 259,
+      "mediapipe_index": 388,
       "group": "left_eye_upper"
     },
     "left_upper_3": {
-      "mediapipe_index": 260,
+      "mediapipe_index": 387,
       "group": "left_eye_upper"
     },
     "left_upper_4": {
-      "mediapipe_index": 261,
+      "mediapipe_index": 386,
       "group": "left_eye_upper"
     },
     "left_upper_5": {
-      "mediapipe_index": 262,
+      "mediapipe_index": 385,
       "group": "left_eye_upper"
     },
     "left_upper_6": {
-      "mediapipe_index": 263,
+      "mediapipe_index": 384,
       "group": "left_eye_upper"
     },
     "left_upper_7": {
-      "mediapipe_index": 264,
+      "mediapipe_index": 398,
       "group": "left_eye_upper"
     },
     "left_lower_1": {
-      "mediapipe_index": 265,
+      "mediapipe_index": 263,
       "group": "left_eye_lower"
     },
     "left_lower_2": {
-      "mediapipe_index": 266,
+      "mediapipe_index": 249,
       "group": "left_eye_lower"
     },
     "left_lower_3": {
-      "mediapipe_index": 267,
+      "mediapipe_index": 390,
       "group": "left_eye_lower"
     },
     "left_lower_4": {
-      "mediapipe_index": 268,
+      "mediapipe_index": 373,
       "group": "left_eye_lower"
     },
     "left_lower_5": {
-      "mediapipe_index": 269,
+      "mediapipe_index": 374,
       "group": "left_eye_lower"
     },
     "left_lower_6": {
-      "mediapipe_index": 270,
+      "mediapipe_index": 380,
       "group": "left_eye_lower"
     },
     "left_lower_7": {
-      "mediapipe_index": 271,
+      "mediapipe_index": 381,
       "group": "left_eye_lower"
     },
     "left_lower_8": {
-      "mediapipe_index": 272,
+      "mediapipe_index": 382,
       "group": "left_eye_lower"
     },
     "left_lower_9": {
-      "mediapipe_index": 273,
+      "mediapipe_index": 362,
       "group": "left_eye_lower"
     }
   },
   "mediapipe_indices": {
     "right_eye_upper": [
-      27,
-      29,
-      30,
-      31,
-      32,
-      33,
-      34
+      246,
+      161,
+      160,
+      159,
+      158,
+      157,
+      173
     ],
     "right_eye_lower": [
-      35,
-      36,
-      37,
-      38,
-      39,
-      40,
-      41,
-      42,
-      43
+      33,
+      7,
+      163,
+      144,
+      145,
+      153,
+      154,
+      155,
+      133
     ],
     "left_eye_upper": [
-      257,
-      259,
-      260,
-      261,
-      262,
-      263,
-      264
+      466,
+      388,
+      387,
+      386,
+      385,
+      384,
+      398
     ],
     "left_eye_lower": [
-      265,
-      266,
-      267,
-      268,
-      269,
-      270,
-      271,
-      272,
-      273
+      263,
+      249,
+      390,
+      373,
+      374,
+      380,
+      381,
+      382,
+      362
     ]
   }
 }

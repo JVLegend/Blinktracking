@@ -8,7 +8,10 @@
       "Bash(ls:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\ndocs: atualizar documentação de pontos faciais do MediaPipe\n\n- Corrigir mapeamento de pontos na documentação web\n- Separar pontos de extração (CSV) vs visualização (vídeo)\n- Adicionar documentação técnica completa (MEDIAPIPE_POINTS_MAPPING.md)\n- Restaurar scripts Python com comentários atualizados\n- Adicionar script para gerar diagrama visual dos pontos\n- Atualizar README com seção de documentação de pontos\n\nPontos de Extração (CSV):\n- Right Eye: [27-34] upper, [35-43] lower\n- Left Eye: [257-264] upper, [265-273] lower\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(dir /s /b \"e:\\GitHub\\Blinktracking\\*.csv\")",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Get-Content | Select-Object -First 1\")"
     ],
     "deny": [],
     "ask": []

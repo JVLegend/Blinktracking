@@ -1,17 +1,20 @@
-import { list } from '@vercel/blob';
+// import { list } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   try {
-    // Listar todos os arquivos no blob storage
-    const { blobs } = await list();
+    // TODO: Implementar listagem de arquivos do blob storage
+    // const { blobs } = await list();
+
+    // Por enquanto, retorna lista vazia
+    const blobs: any[] = [];
 
     // Separar por tipo de arquivo
-    const videoFiles = blobs.filter(blob => 
+    const videoFiles = blobs.filter(blob =>
       blob.pathname.toLowerCase().endsWith('.mov')
     );
 
-    const csvFiles = blobs.filter(blob => 
+    const csvFiles = blobs.filter(blob =>
       blob.pathname.toLowerCase().endsWith('.csv')
     );
 
@@ -36,8 +39,8 @@ export async function GET() {
 
   } catch (error) {
     console.error('Erro ao listar arquivos:', error);
-    return NextResponse.json({ 
-      error: 'Erro ao buscar arquivos' 
+    return NextResponse.json({
+      error: 'Erro ao buscar arquivos'
     }, { status: 500 });
   }
 } 
