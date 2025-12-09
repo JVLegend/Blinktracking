@@ -111,6 +111,53 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
 
+## Extração de Pontos Faciais
+
+### Método Rápido: CSV Direto (Recomendado)
+
+Use o script `extract_points_to_csv.py` para extrair pontos e gerar CSV diretamente com barra de progresso:
+
+```bash
+# Uso básico (CSV salvo no mesmo diretório do vídeo)
+python scripts/extract_points_to_csv.py caminho/video.mp4
+
+# Especificar caminho do CSV de saída
+python scripts/extract_points_to_csv.py caminho/video.mp4 saida/dados.csv
+```
+
+**Características:**
+- ✅ Gera CSV diretamente (sem JSON intermediário)
+- ✅ Barra de progresso no terminal
+- ✅ Estatísticas de processamento (taxa de detecção de faces)
+- ✅ Usa índices corretos do MediaPipe (rightEyeUpper0/Lower0)
+
+**Exemplo de saída:**
+```
+📹 Vídeo: narciso_2644.MOV
+📊 Total de frames: 1500
+⏱️  FPS: 30.00
+💾 Salvando em: .\tmp\narciso_2644.csv
+
+🔍 Processando |████████████████████| 1500/1500 [00:45<00:00, 33.2frame/s]
+
+✅ Processamento concluído!
+📊 Frames processados: 1500
+👤 Frames com face detectada: 1487 (99.1%)
+💾 CSV salvo em: .\tmp\narciso_2644.csv
+```
+
+### Método Tradicional: JSON → CSV
+
+Se preferir o fluxo tradicional em duas etapas:
+
+```bash
+# 1. Extrair pontos para JSON
+python scripts/extract_points_mediapipe.py video.mp4 > saida/pontos.json
+
+# 2. Converter JSON para CSV
+python scripts/convert_json_to_csv.py saida/
+```
+
 ## Teste manual do script Python (MediaPipe)
 
 Para testar manualmente a geração de vídeo com MediaPipe, siga os passos abaixo:

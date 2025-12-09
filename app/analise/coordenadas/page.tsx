@@ -160,7 +160,7 @@ export default function CoordenadasPage() {
     return match ? parseInt(match[0]) : 0;
   };
 
-  // Normalizar pontos para visualização similar ao PNG
+  // Normalizar pontos para visualização usando coordenadas reais do vídeo
   const { normalizedPoints, eyeContours } = useMemo(() => {
     if (!currentFramePoints.length) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
 
@@ -178,66 +178,69 @@ export default function CoordenadasPage() {
       .filter(p => p.group === 'left_lower')
       .sort((a, b) => getLabelNumber(a.label) - getLabelNumber(b.label));
 
-    // Função para normalizar um conjunto de pontos de um olho
-    const normalizeEyePoints = (
-      upperPoints: MediaPipePoint[],
-      lowerPoints: MediaPipePoint[],
-      targetCenterX: number
-    ) => {
-      const allPoints = [...upperPoints, ...lowerPoints];
-      if (!allPoints.length) return { points: [], contour: [] };
+    const allPoints = [...rightUpper, ...rightLower, ...leftUpper, ...leftLower];
 
-      // Calcular bounds de todos os pontos do olho
-      const xs = allPoints.map(p => p.x);
-      const ys = allPoints.map(p => p.y);
-      const minX = Math.min(...xs);
-      const maxX = Math.max(...xs);
-      const minY = Math.min(...ys);
-      const maxY = Math.max(...ys);
-      const centerX = (minX + maxX) / 2;
-      const centerY = (minY + maxY) / 2;
-      const width = maxX - minX || 1;
-      const height = maxY - minY || 1;
+    if (!allPoints.length) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
 
-      // Escala maior para melhor visualização
-      const scaleFactor = 180;
-      const scale = Math.max(width, height);
+    // Calcular bounds globais de TODOS os pontos para escalar proporcionalmente
+    const allX = allPoints.map(p => p.x);
+    const allY = allPoints.map(p => p.y);
+    const minX = Math.min(...allX);
+    const maxX = Math.max(...allX);
+    const minY = Math.min(...allY);
+    const maxY = Math.max(...allY);
 
-      // Função para normalizar um ponto
-      const normalize = (p: MediaPipePoint) => ({
-        ...p,
-        x: ((p.x - centerX) / scale) * scaleFactor + targetCenterX,
-        y: ((p.y - centerY) / scale) * scaleFactor + 200
-      });
+    // Dimensões do frame original
+    const frameWidth = maxX - minX || 1;
+    const frameHeight = maxY - minY || 1;
 
-      // Normalizar todos os pontos mantendo a ordem original
-      const normalizedUpper = upperPoints.map(normalize);
-      const normalizedLower = lowerPoints.map(normalize);
+    // Dimensões do canvas de visualização
+    const canvasWidth = 600;
+    const canvasHeight = 400;
 
-      // Contorno do olho: 
-      // Upper: ponto 1 -> 7 (esquerda para direita da pálpebra superior)
-      // Lower: ponto 9 -> 1 (volta pela pálpebra inferior, fechando o contorno)
-      const reversedLower = [...normalizedLower].reverse(); // Cópia para não mutar o original
-      const contour = [
-        ...normalizedUpper,  // Upper: 1, 2, 3, 4, 5, 6, 7
-        ...reversedLower     // Lower: 9, 8, 7, 6, 5, 4, 3, 2, 1
-      ];
+    // Calcular escala para caber no canvas mantendo proporção
+    const scaleX = canvasWidth / frameWidth;
+    const scaleY = canvasHeight / frameHeight;
+    const scale = Math.min(scaleX, scaleY) * 0.8; // 0.8 para margem
 
-      return {
-        points: [...normalizedUpper, ...normalizedLower],  // Pontos na ordem original para labels
-        contour
-      };
-    };
+    // Calcular offset para centralizar
+    const offsetX = (canvasWidth - frameWidth * scale) / 2;
+    const offsetY = (canvasHeight - frameHeight * scale) / 2;
 
-    // Normalizar cada olho
-    const rightEye = normalizeEyePoints(rightUpper, rightLower, 150);
-    const leftEye = normalizeEyePoints(leftUpper, leftLower, 450);
+    // Função para normalizar um ponto mantendo coordenadas absolutas
+    const normalize = (p: MediaPipePoint) => ({
+      ...p,
+      x: (p.x - minX) * scale + offsetX,
+      y: (p.y - minY) * scale + offsetY
+    });
+
+    // Normalizar todos os pontos
+    const normalizedRightUpper = rightUpper.map(normalize);
+    const normalizedRightLower = rightLower.map(normalize);
+    const normalizedLeftUpper = leftUpper.map(normalize);
+    const normalizedLeftLower = leftLower.map(normalize);
+
+    // Criar contornos dos olhos
+    const rightContour = [
+      ...normalizedRightUpper,
+      ...[...normalizedRightLower].reverse()
+    ];
+
+    const leftContour = [
+      ...normalizedLeftUpper,
+      ...[...normalizedLeftLower].reverse()
+    ];
 
     return {
-      normalizedPoints: [...rightEye.points, ...leftEye.points],
+      normalizedPoints: [
+        ...normalizedRightUpper,
+        ...normalizedRightLower,
+        ...normalizedLeftUpper,
+        ...normalizedLeftLower
+      ],
       eyeContours: {
-        right: rightEye.contour,
-        left: leftEye.contour
+        right: rightContour,
+        left: leftContour
       }
     };
   }, [currentFramePoints]);
