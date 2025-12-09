@@ -159,12 +159,43 @@ export default function FacialPointsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
                       <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Pontos dos Olhos</h4>
+                        <h4 className="font-semibold text-lg mb-4">Pontos Extraídos (CSV)</h4>
+                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na extração de dados para análise:</p>
                         <ul className="space-y-2 opacity-70">
                           <li className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Olho Direito:
-                            <ul className="ml-4 mt-1">
+                            <ul className="ml-4 mt-1 text-sm">
+                              <li>Pálpebra Superior (right_upper_X): [27, 29, 30, 31, 32, 33, 34]</li>
+                              <li>Pálpebra Inferior (right_lower_X): [35, 36, 37, 38, 39, 40, 41, 42, 43]</li>
+                            </ul>
+                          </li>
+                          <li className="flex items-center gap-2 mt-4">
+                            <span className="w-2 h-2 rounded-full bg-primary"></span>
+                            Olho Esquerdo:
+                            <ul className="ml-4 mt-1 text-sm">
+                              <li>Pálpebra Superior (left_upper_X): [257, 259, 260, 261, 262, 263, 264]</li>
+                              <li>Pálpebra Inferior (left_lower_X): [265, 266, 267, 268, 269, 270, 271, 272, 273]</li>
+                            </ul>
+                          </li>
+                        </ul>
+                        <div className="mt-4 p-3 bg-base-300 rounded-lg">
+                          <p className="text-xs opacity-60">
+                            <strong>Nota:</strong> Estes são os pontos extraídos para o arquivo CSV.
+                            O vídeo processado utiliza pontos diferentes para visualização.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+                      <div className="card-body p-6">
+                        <h4 className="font-semibold text-lg mb-4">Pontos de Visualização (Vídeo)</h4>
+                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na renderização do vídeo processado:</p>
+                        <ul className="space-y-2 opacity-70">
+                          <li className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-primary"></span>
+                            Olho Direito:
+                            <ul className="ml-4 mt-1 text-sm">
                               <li>Pálpebra Superior: [159, 160, 161, 163, 144, 145, 153]</li>
                               <li>Pálpebra Inferior: [159, 158, 157, 173, 155, 154, 153, 145, 144]</li>
                               <li>Íris: [469, 470, 471, 472]</li>
@@ -174,7 +205,7 @@ export default function FacialPointsPage() {
                           <li className="flex items-center gap-2 mt-4">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Olho Esquerdo:
-                            <ul className="ml-4 mt-1">
+                            <ul className="ml-4 mt-1 text-sm">
                               <li>Pálpebra Superior: [386, 387, 388, 390, 373, 374, 380]</li>
                               <li>Pálpebra Inferior: [386, 385, 384, 398, 382, 381, 380, 374, 373]</li>
                               <li>Íris: [474, 475, 476, 477]</li>
@@ -182,12 +213,19 @@ export default function FacialPointsPage() {
                             </ul>
                           </li>
                         </ul>
+                        <div className="mt-4 p-3 bg-base-300 rounded-lg">
+                          <p className="text-xs opacity-60">
+                            <strong>Nota:</strong> Inclui detecção de íris e contorno completo para melhor visualização.
+                          </p>
+                        </div>
                       </div>
                     </div>
-                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
+                  </div>
+                  <div className="mt-6">
+                    <div className="card bg-base-200 shadow-lg">
                       <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Características</h4>
-                        <ul className="space-y-2 opacity-70">
+                        <h4 className="font-semibold text-lg mb-4">Características Gerais</h4>
+                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 opacity-70">
                           <li className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Detecção precisa da íris
@@ -207,6 +245,10 @@ export default function FacialPointsPage() {
                           <li className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-primary"></span>
                             Suporte a poses variadas
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-primary"></span>
+                            468 pontos faciais em 3D
                           </li>
                         </ul>
                       </div>
@@ -282,10 +324,28 @@ export default function FacialPointsPage() {
         {/* Nota Informativa */}
         <div className="alert bg-base-200 shadow-lg p-6">
           <InfoIcon className="h-6 w-6 text-primary" />
-          <span className="text-lg opacity-70">
-            Os números dos pontos do MediaPipe foram mapeados para corresponder aos pontos do Dlib,
-            mantendo a compatibilidade entre os dois métodos de extração.
-          </span>
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg mb-2">Diferença entre Extração e Visualização</h3>
+            <p className="text-base opacity-70 mb-3">
+              O projeto utiliza <strong>dois conjuntos diferentes de pontos</strong> do MediaPipe:
+            </p>
+            <ul className="space-y-2 opacity-70">
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
+                <div>
+                  <strong>Pontos de Extração (CSV):</strong> Pontos 27-34, 35-43, 257-264, 265-273 -
+                  Utilizados para gerar os dados de análise no arquivo CSV
+                </div>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
+                <div>
+                  <strong>Pontos de Visualização (Vídeo):</strong> Pontos 159-161, 144-145, 153-158, etc. -
+                  Utilizados apenas para desenhar os pontos no vídeo processado, incluindo íris e contorno completo
+                </div>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </SidebarInset>
