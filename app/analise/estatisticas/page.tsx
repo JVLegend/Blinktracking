@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { CSVSelector } from "../../components/CSVSelector"
+import { FileUploadCard } from "../../components/FileUploadCard"
 
 // Atualizar a importação do Plot
 const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default), {
@@ -288,13 +289,14 @@ export default function EstatisticasPage() {
   const [blinkDetails, setBlinkDetails] = useState<BlinkDetail[]>([])
   const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null)
   const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   const downloadBlinkDetails = () => {
     const headers = "Eye,Blink_Number,Start_Frame,End_Frame,Start_Time_Seconds,End_Time_Seconds,Duration_Seconds,Seconds_Since_Last_Blink,Is_Complete\n"
-    const csvContent = blinkDetails.map(detail => 
+    const csvContent = blinkDetails.map(detail =>
       `${detail.eye},${detail.blinkNumber},${detail.startFrame},${detail.endFrame},${detail.startTime.toFixed(3)},${detail.endTime.toFixed(3)},${detail.duration.toFixed(3)},${detail.timeSinceLastBlink.toFixed(3)},${detail.isComplete ? "Completa" : "Incompleta"}`
     ).join("\n")
-    
+
     const blob = new Blob([headers + csvContent], { type: "text/csv" })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -315,9 +317,9 @@ export default function EstatisticasPage() {
     for (let i = 1; i < data.length; i++) {
       const prev = data[i - 1];
       const curr = data[i];
-      
+
       let velocity = 0;
-      
+
       if (curr.method === 'dlib') {
         const dist37 = calculateDistance(
           prev["37_x"]!, prev["37_y"]!,
@@ -348,7 +350,7 @@ export default function EstatisticasPage() {
         );
         velocity = (rightUpperDist + rightLowerDist + leftUpperDist + leftLowerDist) / 4;
       }
-      
+
       velocities.push(velocity * 30); // Multiplicar por FPS para ter velocidade em pixels/segundo
       frames.push(curr.frame);
     }
@@ -365,7 +367,7 @@ export default function EstatisticasPage() {
 
   const detectBlinks = (data: DataPoint[]) => {
     const blinks: { start: number, end: number, complete: boolean }[] = []
-    
+
     // Calcular a média das distâncias para definir os thresholds
     const distances = data.map(point => {
       if (point.method === "dlib") {
@@ -394,7 +396,7 @@ export default function EstatisticasPage() {
     const maxDistance = Math.max(...distances);
     const minDistance = Math.min(...distances);
     const avgDistance = distances.reduce((a, b) => a + b, 0) / distances.length;
-    
+
     // Definir thresholds baseados nas distâncias calculadas
     const blinkThreshold = minDistance + (maxDistance - minDistance) * 0.6; // 60% do range para detectar piscada
     const completeBlinkThreshold = minDistance + (maxDistance - minDistance) * 0.3; // 30% do range para piscada completa
@@ -446,7 +448,7 @@ export default function EstatisticasPage() {
         if (currentDistance < minBlinkDistance) {
           minBlinkDistance = currentDistance;
         }
-        
+
         if (currentDistance > blinkThreshold) {
           // Fim da piscada
           inBlink = false;
@@ -471,10 +473,10 @@ export default function EstatisticasPage() {
     // Calcular a mediana
     const sortedValues = [...values].sort((a, b) => a - b);
     const median = sortedValues[Math.floor(sortedValues.length / 2)];
-    
+
     // Calcular os desvios absolutos
     const deviations = values.map(v => Math.abs(v - median));
-    
+
     // Calcular a mediana dos desvios
     const sortedDeviations = [...deviations].sort((a, b) => a - b);
     return sortedDeviations[Math.floor(sortedDeviations.length / 2)];
@@ -540,7 +542,7 @@ export default function EstatisticasPage() {
     // Calcular a distância reflexa marginal (MRD) - distância máxima entre as pálpebras
     let mrd = 0
     const distances: number[] = []
-    
+
     data.forEach(point => {
       const distance = getEyeDistance(point)
       distances.push(distance)
@@ -551,7 +553,7 @@ export default function EstatisticasPage() {
 
     const maxEyeDistance = Math.max(...distances)
     const minEyeDistance = Math.min(...distances)
-    
+
     // Calcular métricas para cada piscada
     blinks.forEach((blink, index) => {
       const duration = (blink.end - blink.start) / 30 // Convertendo para segundos
@@ -698,6 +700,111 @@ export default function EstatisticasPage() {
     }
   }
 
+  const handleProcessUploadedFile = async () => {
+    if (!uploadedFile) {
+      toast.error("Nenhum arquivo selecionado");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const text = await uploadedFile.text();
+
+      // Ajuste para lidar com diferentes separadores
+      const rows = text.split("\n").filter(row => row.trim()).map(row => {
+        // Verifica se a linha usa | como separador
+        if (row.includes("|")) {
+          return row.split("|")[1]; // Pega a parte após o primeiro |
+        }
+        return row;
+      });
+
+      if (rows.length < 2) {
+        toast.error("Arquivo CSV vazio ou inválido");
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("Headers:", rows[0]); // Debug
+      const headers = rows[0].split(",").map(h => h.trim());
+
+      const parsedData: DataPoint[] = rows.slice(1).map((row, index) => {
+        const values = row.split(",").map(v => v.trim());
+        const point: any = {};
+
+        try {
+          point.frame = parseInt(values[0]);
+          point.method = values[1]?.toLowerCase() || 'dlib';
+
+          // Processar pontos com base no método
+          if (point.method === 'dlib') {
+            const coordinates = ['37', '38', '40', '41'];
+            coordinates.forEach((coord, i) => {
+              const baseIndex = 2 + (i * 2);
+              point[`${coord}_x`] = parseFloat(values[baseIndex]);
+              point[`${coord}_y`] = parseFloat(values[baseIndex + 1]);
+            });
+          } else if (point.method === 'mediapipe') {
+            headers.slice(2).forEach((header, i) => {
+              const value = parseFloat(values[i + 2]);
+              if (!isNaN(value)) {
+                point[header] = value;
+              }
+            });
+          }
+
+          return point as DataPoint;
+        } catch (e) {
+          console.error(`Erro ao processar linha ${index + 2}:`, e);
+          return null;
+        }
+      }).filter((point): point is DataPoint => point !== null);
+
+      if (parsedData.length === 0) {
+        toast.error("Nenhum dado válido encontrado no arquivo");
+        setIsLoading(false);
+        return;
+      }
+
+      setData(parsedData);
+
+      // Limpar seleção anterior
+      setSelectedCSVUrl(null);
+      setSelectedCSVFilename(null);
+
+      // Calcular velocidades
+      const newVelocityData = [calculateVelocity(parsedData)];
+      setVelocityData(newVelocityData);
+
+      // Detectar piscadas primeiro
+      const blinks = detectBlinks(parsedData);
+      console.log("Blinks detectados:", blinks);
+
+      // Gerar detalhes das piscadas
+      const details = generateBlinkDetails(blinks);
+      setBlinkDetails(details);
+
+      // Calcular métricas usando os mesmos blinks detectados
+      const newMetrics = calculateMetrics(parsedData, blinks);
+      console.log("Métricas calculadas:", newMetrics);
+      if (newMetrics) {
+        setMetrics(newMetrics);
+        toast.success("Dados processados com sucesso!");
+      } else {
+        toast.error("Erro ao calcular métricas");
+      }
+
+    } catch (error) {
+      console.error("Erro ao processar arquivo:", error);
+      setError((error as Error).message);
+      toast.error("Erro ao processar o arquivo: " + (error as Error).message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleCSVLoad = async () => {
     if (!selectedCSVUrl) {
       toast.error("Por favor, selecione uma planilha primeiro");
@@ -706,103 +813,103 @@ export default function EstatisticasPage() {
 
     setIsLoading(true);
     setError(null);
-    
+
     try {
-        // Buscar o arquivo do blob storage
-        const response = await fetch(selectedCSVUrl);
-        if (!response.ok) {
-          throw new Error('Erro ao carregar arquivo');
-    }
+      // Buscar o arquivo do blob storage
+      const response = await fetch(selectedCSVUrl);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar arquivo');
+      }
 
-        const text = await response.text();
-        // Ajuste para lidar com diferentes separadores
-        const rows = text.split("\n").filter(row => row.trim()).map(row => {
-            // Verifica se a linha usa | como separador
-            if (row.includes("|")) {
-                return row.split("|")[1]; // Pega a parte após o primeiro |
-            }
-            return row;
-        });
-        
-        if (rows.length < 2) {
-            toast.error("Arquivo CSV vazio ou inválido");
-            setIsLoading(false);
-            return;
+      const text = await response.text();
+      // Ajuste para lidar com diferentes separadores
+      const rows = text.split("\n").filter(row => row.trim()).map(row => {
+        // Verifica se a linha usa | como separador
+        if (row.includes("|")) {
+          return row.split("|")[1]; // Pega a parte após o primeiro |
         }
+        return row;
+      });
 
-        console.log("Headers:", rows[0]); // Debug
-        const headers = rows[0].split(",").map(h => h.trim());
-        
-        const parsedData: DataPoint[] = rows.slice(1).map((row, index) => {
-            const values = row.split(",").map(v => v.trim());
-            const point: any = {};
-            
-            try {
-                point.frame = parseInt(values[0]);
-                point.method = values[1]?.toLowerCase() || 'dlib';
+      if (rows.length < 2) {
+        toast.error("Arquivo CSV vazio ou inválido");
+        setIsLoading(false);
+        return;
+      }
 
-                // Processar pontos com base no método
-                if (point.method === 'dlib') {
-                    // Formato: frame,method,37_x,37_y,38_x,38_y,40_x,40_y,41_x,41_y
-                    const coordinates = ['37', '38', '40', '41'];
-                    coordinates.forEach((coord, i) => {
-                        const baseIndex = 2 + (i * 2);
-                        point[`${coord}_x`] = parseFloat(values[baseIndex]);
-                        point[`${coord}_y`] = parseFloat(values[baseIndex + 1]);
-                    });
-                } else if (point.method === 'mediapipe') {
-                    // Mapear todos os pontos do MediaPipe
-                    headers.slice(2).forEach((header, i) => {
-                        const value = parseFloat(values[i + 2]);
-                        if (!isNaN(value)) {
-                            point[header] = value;
-                        }
-                    });
-                }
+      console.log("Headers:", rows[0]); // Debug
+      const headers = rows[0].split(",").map(h => h.trim());
 
-                return point as DataPoint;
-            } catch (e) {
-                console.error(`Erro ao processar linha ${index + 2}:`, e);
-                return null;
-            }
-        }).filter((point): point is DataPoint => point !== null);
+      const parsedData: DataPoint[] = rows.slice(1).map((row, index) => {
+        const values = row.split(",").map(v => v.trim());
+        const point: any = {};
 
-        if (parsedData.length === 0) {
-            toast.error("Nenhum dado válido encontrado no arquivo");
-            setIsLoading(false);
-            return;
+        try {
+          point.frame = parseInt(values[0]);
+          point.method = values[1]?.toLowerCase() || 'dlib';
+
+          // Processar pontos com base no método
+          if (point.method === 'dlib') {
+            // Formato: frame,method,37_x,37_y,38_x,38_y,40_x,40_y,41_x,41_y
+            const coordinates = ['37', '38', '40', '41'];
+            coordinates.forEach((coord, i) => {
+              const baseIndex = 2 + (i * 2);
+              point[`${coord}_x`] = parseFloat(values[baseIndex]);
+              point[`${coord}_y`] = parseFloat(values[baseIndex + 1]);
+            });
+          } else if (point.method === 'mediapipe') {
+            // Mapear todos os pontos do MediaPipe
+            headers.slice(2).forEach((header, i) => {
+              const value = parseFloat(values[i + 2]);
+              if (!isNaN(value)) {
+                point[header] = value;
+              }
+            });
+          }
+
+          return point as DataPoint;
+        } catch (e) {
+          console.error(`Erro ao processar linha ${index + 2}:`, e);
+          return null;
         }
+      }).filter((point): point is DataPoint => point !== null);
 
-        setData(parsedData);
+      if (parsedData.length === 0) {
+        toast.error("Nenhum dado válido encontrado no arquivo");
+        setIsLoading(false);
+        return;
+      }
 
-        // Calcular velocidades
-        const newVelocityData = [calculateVelocity(parsedData)];
-        setVelocityData(newVelocityData);
+      setData(parsedData);
 
-        // Detectar piscadas primeiro
-        const blinks = detectBlinks(parsedData);
-        console.log("Blinks detectados:", blinks);
+      // Calcular velocidades
+      const newVelocityData = [calculateVelocity(parsedData)];
+      setVelocityData(newVelocityData);
 
-        // Gerar detalhes das piscadas
-        const details = generateBlinkDetails(blinks);
-        setBlinkDetails(details);
+      // Detectar piscadas primeiro
+      const blinks = detectBlinks(parsedData);
+      console.log("Blinks detectados:", blinks);
 
-        // Calcular métricas usando os mesmos blinks detectados
-        const newMetrics = calculateMetrics(parsedData, blinks);
-        console.log("Métricas calculadas:", newMetrics);
-        if (newMetrics) {
-            setMetrics(newMetrics);
-            toast.success("Dados processados com sucesso!");
-        } else {
-            toast.error("Erro ao calcular métricas");
-        }
+      // Gerar detalhes das piscadas
+      const details = generateBlinkDetails(blinks);
+      setBlinkDetails(details);
+
+      // Calcular métricas usando os mesmos blinks detectados
+      const newMetrics = calculateMetrics(parsedData, blinks);
+      console.log("Métricas calculadas:", newMetrics);
+      if (newMetrics) {
+        setMetrics(newMetrics);
+        toast.success("Dados processados com sucesso!");
+      } else {
+        toast.error("Erro ao calcular métricas");
+      }
 
     } catch (error) {
-        console.error("Erro ao processar arquivo:", error);
-        setError((error as Error).message);
-        toast.error("Erro ao processar o arquivo: " + (error as Error).message);
+      console.error("Erro ao processar arquivo:", error);
+      setError((error as Error).message);
+      toast.error("Erro ao processar o arquivo: " + (error as Error).message);
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -904,7 +1011,7 @@ export default function EstatisticasPage() {
         </div>
 
         <div className="grid gap-6">
-          <CSVSelector 
+          <CSVSelector
             selectedCSV={selectedCSVUrl}
             onCSVSelect={(url, filename) => {
               setSelectedCSVUrl(url)
@@ -912,21 +1019,28 @@ export default function EstatisticasPage() {
             }}
           />
 
+          <FileUploadCard
+            uploadedFile={uploadedFile}
+            onFileSelect={setUploadedFile}
+            onProcessFile={handleProcessUploadedFile}
+            isLoading={isLoading}
+          />
+
           {selectedCSVUrl && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
                   <FileSpreadsheet className="h-6 w-6 text-primary" />
                   <CardTitle>Processar Planilha Selecionada</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Planilha Selecionada:</p>
                   <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
                 </div>
-                
-                <Button 
+
+                <Button
                   onClick={handleCSVLoad}
                   disabled={isLoading}
                   className="w-full"
@@ -937,7 +1051,7 @@ export default function EstatisticasPage() {
                     "Carregar e Analisar Planilha"
                   )}
                 </Button>
-                
+
                 {isLoading && (
                   <div className="text-sm text-muted-foreground">
                     Processando arquivo...
@@ -953,8 +1067,8 @@ export default function EstatisticasPage() {
                     {data.length} pontos carregados
                   </div>
                 )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
           )}
 
           {data.length > 0 && metrics && (
