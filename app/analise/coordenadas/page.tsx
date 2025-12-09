@@ -203,38 +203,77 @@ export default function CoordenadasPage() {
     return match ? parseInt(match[0]) : 0;
   };
 
-  // Normalizar pontos para visualização usando coordenadas reais do vídeo
+  // Calcular bounds globais de TODOS os frames (uma única vez)
+  const globalBounds = useMemo(() => {
+    if (!data.length) return null;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    // Iterar por todos os frames para encontrar os limites globais
+    data.forEach(frameData => {
+      if (csvType === 'eyes_only') {
+        // Para CSV de olhos, processar apenas pontos dos olhos
+        Object.entries(pointsConfig).forEach(([group, config]) => {
+          for (let i = 1; i <= config.count; i++) {
+            const x = frameData[`${group}_${i}_x`];
+            const y = frameData[`${group}_${i}_y`];
+            if (x !== undefined && y !== undefined) {
+              minX = Math.min(minX, x);
+              maxX = Math.max(maxX, x);
+              minY = Math.min(minY, y);
+              maxY = Math.max(maxY, y);
+            }
+          }
+        });
+      } else if (csvType === 'all_points') {
+        // Para CSV de todos os pontos
+        for (let i = 0; i < 478; i++) {
+          const x = frameData[`point_${i}_x`];
+          const y = frameData[`point_${i}_y`];
+          if (x !== undefined && y !== undefined) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+    });
+
+    if (minX === Infinity) return null;
+
+    return { minX, maxX, minY, maxY };
+  }, [data, csvType]);
+
+  // Normalizar pontos para visualização usando bounds globais
   const { normalizedPoints, eyeContours } = useMemo(() => {
-    if (!currentFramePoints.length) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
+    if (!currentFramePoints.length || !globalBounds) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
 
-    // Se for CSV de todos os pontos, usar lógica simplificada
+    const { minX, maxX, minY, maxY } = globalBounds;
+    const frameWidth = maxX - minX || 1;
+    const frameHeight = maxY - minY || 1;
+
+    const canvasWidth = 600;
+    const canvasHeight = 400;
+
+    const scaleX = canvasWidth / frameWidth;
+    const scaleY = canvasHeight / frameHeight;
+    const scale = Math.min(scaleX, scaleY) * 0.8;
+
+    const offsetX = (canvasWidth - frameWidth * scale) / 2;
+    const offsetY = (canvasHeight - frameHeight * scale) / 2;
+
+    // Função para normalizar um ponto usando bounds globais
+    const normalize = (p: MediaPipePoint) => ({
+      ...p,
+      x: (p.x - minX) * scale + offsetX,
+      y: (p.y - minY) * scale + offsetY
+    });
+
+    // Se for CSV de todos os pontos, normalizar diretamente
     if (csvType === 'all_points') {
-      const allX = currentFramePoints.map(p => p.x);
-      const allY = currentFramePoints.map(p => p.y);
-      const minX = Math.min(...allX);
-      const maxX = Math.max(...allX);
-      const minY = Math.min(...allY);
-      const maxY = Math.max(...allY);
-
-      const frameWidth = maxX - minX || 1;
-      const frameHeight = maxY - minY || 1;
-
-      const canvasWidth = 600;
-      const canvasHeight = 400;
-
-      const scaleX = canvasWidth / frameWidth;
-      const scaleY = canvasHeight / frameHeight;
-      const scale = Math.min(scaleX, scaleY) * 0.9;
-
-      const offsetX = (canvasWidth - frameWidth * scale) / 2;
-      const offsetY = (canvasHeight - frameHeight * scale) / 2;
-
-      const normalized = currentFramePoints.map(p => ({
-        ...p,
-        x: (p.x - minX) * scale + offsetX,
-        y: (p.y - minY) * scale + offsetY
-      }));
-
+      const normalized = currentFramePoints.map(normalize);
       return {
         normalizedPoints: normalized,
         eyeContours: { right: [], left: [] }
@@ -254,42 +293,6 @@ export default function CoordenadasPage() {
     const leftLower = currentFramePoints
       .filter(p => p.group === 'left_lower')
       .sort((a, b) => getLabelNumber(a.label) - getLabelNumber(b.label));
-
-    const allPoints = [...rightUpper, ...rightLower, ...leftUpper, ...leftLower];
-
-    if (!allPoints.length) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
-
-    // Calcular bounds globais de TODOS os pontos para escalar proporcionalmente
-    const allX = allPoints.map(p => p.x);
-    const allY = allPoints.map(p => p.y);
-    const minX = Math.min(...allX);
-    const maxX = Math.max(...allX);
-    const minY = Math.min(...allY);
-    const maxY = Math.max(...allY);
-
-    // Dimensões do frame original
-    const frameWidth = maxX - minX || 1;
-    const frameHeight = maxY - minY || 1;
-
-    // Dimensões do canvas de visualização
-    const canvasWidth = 600;
-    const canvasHeight = 400;
-
-    // Calcular escala para caber no canvas mantendo proporção
-    const scaleX = canvasWidth / frameWidth;
-    const scaleY = canvasHeight / frameHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.8; // 0.8 para margem
-
-    // Calcular offset para centralizar
-    const offsetX = (canvasWidth - frameWidth * scale) / 2;
-    const offsetY = (canvasHeight - frameHeight * scale) / 2;
-
-    // Função para normalizar um ponto mantendo coordenadas absolutas
-    const normalize = (p: MediaPipePoint) => ({
-      ...p,
-      x: (p.x - minX) * scale + offsetX,
-      y: (p.y - minY) * scale + offsetY
-    });
 
     // Normalizar todos os pontos
     const normalizedRightUpper = rightUpper.map(normalize);
@@ -320,7 +323,7 @@ export default function CoordenadasPage() {
         left: leftContour
       }
     };
-  }, [currentFramePoints, csvType]);
+  }, [currentFramePoints, csvType, globalBounds]);
 
   // Calcular dimensões do canvas
   const canvasDimensions = useMemo(() => {
