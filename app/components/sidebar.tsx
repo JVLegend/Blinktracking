@@ -24,10 +24,10 @@ export function Sidebar() {
 
   // Dados temporários do usuário (será substituído pela autenticação real)
   const user = {
-    name: "Dr. João Victor",
-    email: "joao.silva@hospital.com",
+    name: "Dra. Larissa Mansano",
+    email: "larissa.mansano@hospital.com",
     avatar: null, // URL da foto quando implementado
-    role: "CTO"
+    role: "Oftalmologista"
   }
 
   return (

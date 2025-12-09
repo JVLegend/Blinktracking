@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Eye, FileSpreadsheet, Play, Pause, SkipBack, SkipForward, Upload } from "lucide-react"
+import { Eye, FileSpreadsheet, Play, Pause, SkipBack, SkipForward, Upload, Video, Scan } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -38,6 +38,7 @@ export default function CoordenadasPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(30); // FPS
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [csvType, setCSVType] = useState<CSVType>('unknown');
+  const [isStabilized, setIsStabilized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Configuração dos pontos do MediaPipe (apenas olhos)
@@ -74,11 +75,15 @@ export default function CoordenadasPage() {
 
     const parsedData: FrameData[] = rows.slice(1).map((row, idx) => {
       const values = row.split(",");
-      const obj: any = { frame: idx };
+      const obj: any = {};
       headers.forEach((header, i) => {
         const value = values[i];
         obj[header] = isNaN(Number(value)) ? value : Number(value);
       });
+      // Usar o valor real da coluna 'frame' do CSV, ou o índice como fallback
+      if (obj.frame === undefined) {
+        obj.frame = idx;
+      }
       return obj;
     });
 
@@ -246,29 +251,67 @@ export default function CoordenadasPage() {
     return { minX, maxX, minY, maxY };
   }, [data, csvType]);
 
-  // Normalizar pontos para visualização usando bounds globais
+  // Normalizar pontos para visualização
   const { normalizedPoints, eyeContours } = useMemo(() => {
     if (!currentFramePoints.length || !globalBounds) return { normalizedPoints: [], eyeContours: { right: [], left: [] } };
-
-    const { minX, maxX, minY, maxY } = globalBounds;
-    const frameWidth = maxX - minX || 1;
-    const frameHeight = maxY - minY || 1;
 
     const canvasWidth = 600;
     const canvasHeight = 400;
 
-    const scaleX = canvasWidth / frameWidth;
-    const scaleY = canvasHeight / frameHeight;
-    const scale = Math.min(scaleX, scaleY) * 0.8;
+    let finalScale = 1;
+    let finalOffsetX = 0;
+    let finalOffsetY = 0;
+    let refMinX = 0;
+    let refMinY = 0;
 
-    const offsetX = (canvasWidth - frameWidth * scale) / 2;
-    const offsetY = (canvasHeight - frameHeight * scale) / 2;
+    if (isStabilized) {
+      // Modo Estabilizado/Focado: Usa escala baseada APENAS na LARGURA do frame atual
+      // Isso faz com que a ALTURA (abertura do olho) varie proporcionalmente
+      // Quando o olho fecha, a altura diminui visualmente
+      const allX = currentFramePoints.map(p => p.x);
+      const allY = currentFramePoints.map(p => p.y);
+      const curMinX = Math.min(...allX);
+      const curMaxX = Math.max(...allX);
+      const curMinY = Math.min(...allY);
+      const curMaxY = Math.max(...allY);
 
-    // Função para normalizar um ponto usando bounds globais
+      const curWidth = curMaxX - curMinX || 1;
+
+      // Escala baseada SOMENTE na largura - a altura vai variar naturalmente
+      // Isso preserva a proporção real e mostra a piscada
+      finalScale = (canvasWidth * 0.7) / curWidth;
+
+      // Centralizar horizontalmente
+      const centerX = (curMinX + curMaxX) / 2;
+      const centerY = (curMinY + curMaxY) / 2;
+
+      finalOffsetX = (canvasWidth / 2) - (centerX * finalScale);
+      finalOffsetY = (canvasHeight / 2) - (centerY * finalScale);
+      refMinX = 0;
+      refMinY = 0;
+
+    } else {
+      // Modo Global: Usa bounds globais (Tracking)
+      const { minX, maxX, minY, maxY } = globalBounds;
+      const frameWidth = maxX - minX || 1;
+      const frameHeight = maxY - minY || 1;
+
+      const scaleX = canvasWidth / frameWidth;
+      const scaleY = canvasHeight / frameHeight;
+      finalScale = Math.min(scaleX, scaleY) * 0.8;
+
+      finalOffsetX = (canvasWidth - frameWidth * finalScale) / 2;
+      finalOffsetY = (canvasHeight - frameHeight * finalScale) / 2;
+
+      refMinX = minX;
+      refMinY = minY;
+    }
+
+    // Função para normalizar
     const normalize = (p: MediaPipePoint) => ({
       ...p,
-      x: (p.x - minX) * scale + offsetX,
-      y: (p.y - minY) * scale + offsetY
+      x: (p.x - refMinX) * finalScale + finalOffsetX,
+      y: (p.y - refMinY) * finalScale + finalOffsetY
     });
 
     // Se for CSV de todos os pontos, normalizar diretamente
@@ -294,22 +337,80 @@ export default function CoordenadasPage() {
       .filter(p => p.group === 'left_lower')
       .sort((a, b) => getLabelNumber(a.label) - getLabelNumber(b.label));
 
-    // Normalizar todos os pontos
-    const normalizedRightUpper = rightUpper.map(normalize);
-    const normalizedRightLower = rightLower.map(normalize);
-    const normalizedLeftUpper = leftUpper.map(normalize);
-    const normalizedLeftLower = leftLower.map(normalize);
+    // Calcular abertura atual do olho (distância vertical entre upper e lower)
+    const calcEyeOpening = (upper: typeof rightUpper, lower: typeof rightLower) => {
+      const upperAvgY = upper.reduce((sum, p) => sum + p.y, 0) / upper.length;
+      const lowerAvgY = lower.reduce((sum, p) => sum + p.y, 0) / lower.length;
+      return Math.abs(lowerAvgY - upperAvgY);
+    };
 
-    // Criar contornos dos olhos
-    const rightContour = [
-      ...normalizedRightUpper,
-      ...[...normalizedRightLower].reverse()
-    ];
+    const calcEyeCenter = (upper: typeof rightUpper, lower: typeof rightLower) => {
+      const allPoints = [...upper, ...lower];
+      return {
+        x: allPoints.reduce((sum, p) => sum + p.x, 0) / allPoints.length,
+        y: allPoints.reduce((sum, p) => sum + p.y, 0) / allPoints.length
+      };
+    };
 
-    const leftContour = [
-      ...normalizedLeftUpper,
-      ...[...normalizedLeftLower].reverse()
-    ];
+    const rightOpening = calcEyeOpening(rightUpper, rightLower);
+    const leftOpening = calcEyeOpening(leftUpper, leftLower);
+    const rightCenter = calcEyeCenter(rightUpper, rightLower);
+    const leftCenter = calcEyeCenter(leftUpper, leftLower);
+
+    // Abertura de referência (olho totalmente aberto) - ~40px baseado nos dados
+    const referenceOpening = 40;
+
+    // Fator de amplificação do FECHAMENTO (quanto menor a abertura, mais exagera)
+    const closingAmplification = 4.0;
+
+    // Função para normalizar COM amplificação do fechamento
+    // Quando abertura = referência (aberto), não amplifica
+    // Quando abertura < referência (fechando), aproxima os pontos do centro
+    const normalizeWithClosingAmplification = (
+      p: MediaPipePoint,
+      eyeCenterY: number,
+      currentOpening: number,
+      isUpper: boolean
+    ) => {
+      const base = normalize(p);
+      const normalizedCenterY = (eyeCenterY - refMinY) * finalScale + finalOffsetY;
+
+      // Calcular quanto o olho está fechado (0 = aberto, 1 = fechado)
+      const closingRatio = Math.max(0, 1 - (currentOpening / referenceOpening));
+
+      // Distância do centro
+      const distFromCenter = base.y - normalizedCenterY;
+
+      // Quanto mais fechado, mais aproxima do centro (reduz a distância)
+      const amplifiedDist = distFromCenter * (1 - closingRatio * (1 - 1/closingAmplification));
+
+      return { ...base, y: normalizedCenterY + amplifiedDist };
+    };
+
+    // Normalizar com amplificação do fechamento
+    const normalizedRightUpper = rightUpper.map(p =>
+      normalizeWithClosingAmplification(p, rightCenter.y, rightOpening, true));
+    const normalizedRightLower = rightLower.map(p =>
+      normalizeWithClosingAmplification(p, rightCenter.y, rightOpening, false));
+    const normalizedLeftUpper = leftUpper.map(p =>
+      normalizeWithClosingAmplification(p, leftCenter.y, leftOpening, true));
+    const normalizedLeftLower = leftLower.map(p =>
+      normalizeWithClosingAmplification(p, leftCenter.y, leftOpening, false));
+
+    // Criar contornos dos olhos ordenados por coordenada Y (upper vs lower)
+    const createEyeContour = (upper: typeof normalizedRightUpper, lower: typeof normalizedRightLower) => {
+      const allPoints = [...upper, ...lower];
+      const avgY = allPoints.reduce((sum, p) => sum + p.y, 0) / allPoints.length;
+
+      // Upper = pontos acima da média (menor Y), Lower = pontos abaixo (maior Y)
+      const upperPoints = allPoints.filter(p => p.y <= avgY).sort((a, b) => a.x - b.x);
+      const lowerPoints = allPoints.filter(p => p.y > avgY).sort((a, b) => b.x - a.x);
+
+      return [...upperPoints, ...lowerPoints];
+    };
+
+    const rightContour = createEyeContour(normalizedRightUpper, normalizedRightLower);
+    const leftContour = createEyeContour(normalizedLeftUpper, normalizedLeftLower);
 
     return {
       normalizedPoints: [
@@ -323,7 +424,7 @@ export default function CoordenadasPage() {
         left: leftContour
       }
     };
-  }, [currentFramePoints, csvType, globalBounds]);
+  }, [currentFramePoints, csvType, globalBounds, isStabilized]);
 
   // Calcular dimensões do canvas
   const canvasDimensions = useMemo(() => {
@@ -546,7 +647,7 @@ export default function CoordenadasPage() {
                     </Button>
 
                     <div className="flex-1 flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Frame: {currentFrame + 1} / {data.length}</Label>
+                      <Label className="text-sm whitespace-nowrap">Frame: {data[currentFrame]?.frame ?? currentFrame} (índice {currentFrame + 1} / {data.length})</Label>
                       <Slider
                         value={[currentFrame]}
                         onValueChange={([value]) => setCurrentFrame(value)}
@@ -589,9 +690,29 @@ export default function CoordenadasPage() {
               {/* Visualização dos Pontos */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Eye className="h-6 w-6 text-primary" />
-                    <CardTitle>Pontos Faciais - Frame {currentFrame + 1}</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-6 w-6 text-primary" />
+                      <CardTitle>Pontos Faciais - Frame {data[currentFrame]?.frame ?? currentFrame}</CardTitle>
+                    </div>
+                    <Button
+                      variant={isStabilized ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsStabilized(!isStabilized)}
+                      className="h-8 gap-2"
+                    >
+                      {isStabilized ? (
+                        <>
+                          <Scan className="h-4 w-4" />
+                          Focado
+                        </>
+                      ) : (
+                        <>
+                          <Video className="h-4 w-4" />
+                          Global
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -720,6 +841,53 @@ export default function CoordenadasPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Métricas de Abertura dos Olhos */}
+              {csvType === 'eyes_only' && (
+                <Card className="bg-yellow-50 border-yellow-200">
+                  <CardHeader>
+                    <CardTitle>Abertura dos Olhos (Debug)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(() => {
+                      // Calcular abertura vertical dos olhos usando pontos centrais
+                      const rightUpper = currentFramePoints.filter(p => p.group === 'right_upper');
+                      const rightLower = currentFramePoints.filter(p => p.group === 'right_lower');
+                      const leftUpper = currentFramePoints.filter(p => p.group === 'left_upper');
+                      const leftLower = currentFramePoints.filter(p => p.group === 'left_lower');
+
+                      // Ponto central superior (RU4) e inferior (RL5) para olho direito
+                      const ru4 = rightUpper.find(p => p.label === 'RU4');
+                      const rl5 = rightLower.find(p => p.label === 'RL5');
+                      const rightOpening = ru4 && rl5 ? Math.abs(rl5.y - ru4.y) : 0;
+
+                      // Ponto central superior (LU4) e inferior (LL5) para olho esquerdo
+                      const lu4 = leftUpper.find(p => p.label === 'LU4');
+                      const ll5 = leftLower.find(p => p.label === 'LL5');
+                      const leftOpening = lu4 && ll5 ? Math.abs(ll5.y - lu4.y) : 0;
+
+                      return (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-white rounded-lg border">
+                            <div className="text-sm font-semibold text-blue-600">Olho Direito</div>
+                            <div className="text-2xl font-bold">{rightOpening.toFixed(1)} px</div>
+                            <div className="text-xs text-muted-foreground">
+                              RU4.y: {ru4?.y.toFixed(0)} → RL5.y: {rl5?.y.toFixed(0)}
+                            </div>
+                          </div>
+                          <div className="p-4 bg-white rounded-lg border">
+                            <div className="text-sm font-semibold text-pink-600">Olho Esquerdo</div>
+                            <div className="text-2xl font-bold">{leftOpening.toFixed(1)} px</div>
+                            <div className="text-xs text-muted-foreground">
+                              LU4.y: {lu4?.y.toFixed(0)} → LL5.y: {ll5?.y.toFixed(0)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Tabela de Coordenadas */}
               <Card>
