@@ -795,7 +795,10 @@ export default function CoordenadasPage() {
                             {csvType === 'eyes_only' && (
                               <text
                                 x={point.x}
-                                y={point.y - 14}
+                                y={point.group === 'right_lower' || point.group === 'left_lower'
+                                  ? point.y + 20  // Labels abaixo para pontos lower
+                                  : point.y - 14  // Labels acima para pontos upper
+                                }
                                 fontSize="12"
                                 fontWeight="bold"
                                 textAnchor="middle"
