@@ -4,13 +4,12 @@ import React, { useState, useMemo, useEffect, useRef } from "react"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Eye, FileSpreadsheet, Play, Pause, SkipBack, SkipForward, Upload, Video, Scan } from "lucide-react"
+import { Eye, Play, Pause, SkipBack, SkipForward, Upload, Video, Scan } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { CSVSelector } from "../../components/CSVSelector"
 
 interface MediaPipePoint {
   x: number;
@@ -32,8 +31,6 @@ export default function CoordenadasPage() {
   const [data, setData] = useState<FrameData[]>([]);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null);
-  const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(30); // FPS
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -88,34 +85,6 @@ export default function CoordenadasPage() {
     });
 
     return parsedData;
-  };
-
-  const handleCSVLoad = async () => {
-    if (!selectedCSVUrl) {
-      toast.error("Por favor, selecione uma planilha primeiro");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const response = await fetch(selectedCSVUrl);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar arquivo');
-      }
-
-      const text = await response.text();
-      const parsedData = processCSVText(text);
-
-      setData(parsedData);
-      setCurrentFrame(0);
-      toast.success(`${parsedData.length} frames carregados com sucesso!`);
-      setLoading(false);
-    } catch (error) {
-      console.error("Erro ao processar arquivo:", error);
-      toast.error("Erro ao processar o arquivo");
-      setLoading(false);
-    }
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -536,50 +505,6 @@ export default function CoordenadasPage() {
             </div>
           </div>
 
-          <CSVSelector
-            selectedCSV={selectedCSVUrl}
-            onCSVSelect={(url, filename) => {
-              setSelectedCSVUrl(url)
-              setSelectedCSVFilename(filename)
-              setUploadedFile(null) // Limpar arquivo local selecionado
-              if (fileInputRef.current) {
-                fileInputRef.current.value = ''
-              }
-            }}
-          />
-
-          {selectedCSVUrl && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-6 w-6 text-primary" />
-                  <CardTitle>Processar Planilha Selecionada</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-semibold">Planilha Selecionada:</p>
-                  <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
-                </div>
-
-                <Button
-                  onClick={handleCSVLoad}
-                  disabled={loading}
-                  className="w-full"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Carregando...
-                    </>
-                  ) : (
-                    "Carregar Planilha"
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
           {data.length > 0 && (
             <>
               {/* Informações do Arquivo Carregado */}
@@ -589,7 +514,7 @@ export default function CoordenadasPage() {
                     <div className="flex-1">
                       <p className="text-sm font-semibold">Arquivo Carregado:</p>
                       <p className="text-lg">
-                        {uploadedFile?.name || selectedCSVFilename || 'CSV carregado'}
+                        {uploadedFile?.name || 'CSV carregado'}
                       </p>
                       <div className="mt-2">
                         {csvType === 'eyes_only' && (
