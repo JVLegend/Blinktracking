@@ -83,17 +83,17 @@ interface BlinkMetrics {
   avgClosingTime: number
   avgOpeningTime: number
   avgVelocity: number
+  avgIncompleteVelocity: number // Nova métrica: velocidade média de piscadas incompletas
   blinkRate: number
   rba: number
   velocityBasedBlinks: number
   blinks60to120: number
   blinks120to180: number
   avgBlinkInterval: number
-  // Novas métricas de fissura
+  // Novas métricas de fenda (renomeado de fissura)
   verticalFissure: number
-  dmr1: number
-  dmr2: number
   horizontalFissure: number
+  avgMaxAmplitude: number // Nova métrica: média das amplitudes máximas
   // Medidas do primeiro piscar completo
   firstCompleteBlink: {
     ecp: number // Eye Closing Phase
@@ -290,6 +290,7 @@ export default function EstatisticasPage() {
   const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null)
   const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [detectedFPS, setDetectedFPS] = useState<number>(30) // FPS padrão, será detectado automaticamente
 
   const downloadBlinkDetails = () => {
     const headers = "Eye,Blink_Number,Start_Frame,End_Frame,Start_Time_Seconds,End_Time_Seconds,Duration_Seconds,Seconds_Since_Last_Blink,Is_Complete\n"
@@ -310,7 +311,7 @@ export default function EstatisticasPage() {
     return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
   }
 
-  const calculateVelocity = (data: DataPoint[]) => {
+  const calculateVelocity = (data: DataPoint[], fps: number) => {
     const velocities: number[] = [];
     const frames: number[] = [];
 
@@ -351,7 +352,7 @@ export default function EstatisticasPage() {
         velocity = (rightUpperDist + rightLowerDist + leftUpperDist + leftLowerDist) / 4;
       }
 
-      velocities.push(velocity * 30); // Multiplicar por FPS para ter velocidade em pixels/segundo
+      velocities.push(velocity * fps); // Multiplicar por FPS para ter velocidade em pixels/segundo
       frames.push(curr.frame);
     }
 
@@ -482,7 +483,7 @@ export default function EstatisticasPage() {
     return sortedDeviations[Math.floor(sortedDeviations.length / 2)];
   };
 
-  const calculateMetrics = (data: DataPoint[], blinks: { start: number, end: number, complete: boolean }[]) => {
+  const calculateMetrics = (data: DataPoint[], blinks: { start: number, end: number, complete: boolean }[], fps: number) => {
     let totalBlinks = blinks.length
     let completeBlinks = blinks.filter(b => b.complete).length
     let incompleteBlinks = blinks.filter(b => !b.complete).length
@@ -490,6 +491,8 @@ export default function EstatisticasPage() {
     let totalClosingTime = 0
     let totalOpeningTime = 0
     let totalVelocity = 0
+    let totalIncompleteVelocity = 0 // Nova variável para velocidade de piscadas incompletas
+    let incompleteVelocityCount = 0
     let maxAmplitude = 0
     let totalRBA = 0
     let velocityBasedBlinks = 0
@@ -510,9 +513,8 @@ export default function EstatisticasPage() {
       ibl: 0
     }
     let verticalFissure = 0
-    let dmr1 = 0
-    let dmr2 = 0
     let horizontalFissure = 0
+    let maxAmplitudes: number[] = [] // Para calcular média das amplitudes máximas
 
     // Função auxiliar para calcular a distância entre os pontos dos olhos
     const getEyeDistance = (point: DataPoint): number => {
@@ -556,20 +558,27 @@ export default function EstatisticasPage() {
 
     // Calcular métricas para cada piscada
     blinks.forEach((blink, index) => {
-      const duration = (blink.end - blink.start) / 30 // Convertendo para segundos
+      const duration = (blink.end - blink.start) / fps // Convertendo para segundos usando FPS detectado
       totalDuration += duration
 
       // Calcular amplitude
       const amplitude = maxEyeDistance - minEyeDistance
       const rba = (amplitude / maxEyeDistance) * 100
       totalRBA += rba
+      maxAmplitudes.push(amplitude) // Guardar para média das amplitudes máximas
 
       // Calcular velocidade
       const velocity = amplitude / duration
       totalVelocity += velocity
 
+      // Calcular velocidade de piscadas incompletas separadamente
+      if (!blink.complete) {
+        totalIncompleteVelocity += velocity
+        incompleteVelocityCount++
+      }
+
       // Verificar intervalos de tempo
-      const startTime = blink.start / 30
+      const startTime = blink.start / fps
       if (startTime >= 60 && startTime < 120) {
         blinks60to120++
       } else if (startTime >= 120 && startTime < 180) {
@@ -578,7 +587,7 @@ export default function EstatisticasPage() {
 
       // Calcular intervalo entre piscadas
       if (index > 0) {
-        const interval = (blink.start - blinks[index - 1].end) / 30
+        const interval = (blink.start - blinks[index - 1].end) / fps
         totalBlinkInterval += interval
         blinkIntervalCount++
       }
@@ -586,37 +595,29 @@ export default function EstatisticasPage() {
       // Primeira piscada completa
       if (blink.complete && !firstCompleteBlink.ecp) {
         firstCompleteBlink = {
-          ecp: (blink.end - blink.start) / 30,
+          ecp: (blink.end - blink.start) / fps,
           cdp: duration,
           eop: duration,
-          ibl: index > 0 ? (blink.start - blinks[index - 1].end) / 30 : 0
+          ibl: index > 0 ? (blink.start - blinks[index - 1].end) / fps : 0
         }
       }
 
       // Primeira piscada incompleta
       if (!blink.complete && !firstIncompleteBlink.ecp) {
         firstIncompleteBlink = {
-          ecp: (blink.end - blink.start) / 30,
+          ecp: (blink.end - blink.start) / fps,
           cdp: duration,
           eop: duration,
-          ibl: index > 0 ? (blink.start - blinks[index - 1].end) / 30 : 0
+          ibl: index > 0 ? (blink.start - blinks[index - 1].end) / fps : 0
         }
       }
     })
 
-    // Calcular medidas de fissura
+    // Calcular medidas de fenda (renomeado de fissura)
     const calculateFissures = (point: DataPoint) => {
       if (point.method === "dlib") {
         verticalFissure = calculateDistance(
           point["37_x"]!, point["37_y"]!,
-          point["41_x"]!, point["41_y"]!
-        )
-        dmr1 = calculateDistance(
-          point["37_x"]!, point["37_y"]!,
-          point["38_x"]!, point["38_y"]!
-        )
-        dmr2 = calculateDistance(
-          point["40_x"]!, point["40_y"]!,
           point["41_x"]!, point["41_y"]!
         )
         horizontalFissure = calculateDistance(
@@ -628,14 +629,6 @@ export default function EstatisticasPage() {
           point["right_upper_4_x"]!, point["right_upper_4_y"]!,
           point["right_lower_5_x"]!, point["right_lower_5_y"]!
         )
-        dmr1 = calculateDistance(
-          point["right_upper_2_x"]!, point["right_upper_2_y"]!,
-          point["right_upper_4_x"]!, point["right_upper_4_y"]!
-        )
-        dmr2 = calculateDistance(
-          point["right_lower_3_x"]!, point["right_lower_3_y"]!,
-          point["right_lower_5_x"]!, point["right_lower_5_y"]!
-        )
         horizontalFissure = calculateDistance(
           point["right_upper_2_x"]!, point["right_upper_2_y"]!,
           point["right_lower_3_x"]!, point["right_lower_3_y"]!
@@ -643,7 +636,7 @@ export default function EstatisticasPage() {
       }
     }
 
-    // Calcular fissuras iniciais
+    // Calcular fendas iniciais
     calculateFissures(data[0])
 
     // Calcular piscadas baseadas em velocidade usando MAD
@@ -670,7 +663,12 @@ export default function EstatisticasPage() {
       }
     }
 
-    const recordingTime = (data[data.length - 1].frame - data[0].frame) / 30
+    const recordingTime = (data[data.length - 1].frame - data[0].frame) / fps
+
+    // Calcular média das amplitudes máximas
+    const avgMaxAmplitude = maxAmplitudes.length > 0
+      ? maxAmplitudes.reduce((a, b) => a + b, 0) / maxAmplitudes.length
+      : 0
 
     return {
       totalBlinks,
@@ -680,6 +678,7 @@ export default function EstatisticasPage() {
       avgClosingTime: totalBlinks > 0 ? totalClosingTime / totalBlinks : 0,
       avgOpeningTime: totalBlinks > 0 ? totalOpeningTime / totalBlinks : 0,
       avgVelocity: totalBlinks > 0 ? totalVelocity / totalBlinks : 0,
+      avgIncompleteVelocity: incompleteVelocityCount > 0 ? totalIncompleteVelocity / incompleteVelocityCount : 0,
       blinkRate: (totalBlinks / recordingTime) * 60,
       rba: totalBlinks > 0 ? totalRBA / totalBlinks : 0,
       velocityBasedBlinks,
@@ -687,9 +686,8 @@ export default function EstatisticasPage() {
       blinks120to180,
       avgBlinkInterval: blinkIntervalCount > 0 ? totalBlinkInterval / blinkIntervalCount : 0,
       verticalFissure,
-      dmr1,
-      dmr2,
       horizontalFissure,
+      avgMaxAmplitude,
       firstCompleteBlink,
       firstIncompleteBlink,
       distribution: {
@@ -774,20 +772,63 @@ export default function EstatisticasPage() {
       setSelectedCSVUrl(null);
       setSelectedCSVFilename(null);
 
-      // Calcular velocidades
-      const newVelocityData = [calculateVelocity(parsedData)];
+      // Detectar FPS automaticamente baseado no número de frames
+      // Assumindo que a maioria dos vídeos são de 24, 30, 60 ou 120 FPS
+      const totalFrames = parsedData[parsedData.length - 1].frame - parsedData[0].frame + 1;
+      const estimatedDuration = totalFrames / 30; // Assumir 30 FPS inicialmente para estimar
+
+      // Detectar FPS baseado em padrões comuns
+      // Se o arquivo foi gerado de um vídeo, os frames consecutivos devem incrementar de 1
+      let fps = 30; // Valor padrão
+
+      // Verificar se há metadados de FPS no arquivo (para futuras implementações)
+      // Por enquanto, usar heurística baseada na quantidade de frames por segundo estimado
+      if (totalFrames > 0 && parsedData.length > 1) {
+        // Calcular a diferença média entre frames consecutivos
+        let frameDiffs: number[] = [];
+        for (let i = 1; i < Math.min(parsedData.length, 100); i++) {
+          const diff = parsedData[i].frame - parsedData[i-1].frame;
+          if (diff > 0) frameDiffs.push(diff);
+        }
+
+        // Se os frames são consecutivos (diff = 1), assumir que o FPS é baseado na densidade
+        const avgDiff = frameDiffs.length > 0
+          ? frameDiffs.reduce((a, b) => a + b, 0) / frameDiffs.length
+          : 1;
+
+        // Heurística: se temos muitos frames, provavelmente é 60 ou 120 FPS
+        // Vídeos típicos: 30 FPS = ~1800 frames/min, 60 FPS = ~3600 frames/min
+        const framesPerMinute = totalFrames / (estimatedDuration / 60);
+
+        if (framesPerMinute > 6000) {
+          fps = 120;
+        } else if (framesPerMinute > 3000) {
+          fps = 60;
+        } else if (framesPerMinute > 1500) {
+          fps = 30;
+        } else {
+          fps = 24;
+        }
+      }
+
+      setDetectedFPS(fps);
+      console.log(`FPS detectado: ${fps} (total frames: ${totalFrames})`);
+      toast.info(`FPS detectado: ${fps}`);
+
+      // Calcular velocidades com FPS detectado
+      const newVelocityData = [calculateVelocity(parsedData, fps)];
       setVelocityData(newVelocityData);
 
       // Detectar piscadas primeiro
       const blinks = detectBlinks(parsedData);
       console.log("Blinks detectados:", blinks);
 
-      // Gerar detalhes das piscadas
-      const details = generateBlinkDetails(blinks);
+      // Gerar detalhes das piscadas com FPS detectado
+      const details = generateBlinkDetails(blinks, fps);
       setBlinkDetails(details);
 
-      // Calcular métricas usando os mesmos blinks detectados
-      const newMetrics = calculateMetrics(parsedData, blinks);
+      // Calcular métricas usando os mesmos blinks detectados e FPS
+      const newMetrics = calculateMetrics(parsedData, blinks, fps);
       console.log("Métricas calculadas:", newMetrics);
       if (newMetrics) {
         setMetrics(newMetrics);
@@ -882,20 +923,50 @@ export default function EstatisticasPage() {
 
       setData(parsedData);
 
-      // Calcular velocidades
-      const newVelocityData = [calculateVelocity(parsedData)];
+      // Detectar FPS automaticamente baseado no número de frames
+      const totalFrames = parsedData[parsedData.length - 1].frame - parsedData[0].frame + 1;
+      const estimatedDuration = totalFrames / 30;
+
+      let fps = 30; // Valor padrão
+
+      if (totalFrames > 0 && parsedData.length > 1) {
+        let frameDiffs: number[] = [];
+        for (let i = 1; i < Math.min(parsedData.length, 100); i++) {
+          const diff = parsedData[i].frame - parsedData[i-1].frame;
+          if (diff > 0) frameDiffs.push(diff);
+        }
+
+        const framesPerMinute = totalFrames / (estimatedDuration / 60);
+
+        if (framesPerMinute > 6000) {
+          fps = 120;
+        } else if (framesPerMinute > 3000) {
+          fps = 60;
+        } else if (framesPerMinute > 1500) {
+          fps = 30;
+        } else {
+          fps = 24;
+        }
+      }
+
+      setDetectedFPS(fps);
+      console.log(`FPS detectado: ${fps} (total frames: ${totalFrames})`);
+      toast.info(`FPS detectado: ${fps}`);
+
+      // Calcular velocidades com FPS detectado
+      const newVelocityData = [calculateVelocity(parsedData, fps)];
       setVelocityData(newVelocityData);
 
       // Detectar piscadas primeiro
       const blinks = detectBlinks(parsedData);
       console.log("Blinks detectados:", blinks);
 
-      // Gerar detalhes das piscadas
-      const details = generateBlinkDetails(blinks);
+      // Gerar detalhes das piscadas com FPS detectado
+      const details = generateBlinkDetails(blinks, fps);
       setBlinkDetails(details);
 
-      // Calcular métricas usando os mesmos blinks detectados
-      const newMetrics = calculateMetrics(parsedData, blinks);
+      // Calcular métricas usando os mesmos blinks detectados e FPS
+      const newMetrics = calculateMetrics(parsedData, blinks, fps);
       console.log("Métricas calculadas:", newMetrics);
       if (newMetrics) {
         setMetrics(newMetrics);
@@ -972,14 +1043,14 @@ export default function EstatisticasPage() {
     return startIndex
   }
 
-  const generateBlinkDetails = (blinks: { start: number, end: number, complete: boolean }[]) => {
+  const generateBlinkDetails = (blinks: { start: number, end: number, complete: boolean }[], fps: number = 30) => {
     const details: BlinkDetail[] = []
     let lastBlinkStart = 0
 
     blinks.forEach((blink, index) => {
-      const startTime = blink.start / 30 // Convertendo frames para segundos (30 FPS)
-      const endTime = blink.end / 30
-      const timeSinceLastBlink = index === 0 ? 0 : (blink.start - lastBlinkStart) / 30
+      const startTime = blink.start / fps // Convertendo frames para segundos usando FPS detectado
+      const endTime = blink.end / fps
+      const timeSinceLastBlink = index === 0 ? 0 : (blink.start - lastBlinkStart) / fps
 
       details.push({
         eye: "Both", // Como estamos analisando ambos os olhos juntos
@@ -1077,7 +1148,7 @@ export default function EstatisticasPage() {
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="general">Métricas Gerais</TabsTrigger>
                   <TabsTrigger value="timing">Análise Temporal</TabsTrigger>
-                  <TabsTrigger value="fissure">Medidas de Fissura</TabsTrigger>
+                  <TabsTrigger value="fissure">Fenda</TabsTrigger>
                   <TabsTrigger value="firstblinks">Primeiras Piscadas</TabsTrigger>
                   <TabsTrigger value="details">Detalhes das Piscadas</TabsTrigger>
                 </TabsList>
@@ -1132,15 +1203,21 @@ export default function EstatisticasPage() {
                         <CardTitle className="text-lg">Velocidade e Amplitude</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid gap-4 md:grid-cols-4">
+                        <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
                           <div className="bg-secondary/10 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-muted-foreground">Velocidade Média</h4>
                             <p className="text-2xl font-bold">{metrics.avgVelocity.toFixed(1)}</p>
                             <p className="text-xs text-muted-foreground">pixels/s</p>
                           </div>
                           <div className="bg-secondary/10 p-4 rounded-lg">
+                            <h4 className="text-sm font-medium text-muted-foreground">Vel. Média Incompletas</h4>
+                            <p className="text-2xl font-bold">{metrics.avgIncompleteVelocity.toFixed(1)}</p>
+                            <p className="text-xs text-muted-foreground">pixels/s</p>
+                          </div>
+                          <div className="bg-secondary/10 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-muted-foreground">RBA</h4>
                             <p className="text-2xl font-bold">{metrics.rba.toFixed(1)}%</p>
+                            <p className="text-xs text-muted-foreground">% de fechamento</p>
                           </div>
                           <div className="bg-secondary/10 p-4 rounded-lg">
                             <h4 className="text-sm font-medium text-muted-foreground">Por Velocidade</h4>
@@ -1190,76 +1267,47 @@ export default function EstatisticasPage() {
                             <p className="text-2xl font-bold">{metrics.blinkRate.toFixed(1)}</p>
                           </div>
                           <div className="bg-secondary/10 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-muted-foreground">Intervalo Médio</h4>
+                            <h4 className="text-sm font-medium text-muted-foreground">Intervalos entre Piscadas</h4>
                             <p className="text-2xl font-bold">{metrics.avgBlinkInterval.toFixed(1)} <span className="text-xs">s</span></p>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-
-                    {/* Card: Gráfico de Velocidade */}
-                    <Card className="md:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Velocidade ao Longo do Tempo</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <PlotlyComponent
-                          data={velocityData}
-                          layout={{
-                            xaxis: { title: "Frame" },
-                            yaxis: { title: "Velocidade (pixels/s)" },
-                            height: 300,
-                            margin: { t: 20, r: 30, l: 50, b: 50 },
-                            showlegend: true,
-                            paper_bgcolor: "transparent",
-                            plot_bgcolor: "transparent"
-                          }}
-                          config={{
-                            displayModeBar: false,
-                            responsive: true
-                          }}
-                        />
-                      </CardContent>
-                    </Card>
                   </div>
                 </TabsContent>
 
-                {/* Aba: Medidas de Fissura */}
+                {/* Aba: Fenda */}
                 <TabsContent value="fissure" className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    {/* Card: Fissuras */}
+                    {/* Card: Medidas de Fenda */}
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Fissuras</CardTitle>
+                        <CardTitle className="text-lg">Medidas de Fenda</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-4">
                           <div className="bg-secondary/10 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-muted-foreground">Fissura Vertical</h4>
-                            <p className="text-2xl font-bold">{metrics.verticalFissure.toFixed(2)} <span className="text-xs">mm</span></p>
+                            <h4 className="text-sm font-medium text-muted-foreground">Fenda Vertical</h4>
+                            <p className="text-2xl font-bold">{metrics.verticalFissure.toFixed(2)} <span className="text-xs">px</span></p>
                           </div>
                           <div className="bg-secondary/10 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-muted-foreground">Fissura Horizontal</h4>
-                            <p className="text-2xl font-bold">{metrics.horizontalFissure.toFixed(2)} <span className="text-xs">mm</span></p>
+                            <h4 className="text-sm font-medium text-muted-foreground">Fenda Horizontal</h4>
+                            <p className="text-2xl font-bold">{metrics.horizontalFissure.toFixed(2)} <span className="text-xs">px</span></p>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
 
-                    {/* Card: Distâncias Marginais */}
+                    {/* Card: Amplitudes */}
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-lg">Distâncias Marginais</CardTitle>
+                        <CardTitle className="text-lg">Amplitudes</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-4">
                           <div className="bg-secondary/10 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-muted-foreground">DMR1</h4>
-                            <p className="text-2xl font-bold">{metrics.dmr1.toFixed(2)} <span className="text-xs">mm</span></p>
-                          </div>
-                          <div className="bg-secondary/10 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-muted-foreground">DMR2</h4>
-                            <p className="text-2xl font-bold">{metrics.dmr2.toFixed(2)} <span className="text-xs">mm</span></p>
+                            <h4 className="text-sm font-medium text-muted-foreground">Média das Amplitudes Máximas</h4>
+                            <p className="text-2xl font-bold">{metrics.avgMaxAmplitude.toFixed(2)} <span className="text-xs">px</span></p>
                           </div>
                         </div>
                       </CardContent>

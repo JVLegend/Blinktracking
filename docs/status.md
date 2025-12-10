@@ -71,6 +71,16 @@
 - Implementada funcionalidade de exportação dos detalhes das piscadas em CSV
 - Incluídas informações de frames, timestamps e intervalos entre piscadas
 - Removidos os labels numéricos dos pontos faciais nos vídeos gerados, mantendo apenas os pontos
+- **[09/12/2025]** Implementada detecção automática de FPS ao fazer upload de CSV (suporta 24, 30, 60, 120 FPS)
+- **[09/12/2025]** Adaptados todos os cálculos estatísticos para usar FPS detectado dinamicamente
+- **[09/12/2025]** Adicionada métrica de velocidade média de piscadas incompletas
+- **[09/12/2025]** Adicionada descrição "% de fechamento" ao lado do indicador RBA
+- **[09/12/2025]** Renomeado "Intervalo Médio" para "Intervalos entre Piscadas"
+- **[09/12/2025]** Renomeada aba "Medidas de Fissura" para "Fenda"
+- **[09/12/2025]** Adicionada métrica "Média das Amplitudes Máximas" na aba Fenda
+- **[09/12/2025]** Removidos indicadores DMR1 e DMR2 da página de estatísticas
+- **[09/12/2025]** Removido gráfico de velocidade ao longo do tempo da aba Análise Temporal
+- **[09/12/2025]** CDP agora adapta automaticamente os segundos conforme FPS detectado
 
 ## Próximos Passos
 - Melhorar a visualização dos gráficos

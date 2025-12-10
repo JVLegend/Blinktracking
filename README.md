@@ -1,16 +1,35 @@
-# Doutorado Blink - Sistema de Análise de Piscadas
+# BlinkTracking - Sistema de Análise de Piscadas
 
-Sistema web para análise e visualização de dados de piscadas detectadas através de vídeos.
+Sistema web avançado para análise e visualização de dados de piscadas oculares detectadas através de vídeos, desenvolvido para pesquisa oftalmológica.
 
-[➡️ Veja a lista de tarefas (TODO List)](TODO.md)
+## 📚 Documentação
 
-## Estrutura do Projeto
+- [📋 Lista de Tarefas (TODO)](docs/TODO.md)
+- [📊 Status do Projeto](docs/status.md)
+- [🔧 Documentação Técnica](.claude.md)
+- [🗺️ Mapeamento de Pontos MediaPipe](public/docs/MEDIAPIPE_POINTS_MAPPING.md)
 
-- `app/`: Contém o código fonte da aplicação web
-  - `components/`: Componentes React reutilizáveis
-  - `page.tsx`: Página principal da aplicação
-- `types/`: Definições de tipos TypeScript
-- `requirements.txt`: Requisitos Python para processamento de vídeos
+## 📁 Estrutura do Projeto
+
+```
+Blinktracking/
+├── app/                          # Aplicação Next.js (App Router)
+│   ├── analise/                 # Páginas de análise
+│   │   ├── coordenadas/         # Visualização frame-by-frame
+│   │   └── estatisticas/        # Estatísticas e métricas
+│   ├── components/              # Componentes React compartilhados
+│   └── api/                     # Rotas de API
+├── scripts/                      # Scripts Python para processamento
+│   ├── process_video_mediapipe.py
+│   ├── extract_points_to_csv.py
+│   └── generate_diagram_pil.py
+├── public/                       # Arquivos estáticos
+│   └── docs/                    # Documentação pública
+├── docs/                        # Documentação do projeto
+│   ├── status.md
+│   └── TODO.md
+└── requirements.txt             # Requisitos Python
+```
 
 ## Requisitos
 
@@ -66,13 +85,31 @@ yarn dev
 
 2. Acesse `http://localhost:3000` no navegador
 
-## Funcionalidades
+## ✨ Funcionalidades Principais
 
-### Análise de Coordenadas
-- Upload de arquivos CSV com dados de coordenadas
-- Visualização interativa de gráficos X e Y
-- Seleção de pontos específicos
-- Gráficos interativos com zoom e exportação
+### 🎯 Análise de Coordenadas
+- Upload de arquivos CSV com dados de coordenadas faciais
+- Visualização frame-by-frame com player interativo
+- Modo "Global" vs "Focado" (zoom com amplificação de fechamento 4.0x)
+- Contornos dos olhos desenhados em tempo real
+- Métricas de abertura dos olhos em pixels
+- Tabela de coordenadas do frame atual
+
+### 📊 Análise Estatística de Piscadas
+- **Detecção Automática de FPS** (24, 30, 60, 120 FPS)
+- Cálculos adaptativos baseados em FPS detectado
+- 5 Abas de análise:
+  1. **Métricas Gerais**: Contagem, distribuição, velocidade
+  2. **Análise Temporal**: Intervalos e taxa por minuto
+  3. **Fenda**: Medidas verticais/horizontais e amplitudes
+  4. **Primeiras Piscadas**: ECP, CDP, EOP, IBL
+  5. **Detalhes**: Tabela completa com export CSV
+
+### 🆕 Novas Métricas (09/12/2025)
+- **Velocidade Média de Piscadas Incompletas**
+- **Média das Amplitudes Máximas**
+- **RBA com descrição**: "% de fechamento"
+- Cálculos dinâmicos por FPS
 
 ## Documentação de Pontos Faciais
 

@@ -265,25 +265,19 @@ export default function CoordenadasPage() {
     let refMinY = 0;
 
     if (isStabilized) {
-      // Modo Estabilizado/Focado: Usa escala baseada APENAS na LARGURA do frame atual
-      // Isso faz com que a ALTURA (abertura do olho) varie proporcionalmente
-      // Quando o olho fecha, a altura diminui visualmente
+      // Modo Estabilizado/Focado: Zoom nos olhos com escala fixa baseada nos bounds globais
+      // Usa bounds globais para manter escala consistente (mostra piscadas corretamente)
+      const { minX, maxX, minY, maxY } = globalBounds;
+      const globalWidth = maxX - minX || 1;
+
+      // Zoom de 1.5x nos olhos (preenche 95% da largura do canvas)
+      finalScale = (canvasWidth * 0.95) / globalWidth;
+
+      // Centralizar no frame atual (não nos bounds globais) para acompanhar movimento
       const allX = currentFramePoints.map(p => p.x);
       const allY = currentFramePoints.map(p => p.y);
-      const curMinX = Math.min(...allX);
-      const curMaxX = Math.max(...allX);
-      const curMinY = Math.min(...allY);
-      const curMaxY = Math.max(...allY);
-
-      const curWidth = curMaxX - curMinX || 1;
-
-      // Escala baseada SOMENTE na largura - a altura vai variar naturalmente
-      // Isso preserva a proporção real e mostra a piscada
-      finalScale = (canvasWidth * 0.7) / curWidth;
-
-      // Centralizar horizontalmente
-      const centerX = (curMinX + curMaxX) / 2;
-      const centerY = (curMinY + curMaxY) / 2;
+      const centerX = (Math.min(...allX) + Math.max(...allX)) / 2;
+      const centerY = (Math.min(...allY) + Math.max(...allY)) / 2;
 
       finalOffsetX = (canvasWidth / 2) - (centerX * finalScale);
       finalOffsetY = (canvasHeight / 2) - (centerY * finalScale);
