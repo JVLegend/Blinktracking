@@ -145,27 +145,54 @@ export default function AnalysePiscadasPage() {
     let sumEAR = 0.0
 
     dataRows.forEach((rowStr) => {
-      const cols = rowStr.split(delimiter).map(Number)
-      if (cols.some(isNaN) || cols.length < headers.length) return
+      const cols = rowStr.split(delimiter)
+      if (cols.length < headers.length) return
+
+      // Converter apenas os valores numéricos necessários
+      const frame = parseInt(cols[idx_frame])
+      if (isNaN(frame)) return
+
+      const ru4_x = parseFloat(cols[idx_ru4_x])
+      const ru4_y = parseFloat(cols[idx_ru4_y])
+      const rl5_x = parseFloat(cols[idx_rl5_x])
+      const rl5_y = parseFloat(cols[idx_rl5_y])
+      const ru1_x = parseFloat(cols[idx_ru1_x])
+      const ru1_y = parseFloat(cols[idx_ru1_y])
+      const ru7_x = parseFloat(cols[idx_ru7_x])
+      const ru7_y = parseFloat(cols[idx_ru7_y])
+
+      const lu4_x = parseFloat(cols[idx_lu4_x])
+      const lu4_y = parseFloat(cols[idx_lu4_y])
+      const ll5_x = parseFloat(cols[idx_ll5_x])
+      const ll5_y = parseFloat(cols[idx_ll5_y])
+      const lu1_x = parseFloat(cols[idx_lu1_x])
+      const lu1_y = parseFloat(cols[idx_lu1_y])
+      const lu7_x = parseFloat(cols[idx_lu7_x])
+      const lu7_y = parseFloat(cols[idx_lu7_y])
+
+      // Verificar se algum valor é NaN
+      if ([ru4_x, ru4_y, rl5_x, rl5_y, ru1_x, ru1_y, ru7_x, ru7_y,
+           lu4_x, lu4_y, ll5_x, ll5_y, lu1_x, lu1_y, lu7_x, lu7_y].some(isNaN)) {
+        return
+      }
 
       processedCount++
-      const frame = cols[idx_frame]
 
       // Right Eye EAR
-      const ru4 = { x: cols[idx_ru4_x], y: cols[idx_ru4_y] }
-      const rl5 = { x: cols[idx_rl5_x], y: cols[idx_rl5_y] }
-      const ru1 = { x: cols[idx_ru1_x], y: cols[idx_ru1_y] }
-      const ru7 = { x: cols[idx_ru7_x], y: cols[idx_ru7_y] }
+      const ru4 = { x: ru4_x, y: ru4_y }
+      const rl5 = { x: rl5_x, y: rl5_y }
+      const ru1 = { x: ru1_x, y: ru1_y }
+      const ru7 = { x: ru7_x, y: ru7_y }
 
       const rightHeight = dist(ru4, rl5)
       const rightWidth = dist(ru1, ru7)
       const rightEAR = rightWidth > 0 ? rightHeight / rightWidth : 0
 
       // Left Eye EAR
-      const lu4 = { x: cols[idx_lu4_x], y: cols[idx_lu4_y] }
-      const ll5 = { x: cols[idx_ll5_x], y: cols[idx_ll5_y] }
-      const lu1 = { x: cols[idx_lu1_x], y: cols[idx_lu1_y] }
-      const lu7 = { x: cols[idx_lu7_x], y: cols[idx_lu7_y] }
+      const lu4 = { x: lu4_x, y: lu4_y }
+      const ll5 = { x: ll5_x, y: ll5_y }
+      const lu1 = { x: lu1_x, y: lu1_y }
+      const lu7 = { x: lu7_x, y: lu7_y }
 
       const leftHeight = dist(lu4, ll5)
       const leftWidth = dist(lu1, lu7)
