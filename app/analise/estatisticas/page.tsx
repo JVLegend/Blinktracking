@@ -1144,6 +1144,30 @@ export default function EstatisticasPage() {
 
           {data.length > 0 && metrics && (
             <>
+              {/* Card de FPS Detectado */}
+              <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">FPS Detectado Automaticamente</p>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-bold text-primary">{detectedFPS}</span>
+                        <span className="text-xl font-semibold text-muted-foreground">FPS</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Todos os cálculos de tempo foram ajustados para este FPS
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Eye className="h-12 w-12 text-primary/30" />
+                      <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded">
+                        Auto-detectado
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Tabs defaultValue="general" className="w-full">
                 <TabsList className="grid w-full grid-cols-5">
                   <TabsTrigger value="general">Métricas Gerais</TabsTrigger>
