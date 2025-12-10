@@ -14,14 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Clock, Upload, Eye, Download, BarChart3, FileSpreadsheet } from "lucide-react"
+import { Clock, Upload, Eye, Download, BarChart3 } from "lucide-react"
 import { toast } from "sonner"
-import { CSVSelector } from "../../components/CSVSelector"
 import { FileUploadCard } from "../../components/FileUploadCard"
 
 export default function AnalysePiscadasPage() {
-  const [selectedCSVUrl, setSelectedCSVUrl] = useState<string | null>(null)
-  const [selectedCSVFilename, setSelectedCSVFilename] = useState<string | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [analysisData, setAnalysisData] = useState<any[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -296,36 +293,9 @@ export default function AnalysePiscadasPage() {
       const csvText = await uploadedFile.text()
       console.log("Arquivo lido, tamanho:", csvText.length)
       processCSVData(csvText)
-
-      setSelectedCSVUrl(null)
-      setSelectedCSVFilename(null)
     } catch (error) {
       console.error("Erro no processamento:", error)
       toast.error("Erro ao ler o arquivo CSV: " + error)
-    } finally {
-      setIsAnalyzing(false)
-    }
-  }
-
-  const analyzeBlinkData = async () => {
-    if (!selectedCSVUrl || !selectedCSVFilename) {
-      toast.error("Por favor, selecione uma planilha primeiro")
-      return
-    }
-
-    setIsAnalyzing(true)
-    toast.info("Baixando e processando...")
-    try {
-      const response = await fetch(selectedCSVUrl);
-      if (!response.ok) {
-        throw new Error('Erro ao carregar arquivo');
-      }
-      const csvText = await response.text();
-      processCSVData(csvText)
-
-    } catch (error) {
-      toast.error("Erro ao analisar dados de piscadas: " + error)
-      console.error(error)
     } finally {
       setIsAnalyzing(false)
     }
@@ -365,54 +335,12 @@ export default function AnalysePiscadasPage() {
           </p>
         </div>
 
-        {/* Selection Section */}
-        <CSVSelector
-          selectedCSV={selectedCSVUrl}
-          onCSVSelect={(url, filename) => {
-            setSelectedCSVUrl(url)
-            setSelectedCSVFilename(filename)
-          }}
-        />
-
         <FileUploadCard
           uploadedFile={uploadedFile}
           onFileSelect={setUploadedFile}
           onProcessFile={handleProcessUploadedFile}
           isLoading={isAnalyzing}
         />
-
-        {selectedCSVUrl && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5" />
-                Processar Planilha Selecionada
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm">
-                  <strong>Planilha:</strong> {selectedCSVFilename}
-                </p>
-              </div>
-
-              <Button
-                onClick={analyzeBlinkData}
-                disabled={isAnalyzing}
-                className="w-full"
-              >
-                {isAnalyzing ? (
-                  <>Analisando Piscadas...</>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Analisar Piscadas
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Statistics Cards */}
         {analysisData.length > 0 && (

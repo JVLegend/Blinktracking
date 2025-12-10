@@ -5,7 +5,7 @@ import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Activity, FileSpreadsheet, Eye, LineChart, Upload, Info, Ruler, Timer, FileDown } from "lucide-react"
+import { Activity, Eye, LineChart, Upload, Info, Ruler, Timer, FileDown } from "lucide-react"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
 import { PlotParams } from "react-plotly.js"
@@ -34,7 +34,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { CSVSelector } from "../../components/CSVSelector"
 import { FileUploadCard } from "../../components/FileUploadCard"
 
 // Atualizar a importação do Plot
@@ -1082,65 +1081,12 @@ export default function EstatisticasPage() {
         </div>
 
         <div className="grid gap-6">
-          <CSVSelector
-            selectedCSV={selectedCSVUrl}
-            onCSVSelect={(url, filename) => {
-              setSelectedCSVUrl(url)
-              setSelectedCSVFilename(filename)
-            }}
-          />
-
           <FileUploadCard
             uploadedFile={uploadedFile}
             onFileSelect={setUploadedFile}
             onProcessFile={handleProcessUploadedFile}
             isLoading={isLoading}
           />
-
-          {selectedCSVUrl && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-6 w-6 text-primary" />
-                  <CardTitle>Processar Planilha Selecionada</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="font-semibold">Planilha Selecionada:</p>
-                  <p className="text-sm text-muted-foreground">{selectedCSVFilename}</p>
-                </div>
-
-                <Button
-                  onClick={handleCSVLoad}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  {isLoading ? (
-                    "Processando arquivo..."
-                  ) : (
-                    "Carregar e Analisar Planilha"
-                  )}
-                </Button>
-
-                {isLoading && (
-                  <div className="text-sm text-muted-foreground">
-                    Processando arquivo...
-                  </div>
-                )}
-                {error && (
-                  <div className="text-sm text-red-500">
-                    Erro: {error}
-                  </div>
-                )}
-                {data.length > 0 && (
-                  <div className="text-sm text-green-500">
-                    {data.length} pontos carregados
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {data.length > 0 && metrics && (
             <>
