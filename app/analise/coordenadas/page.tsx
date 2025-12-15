@@ -569,7 +569,10 @@ export default function ClinicalPreviewPage() {
                     </div>
 
                     <div className="flex flex-col items-end min-w-[100px]">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frame</span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Time / Frame</span>
+                      <div className="font-mono text-xs text-slate-500 mb-0.5">
+                        {((currentFrame / playbackSpeed) * 1000).toFixed(0)} ms
+                      </div>
                       <div className="font-mono text-sm font-medium text-slate-700">
                         <span className="text-sky-600 font-bold">{data[currentFrame]?.frame ?? currentFrame}</span> / {data.length}
                       </div>
