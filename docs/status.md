@@ -1,6 +1,11 @@
 # Status do Projeto
 
 ## Últimas Atualizações
+- **[15/12/2025]** Criada nova página de "Análise Fina" (*Clinical Suite*) com design responsivo, tema médico (azul/teal) e visualização de alta performance.
+- **[15/12/2025]** Implementado suporte total para CSVs *"Full Mesh"* (478 pontos) na visualização, com destaque colorimétrico (Íris Cyan, Contorno Vermelho).
+- **[15/12/2025]** Criados scripts Python de automação em lote (`gerar_tudo.py`, `analisar_pasta_piscadas.py`) para processar pastas inteiras de vídeos.
+- **[15/12/2025]** Adicionada documentação técnica detalhada sobre a fórmula EAR (`docs/EAR_Formula_Explained.md`).
+- **[15/12/2025]** Implementado cálculo de métricas de abertura em tempo real e responsivo ao tipo de CSV carregado (Eyes Only vs Full Mesh).
 - Corrigido o processamento de vídeos na página de extração de pontos
 - Atualizado o script dlib para usar o modelo baixado corretamente
 - Melhorado o script MediaPipe para processar vídeos em tempo real
