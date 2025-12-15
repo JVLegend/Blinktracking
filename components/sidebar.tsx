@@ -10,14 +10,12 @@ import {
   Activity,
   Eye,
   FileText,
-  Code,
   Settings,
   Users,
   LayoutDashboard,
   Cog,
   BookOpen,
   LineChart,
-  Timer
 } from "lucide-react"
 
 interface SidebarItem {
@@ -90,9 +88,9 @@ const routes: SidebarSection[] = [
         href: "/analise/coordenadas",
       },
       {
-        label: "Estatísticas",
+        label: "Estatísticas das Piscadas",
         icon: Activity,
-        href: "/analise/estatisticas",
+        href: "/analise/piscadas",
       }
     ]
   },
@@ -193,4 +191,4 @@ export function Sidebar() {
       </aside>
     </div>
   )
-} 
+}

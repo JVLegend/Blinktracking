@@ -140,20 +140,12 @@ export function Sidebar() {
                 <span className="font-medium">Análise de Coordenadas</span>
               </Link>
               <Link
-                href="/analise/estatisticas"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
-                  ${isActive('/analise/estatisticas') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
-              >
-                <PieChart className="w-5 h-5" />
-                <span className="font-medium">Estatísticas das Piscadas</span>
-              </Link>
-              <Link
                 href="/analise/piscadas"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/analise/piscadas') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
               >
-                <Clock className="w-5 h-5" />
-                <span className="font-medium">Análise de Piscadas</span>
+                <PieChart className="w-5 h-5" />
+                <span className="font-medium">Estatísticas das Piscadas</span>
               </Link>
             </div>
           </div>
@@ -172,7 +164,6 @@ export function Sidebar() {
                 <FileText className="w-5 h-5" />
                 <span className="font-medium">Pontos Faciais</span>
               </Link>
-              {/* Códigos removido */}
               <Link
                 href="/visao-projeto"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
@@ -198,4 +189,4 @@ export function Sidebar() {
       </div>
     </div>
   )
-} 
+}

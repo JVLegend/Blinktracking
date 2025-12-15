@@ -105,19 +105,7 @@ export function MainNav() {
               Análise de Coordenadas
             </Button>
           </Link>
-          <Link href="/analise/estatisticas">
-            <Button
-              variant={
-                pathname === "/analise/estatisticas"
-                  ? "secondary"
-                  : "ghost"
-              }
-              className="w-full justify-start hover:bg-accent"
-            >
-              <BarChart className="mr-2 h-4 w-4" />
-              Estatísticas das Piscadas
-            </Button>
-          </Link>
+          {/* Estatísticas unificado com Piscadas */}
           <Link href="/alinhamento">
             <Button
               variant={pathname === "/alinhamento" ? "secondary" : "ghost"}
