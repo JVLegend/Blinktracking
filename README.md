@@ -273,6 +273,18 @@ Para processar múltiplos vídeos de uma vez, use os scripts batch:
 - Processa todos os `.MOV` da pasta configurada
 - Gera vídeos MP4 com os pontos desenhados
 
+### 5. Análise de Arquivos CSV em Lote
+
+Para processar uma pasta contendo vários arquivos CSV (do tipo `eyes_only` ou `all_points`) e gerar um relatório consolidado de piscadas:
+
+```bash
+python .\scripts\analisar_pasta_piscadas.py .\tmp\graves\
+```
+
+- **Entrada**: Caminho da pasta contendo os arquivos `.csv`.
+- **Processamento**: Calcula EAR, detecta piscadas completas/incompletas e métricas temporais.
+- **Saída**: Um arquivo Excel consolidado (`Resumo_Global_Piscadas.xlsx`) na mesma pasta.
+
 ---
 
 ## Estrutura dos Arquivos CSV
