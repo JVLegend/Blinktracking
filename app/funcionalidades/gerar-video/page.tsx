@@ -40,14 +40,14 @@ export default function GerarVideoPage() {
       setLogs([]);
       setDownloadUrl(null);
       setLogs(prev => [...prev, "Iniciando processamento..."]);
-      
+
       const formData = new FormData();
       formData.append('videoUrl', selectedVideoUrl);
       formData.append('videoFilename', selectedVideoFilename);
       formData.append('method', method);
 
       setLogs(prev => [...prev, "Enviando vídeo..."]);
-      
+
       const response = await fetch("/api/generate-video", {
         method: "POST",
         body: formData,
@@ -66,7 +66,7 @@ export default function GerarVideoPage() {
 
       let lastProgressUpdate = 0;
       let buffer = '';
-      
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -77,7 +77,7 @@ export default function GerarVideoPage() {
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          
+
           try {
             // Verificar se é uma linha data: com JSON
             if (line.startsWith('data: ')) {
@@ -108,7 +108,7 @@ export default function GerarVideoPage() {
                 // Criar URL e fazer download
                 const url = URL.createObjectURL(videoBlob);
                 setDownloadUrl(url);
-                
+
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `processed_${selectedVideoFilename}`;
@@ -135,17 +135,17 @@ export default function GerarVideoPage() {
                 if (data.success && data.outputFile) {
                   setProgress(100);
                   setLogs(prev => [...prev, "Processamento concluído! Baixando vídeo..."]);
-                  
+
                   const videoUrl = `/tmp/${data.outputFile}`;
                   setDownloadUrl(videoUrl);
-                  
+
                   const a = document.createElement('a');
                   a.href = videoUrl;
                   a.download = data.outputFile;
                   document.body.appendChild(a);
                   a.click();
                   document.body.removeChild(a);
-                  
+
                   toast.success("Vídeo processado com sucesso!");
                   setIsProcessing(false);
                   return;
@@ -233,8 +233,22 @@ export default function GerarVideoPage() {
           <Film className="h-10 w-10 text-primary" />
         </div>
 
+        {/* ALERTA DE FUNCIONALIDADE DESATIVADA */}
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Info className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Esta funcionalidade está temporariamente desativada para manutenção.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6">
-          <VideoSelector 
+          <VideoSelector
             selectedVideo={selectedVideoUrl}
             onVideoSelect={(url, filename) => {
               setSelectedVideoUrl(url)
@@ -243,56 +257,58 @@ export default function GerarVideoPage() {
           />
 
           {selectedVideoUrl && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
                   <Film className="h-5 w-5" />
                   Processar Vídeo Selecionado
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="font-semibold">Vídeo Selecionado:</p>
                   <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                 </div>
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={() => handleProcess('dlib')}
-                    disabled={isProcessing}
-                  variant="default"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin mr-2">⭮</div>
-                      Processando com Dlib...
-                    </>
-                  ) : (
-                    <>
-                      <Film className="h-4 w-4 mr-2" />
-                      Processar com Dlib
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={() => handleProcess('mediapipe')}
-                    disabled={isProcessing}
-                  variant="secondary"
-                >
-                  {isProcessing ? (
-                    <>
-                      <div className="animate-spin mr-2">⭮</div>
-                      Processando com MediaPipe...
-                    </>
-                  ) : (
-                    <>
-                      <Film className="h-4 w-4 mr-2" />
-                      Processar com MediaPipe
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    onClick={() => handleProcess('dlib')}
+                    disabled={true}
+                    variant="default"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin mr-2">⭮</div>
+                        Processando com Dlib...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="h-4 w-4 mr-2" />
+                        Processar com Dlib (Desativado)
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={() => handleProcess('mediapipe')}
+                    disabled={true}
+                    variant="secondary"
+                    className="opacity-50 cursor-not-allowed"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="animate-spin mr-2">⭮</div>
+                        Processando com MediaPipe...
+                      </>
+                    ) : (
+                      <>
+                        <Film className="h-4 w-4 mr-2" />
+                        Processar com MediaPipe (Desativado)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
 

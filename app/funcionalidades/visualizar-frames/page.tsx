@@ -8,12 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
-import { 
-  Upload, 
-  Search, 
-  Film, 
-  SkipForward, 
-  X, 
+import {
+  Upload,
+  Search,
+  Film,
+  SkipForward,
+  X,
   Download,
   ZoomIn,
   ZoomOut,
@@ -146,7 +146,7 @@ export default function VisualizarFramesPage() {
   const [isProcessingFrame, setIsProcessingFrame] = useState(false);
   const [processedFrames, setProcessedFrames] = useState<any[]>([]);
   const [displayedPointsData, setDisplayedPointsData] = useState<any[]>([]);
-  const canvasRefs = useRef<{[key: string]: HTMLCanvasElement}>({});
+  const canvasRefs = useRef<{ [key: string]: HTMLCanvasElement }>({});
   const [facialPoints, setFacialPoints] = useState<any>(null);
 
   // Função removida - não é mais necessária com VideoSelector
@@ -195,7 +195,7 @@ export default function VisualizarFramesPage() {
 
       const blob = await response.blob();
       const imageUrl = URL.createObjectURL(blob);
-      
+
       setExtractedFrames(prev => [...prev, { frameNumber: currentFrameInput, imageUrl }]);
       setCurrentFrameInput('');
       console.log("Frame extracted successfully");
@@ -248,10 +248,10 @@ export default function VisualizarFramesPage() {
 
   const extractSequentialFrames = async () => {
     if (!selectedVideoUrl || extractedFrames.length >= 4) return;
-    
+
     const remainingSlots = 4 - extractedFrames.length;
     const interval = Math.floor(totalFrames / (remainingSlots + 1));
-    
+
     for (let i = 1; i <= remainingSlots; i++) {
       const frameNumber = (interval * i).toString();
       const formData = new FormData();
@@ -269,7 +269,7 @@ export default function VisualizarFramesPage() {
 
         const blob = await response.blob();
         const imageUrl = URL.createObjectURL(blob);
-        
+
         setExtractedFrames(prev => [...prev, { frameNumber, imageUrl }]);
       } catch (error) {
         console.error(error);
@@ -280,8 +280,8 @@ export default function VisualizarFramesPage() {
   const processVideo = async (method: "dlib" | "mediapipe") => {
     console.log(`processVideo chamado com método: ${method}`);
     if (!selectedVideoUrl || extractedFrames.length === 0) {
-        toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
-        return;
+      toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
+      return;
     }
 
     setIsProcessing(true);
@@ -297,72 +297,72 @@ export default function VisualizarFramesPage() {
     setLogs(prev => [...prev, "Enviando vídeo..."]);
 
     try {
-        const response = await fetch('/api/generate-video', {
-            method: 'POST',
-            body: formData,
-        });
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        body: formData,
+      });
 
-        const reader = response.body?.getReader();
-        const decoder = new TextDecoder();
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-        if (!reader) {
-            throw new Error("Não foi possível iniciar o processamento");
-        }
+      if (!reader) {
+        throw new Error("Não foi possível iniciar o processamento");
+      }
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.slice(5));
-                        
-                        if (data.error) {
-                            throw new Error(data.error);
-                        }
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(5));
 
-                        if (data.progress !== undefined) {
-                            setProgress(data.progress);
-                            setLogs(prev => [...prev, `Progresso: ${data.progress}%`]);
-                        }
+              if (data.error) {
+                throw new Error(data.error);
+              }
 
-                        if (data.status === 'complete' && data.videoData) {
-                            // Converter base64 para blob
-                            const videoBlob = new Blob(
-                                [Uint8Array.from(atob(data.videoData), c => c.charCodeAt(0))],
-                                { type: 'video/mp4' }
-                            );
-                            
-                            // Atualizar o player de vídeo
-                            if (videoPlayerRef.current) {
-                                const url = URL.createObjectURL(videoBlob);
-                                videoPlayerRef.current.src = url;
-                            }
+              if (data.progress !== undefined) {
+                setProgress(data.progress);
+                setLogs(prev => [...prev, `Progresso: ${data.progress}%`]);
+              }
 
-                            setLogs(prev => [...prev, "Processamento concluído!"]);
-                            toast.success("Vídeo processado com sucesso!");
-                        }
-                    } catch (e) {
-                        console.error("Erro ao processar evento:", e);
-                        if (e instanceof Error) {
-                            setLogs(prev => [...prev, `Erro: ${e.message}`]);
-                            toast.error(e.message);
-                        }
-                    }
+              if (data.status === 'complete' && data.videoData) {
+                // Converter base64 para blob
+                const videoBlob = new Blob(
+                  [Uint8Array.from(atob(data.videoData), c => c.charCodeAt(0))],
+                  { type: 'video/mp4' }
+                );
+
+                // Atualizar o player de vídeo
+                if (videoPlayerRef.current) {
+                  const url = URL.createObjectURL(videoBlob);
+                  videoPlayerRef.current.src = url;
                 }
+
+                setLogs(prev => [...prev, "Processamento concluído!"]);
+                toast.success("Vídeo processado com sucesso!");
+              }
+            } catch (e) {
+              console.error("Erro ao processar evento:", e);
+              if (e instanceof Error) {
+                setLogs(prev => [...prev, `Erro: ${e.message}`]);
+                toast.error(e.message);
+              }
             }
+          }
         }
+      }
 
     } catch (error) {
-        console.error('Erro:', error);
-        toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
-        setLogs(prev => [...prev, `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`]);
+      console.error('Erro:', error);
+      toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
+      setLogs(prev => [...prev, `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`]);
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 
@@ -526,50 +526,50 @@ export default function VisualizarFramesPage() {
 
   const handleProcessDlib = async () => {
     if (!selectedVideoUrl || extractedFrames.length === 0) {
-        toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
-        return;
+      toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
+      return;
     }
 
     setIsProcessing(true);
     try {
-        const formData = new FormData();
-        formData.append('videoUrl', selectedVideoUrl);
-        formData.append('videoFilename', selectedVideoFilename || "");
-        formData.append('method', 'dlib');
+      const formData = new FormData();
+      formData.append('videoUrl', selectedVideoUrl);
+      formData.append('videoFilename', selectedVideoFilename || "");
+      formData.append('method', 'dlib');
 
-        console.log("Enviando vídeo para processamento...");
-        const response = await fetch('/api/generate-video', {
-            method: 'POST',
-            body: formData,
-        });
+      console.log("Enviando vídeo para processamento...");
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Erro ao processar vídeo');
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao processar vídeo');
+      }
 
-        // Processar resposta como vídeo
-        const blob = await response.blob();
-        const videoUrl = URL.createObjectURL(blob);
-        
-        // Atualizar o player de vídeo com o resultado processado
-        if (videoPlayerRef.current) {
-            videoPlayerRef.current.src = videoUrl;
-        }
+      // Processar resposta como vídeo
+      const blob = await response.blob();
+      const videoUrl = URL.createObjectURL(blob);
 
-        toast.success("Vídeo processado com sucesso!");
+      // Atualizar o player de vídeo com o resultado processado
+      if (videoPlayerRef.current) {
+        videoPlayerRef.current.src = videoUrl;
+      }
+
+      toast.success("Vídeo processado com sucesso!");
     } catch (error) {
-        console.error('Erro:', error);
-        toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
+      console.error('Erro:', error);
+      toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 
   const handleProcessMediaPipe = async () => {
     if (!selectedVideoUrl || extractedFrames.length === 0) {
-        toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
-        return;
+      toast.error("Por favor, selecione um vídeo e extraia alguns frames primeiro");
+      return;
     }
 
     console.log("=== INICIANDO PROCESSAMENTO MEDIAPIPE ===");
@@ -582,68 +582,68 @@ export default function VisualizarFramesPage() {
     setLogs(["Iniciando processamento..."]);
 
     try {
-        const formData = new FormData();
-        formData.append('videoUrl', selectedVideoUrl);
-        formData.append('videoFilename', selectedVideoFilename || "");
-        formData.append('method', 'mediapipe');
+      const formData = new FormData();
+      formData.append('videoUrl', selectedVideoUrl);
+      formData.append('videoFilename', selectedVideoFilename || "");
+      formData.append('method', 'mediapipe');
 
-        setLogs(prev => [...prev, "Enviando requisição para o servidor..."]);
-        console.log("Enviando requisição para /api/generate-video...");
-        
-        const response = await fetch('/api/generate-video', {
-            method: 'POST',
-            body: formData,
-        });
+      setLogs(prev => [...prev, "Enviando requisição para o servidor..."]);
+      console.log("Enviando requisição para /api/generate-video...");
 
-        console.log("Resposta recebida. Status:", response.status);
-        setLogs(prev => [...prev, `Resposta recebida: ${response.status}`]);
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        body: formData,
+      });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("Erro na resposta:", errorData);
-            setLogs(prev => [...prev, `Erro: ${errorData.error}`]);
-            throw new Error(errorData.error || 'Erro ao processar vídeo');
+      console.log("Resposta recebida. Status:", response.status);
+      setLogs(prev => [...prev, `Resposta recebida: ${response.status}`]);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Erro na resposta:", errorData);
+        setLogs(prev => [...prev, `Erro: ${errorData.error}`]);
+        throw new Error(errorData.error || 'Erro ao processar vídeo');
+      }
+
+      setLogs(prev => [...prev, "Processando resposta..."]);
+      console.log("Processando resposta JSON...");
+      const result = await response.json();
+      console.log("Resultado:", result);
+
+      if (result.error) {
+        setLogs(prev => [...prev, `Erro: ${result.error}`]);
+        throw new Error(result.error);
+      }
+
+      if (result.status === 'complete' && result.videoData) {
+        setLogs(prev => [...prev, "Vídeo processado com sucesso!"]);
+        console.log("Vídeo processado com sucesso!");
+        // Converter base64 para blob
+        const videoBlob = new Blob(
+          [Uint8Array.from(atob(result.videoData), c => c.charCodeAt(0))],
+          { type: 'video/mp4' }
+        );
+
+        // Atualizar o player de vídeo
+        if (videoPlayerRef.current) {
+          const url = URL.createObjectURL(videoBlob);
+          videoPlayerRef.current.src = url;
         }
 
-        setLogs(prev => [...prev, "Processando resposta..."]);
-        console.log("Processando resposta JSON...");
-        const result = await response.json();
-        console.log("Resultado:", result);
+        toast.success("Vídeo processado com sucesso!");
+      } else {
+        setLogs(prev => [...prev, result.message || "Processamento concluído"]);
+        toast.success(result.message || "Processamento concluído");
+      }
 
-        if (result.error) {
-            setLogs(prev => [...prev, `Erro: ${result.error}`]);
-            throw new Error(result.error);
-        }
-
-        if (result.status === 'complete' && result.videoData) {
-            setLogs(prev => [...prev, "Vídeo processado com sucesso!"]);
-            console.log("Vídeo processado com sucesso!");
-            // Converter base64 para blob
-            const videoBlob = new Blob(
-                [Uint8Array.from(atob(result.videoData), c => c.charCodeAt(0))],
-                { type: 'video/mp4' }
-            );
-            
-            // Atualizar o player de vídeo
-            if (videoPlayerRef.current) {
-                const url = URL.createObjectURL(videoBlob);
-                videoPlayerRef.current.src = url;
-            }
-
-            toast.success("Vídeo processado com sucesso!");
-        } else {
-            setLogs(prev => [...prev, result.message || "Processamento concluído"]);
-            toast.success(result.message || "Processamento concluído");
-        }
-
-        setProgress(100);
-        console.log("=== FIM DO PROCESSAMENTO MEDIAPIPE ===");
+      setProgress(100);
+      console.log("=== FIM DO PROCESSAMENTO MEDIAPIPE ===");
     } catch (error) {
-        console.error('Erro:', error);
-        setLogs(prev => [...prev, `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`]);
-        toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
+      console.error('Erro:', error);
+      setLogs(prev => [...prev, `Erro: ${error instanceof Error ? error.message : "Erro desconhecido"}`]);
+      toast.error(error instanceof Error ? error.message : "Erro ao processar vídeo");
     } finally {
-        setIsProcessing(false);
+      setIsProcessing(false);
     }
   };
 
@@ -661,8 +661,22 @@ export default function VisualizarFramesPage() {
           <FileVideo className="h-10 w-10 text-primary" />
         </div>
 
+        {/* ALERTA DE FUNCIONALIDADE DESATIVADA */}
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Info className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Esta funcionalidade está temporariamente desativada para manutenção.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6 md:grid-cols-2">
-          <VideoSelector 
+          <VideoSelector
             selectedVideo={selectedVideoUrl}
             onVideoSelect={(url, filename) => {
               setSelectedVideoUrl(url)
@@ -698,14 +712,15 @@ export default function VisualizarFramesPage() {
                     />
                     <Button
                       onClick={handleExtractFrame}
-                      disabled={!selectedVideoUrl || !currentFrameInput || isProcessingFrame || extractedFrames.length >= 4}
+                      disabled={true}
+                      className="opacity-50 cursor-not-allowed"
                     >
                       {isProcessingFrame ? (
                         "Extraindo..."
                       ) : (
                         <>
                           <SkipForward className="h-4 w-4 mr-2" />
-                          Extrair
+                          Extrair (Desativado)
                         </>
                       )}
                     </Button>
@@ -714,15 +729,17 @@ export default function VisualizarFramesPage() {
                 <Button
                   variant="outline"
                   onClick={extractSequentialFrames}
-                  disabled={!selectedVideoUrl || extractedFrames.length >= 4}
+                  disabled={true}
+                  className="opacity-50 cursor-not-allowed"
                 >
-                  Extrair Frames Sequenciais
+                  Extrair Frames Sequenciais (Desativado)
                 </Button>
                 <div className="flex flex-col gap-2">
                   <Button
                     onClick={handleProcessMediaPipe}
-                    disabled={isProcessing || extractedFrames.length === 0}
+                    disabled={true}
                     variant="secondary"
+                    className="opacity-50 cursor-not-allowed"
                   >
                     {isProcessing ? (
                       <>
@@ -732,7 +749,7 @@ export default function VisualizarFramesPage() {
                     ) : (
                       <>
                         <Film className="h-4 w-4 mr-2" />
-                        Processar
+                        Processar (Desativado)
                       </>
                     )}
                   </Button>
@@ -807,11 +824,10 @@ export default function VisualizarFramesPage() {
             </div>
             <div className={`grid ${isGridView ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}>
               {extractedFrames.map((frame) => (
-                <Card 
+                <Card
                   key={frame.frameNumber}
-                  className={`cursor-pointer transition-all ${
-                    selectedFrame === frame.frameNumber ? 'ring-2 ring-primary' : ''
-                  }`}
+                  className={`cursor-pointer transition-all ${selectedFrame === frame.frameNumber ? 'ring-2 ring-primary' : ''
+                    }`}
                   onClick={() => handleFrameClick(frame.frameNumber)}
                 >
                   <CardHeader className="pb-2">
@@ -864,7 +880,7 @@ export default function VisualizarFramesPage() {
                         className="object-contain w-full h-full transition-all"
                         style={{
                           transform: selectedFrame === frame.frameNumber
-                            ? `scale(${zoom/100}) rotate(${rotation}deg)`
+                            ? `scale(${zoom / 100}) rotate(${rotation}deg)`
                             : 'none'
                         }}
                       />
@@ -880,8 +896,8 @@ export default function VisualizarFramesPage() {
           <div className="grid grid-cols-3 gap-4">
             {frames.map((frame, index) => (
               <div key={index} className="relative aspect-video">
-                <img 
-                  src={frame} 
+                <img
+                  src={frame}
                   alt={`Frame ${index}`}
                   className="object-cover rounded-lg"
                 />

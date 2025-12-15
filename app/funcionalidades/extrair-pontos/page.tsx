@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
-import { 
+import {
   Table,
   TableBody,
   TableCaption,
@@ -54,7 +54,7 @@ export default function ExtrairPontosPage() {
     setTotalPoints(0)
     setAllPoints([])
     setIsDownloadingModel(false)
-    
+
     console.log("Iniciando processamento com método:", method) // DEBUG
 
     const formData = new FormData()
@@ -75,9 +75,9 @@ export default function ExtrairPontosPage() {
       }
 
       const data = await response.json()
-      
+
       console.log("Resposta recebida do backend:", data) // DEBUG
-      
+
       if (data.status === 'downloading_model') {
         setIsDownloadingModel(true)
         toast.loading("Baixando modelo do dlib... Isso pode levar alguns minutos na primeira vez.", {
@@ -91,18 +91,18 @@ export default function ExtrairPontosPage() {
         setProgress(data.progress)
         console.log("Progress atualizado:", data.progress) // DEBUG
       }
-      
+
       if (data.points) {
         console.log("Pontos recebidos:", data.points.length, "pontos") // DEBUG
         setProcessedData(data.points.slice(0, 20))
         setAllPoints(data.points)
       }
-      
+
       if (data.totalPoints) {
         console.log("Total de pontos:", data.totalPoints) // DEBUG
         setTotalPoints(data.totalPoints)
       }
-      
+
       // Verificar se realmente há dados
       if (data.success && data.points && data.points.length > 0) {
         toast.success(`Pontos extraídos com sucesso! ${data.points.length} frames processados`)
@@ -131,7 +131,7 @@ export default function ExtrairPontosPage() {
     const methodType = allPoints[0].method === 'dlib' ? 'dlib' : 'mediapipe'
     const link = document.createElement("a")
     link.setAttribute("href", csvContent)
-    link.setAttribute("download", `pontos_${methodType}_${new Date().toISOString().slice(0,19).replace(/[:-]/g, '')}.csv`)
+    link.setAttribute("download", `pontos_${methodType}_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -142,10 +142,10 @@ export default function ExtrairPontosPage() {
     if (!points.length) return '';
 
     const isMediaPipe = points[0].method === "mediapipe";
-    
+
     // Criar o conteúdo base64 para download
     const csvContent = "data:text/csv;charset=utf-8,";
-    
+
     if (isMediaPipe) {
       const headers = [
         "frame",
@@ -160,34 +160,34 @@ export default function ExtrairPontosPage() {
         ...Array.from({ length: 9 }, (_, i) => `left_lower_${i + 1}_y`),
       ];
 
-      return csvContent + headers.join(',') + '\n' + 
+      return csvContent + headers.join(',') + '\n' +
         points.map(point => {
           const values = [point.frame, point.method];
-          
+
           // Adicionar pontos superiores do olho direito
           for (let i = 1; i <= 7; i++) {
             values.push(point[`right_upper_${i}_x`] || '0');
             values.push(point[`right_upper_${i}_y`] || '0');
           }
-          
+
           // Adicionar pontos inferiores do olho direito
           for (let i = 1; i <= 9; i++) {
             values.push(point[`right_lower_${i}_x`] || '0');
             values.push(point[`right_lower_${i}_y`] || '0');
           }
-          
+
           // Adicionar pontos superiores do olho esquerdo
           for (let i = 1; i <= 7; i++) {
             values.push(point[`left_upper_${i}_x`] || '0');
             values.push(point[`left_upper_${i}_y`] || '0');
           }
-          
+
           // Adicionar pontos inferiores do olho esquerdo
           for (let i = 1; i <= 9; i++) {
             values.push(point[`left_lower_${i}_x`] || '0');
             values.push(point[`left_lower_${i}_y`] || '0');
           }
-          
+
           return values.join(',');
         }).join('\n');
     } else {
@@ -205,7 +205,7 @@ export default function ExtrairPontosPage() {
         "41_y"
       ];
 
-      return csvContent + headers.join(',') + '\n' + 
+      return csvContent + headers.join(',') + '\n' +
         points.map(point => [
           point.frame,
           point.method,
@@ -221,7 +221,7 @@ export default function ExtrairPontosPage() {
     }
   };
 
-  
+
 
   return (
     <SidebarInset>
@@ -236,8 +236,22 @@ export default function ExtrairPontosPage() {
           <Eye className="h-10 w-10 text-primary" />
         </div>
 
+        {/* ALERTA DE FUNCIONALIDADE DESATIVADA */}
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Info className="h-5 w-5 text-yellow-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-yellow-700">
+                Esta funcionalidade está temporariamente desativada para manutenção.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-6">
-          <VideoSelector 
+          <VideoSelector
             selectedVideo={selectedVideoUrl}
             onVideoSelect={(url, filename) => {
               setSelectedVideoUrl(url)
@@ -259,9 +273,10 @@ export default function ExtrairPontosPage() {
                   <p className="text-sm text-muted-foreground">{selectedVideoFilename}</p>
                 </div>
                 <div className="flex gap-4">
-                  <Button 
+                  <Button
                     onClick={() => processVideo("normal")}
-                    disabled={isProcessing}
+                    disabled={true}
+                    className="opacity-50 cursor-not-allowed"
                   >
                     {isProcessing ? (
                       <>
@@ -269,12 +284,13 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Normal"
+                      "Extração Normal (Desativado)"
                     )}
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => processVideo("potente")}
-                    disabled={isProcessing}
+                    disabled={true}
+                    className="opacity-50 cursor-not-allowed"
                   >
                     {isProcessing ? (
                       <>
@@ -282,7 +298,7 @@ export default function ExtrairPontosPage() {
                         Processando...
                       </>
                     ) : (
-                      "Extração Potente"
+                      "Extração Potente (Desativado)"
                     )}
                   </Button>
                 </div>
@@ -296,7 +312,7 @@ export default function ExtrairPontosPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-4">
                     <CardTitle>Resultados (Primeiros 20 frames)</CardTitle>
-                    <Button 
+                    <Button
                       onClick={handleDownload}
                       className="flex items-center gap-2"
                     >
