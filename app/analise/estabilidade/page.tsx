@@ -14,7 +14,6 @@ import {
     Info,
     Loader2,
     MousePointer2,
-    Maximize
 } from "lucide-react"
 
 // --- FONT CONFIG ---
@@ -39,8 +38,8 @@ const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default),
     )
 }) as React.ComponentType<PlotParams>;
 
-// --- CONFIG ---
-const POINTS_CONFIG = [
+// --- CONFIG DEFAULT (ALL POINTS) ---
+const DEFAULT_POINTS_CONFIG = [
     { id: 'r_p1', idx: 33, label: 'Olho Direito - Canto Externo (P33)' },
     { id: 'r_p2', idx: 160, label: 'Olho Direito - Pálpebra Sup 1 (P160)' },
     { id: 'r_p3', idx: 158, label: 'Olho Direito - Pálpebra Sup 2 (P158)' },
@@ -56,13 +55,23 @@ const POINTS_CONFIG = [
     { id: 'l_p6', idx: 380, label: 'Olho Esquerdo - Pálpebra Inf 2 (P380)' },
 ]
 
+interface PointOption {
+    id: string;
+    label: string;
+    colX?: string; // Para CSV eyes_only
+    colY?: string; // Para CSV eyes_only
+    idx?: number;  // Para CSV all_points
+}
+
 export default function EstabilidadePage() {
     // --- STATE ---
     const [data, setData] = useState<any[] | null>(null)
+    const [availablePoints, setAvailablePoints] = useState<PointOption[]>(DEFAULT_POINTS_CONFIG)
     const [selectedPointId, setSelectedPointId] = useState<string>("r_p1")
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [fileInfo, setFileInfo] = useState<{ name: string, frames: number, fps: number } | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
+    const [csvType, setCsvType] = useState<'all_points' | 'eyes_only'>('all_points')
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -80,6 +89,16 @@ export default function EstabilidadePage() {
         handleProcessFile(file);
     };
 
+    const formatLabel = (key: string) => {
+        return key
+            .replace('right_', 'OD - ')
+            .replace('left_', 'OE - ')
+            .replace('upper_', 'Sup ')
+            .replace('lower_', 'Inf ')
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
     const handleProcessFile = async (file: File) => {
         setIsProcessing(true)
 
@@ -93,26 +112,60 @@ export default function EstabilidadePage() {
             const delimiter = headerLine.includes(';') ? ';' : ','
             const headers = headerLine.split(delimiter).map(h => h.trim())
 
-            const isAllPoints = headers.includes('point_0_x');
-            if (!isAllPoints) {
-                toast.error("Por favor utilize o CSV 'all_points' para esta análise.")
-                setIsProcessing(false)
-                return
+            // DETECT TYPE & CONFIG
+            let currentConfig: PointOption[] = [];
+            let type: 'all_points' | 'eyes_only' = 'all_points';
+
+            if (headers.includes('point_0_x')) {
+                type = 'all_points';
+                currentConfig = DEFAULT_POINTS_CONFIG;
+                setCsvType('all_points');
+            } else {
+                // Eyes Only Logic
+                type = 'eyes_only';
+                const xCols = headers.filter(h => h.endsWith('_x'));
+                if (xCols.length === 0) throw new Error("Formato de CSV desconhecido (sem colunas _x)");
+
+                currentConfig = xCols.map(col => {
+                    const baseName = col.replace('_x', '');
+                    return {
+                        id: baseName,
+                        label: formatLabel(baseName),
+                        colX: col,
+                        colY: baseName + '_y'
+                    };
+                });
+                setCsvType('eyes_only');
             }
 
+            setAvailablePoints(currentConfig);
+            if (currentConfig.length > 0) setSelectedPointId(currentConfig[0].id);
+
+            // PARSE DATA
             const parsedData = lines.slice(1).map((line, i) => {
                 const cols = line.split(delimiter)
                 const frame = i
                 const pointData: any = { frame }
 
-                POINTS_CONFIG.forEach(p => {
-                    const idxX = headers.indexOf(`point_${p.idx}_x`)
-                    const idxY = headers.indexOf(`point_${p.idx}_y`)
+                currentConfig.forEach(p => {
+                    let idxX = -1;
+                    let idxY = -1;
+
+                    if (type === 'all_points' && p.idx !== undefined) {
+                        idxX = headers.indexOf(`point_${p.idx}_x`);
+                        idxY = headers.indexOf(`point_${p.idx}_y`);
+                    } else if (type === 'eyes_only' && p.colX && p.colY) {
+                        idxX = headers.indexOf(p.colX);
+                        idxY = headers.indexOf(p.colY);
+                    }
 
                     if (idxX !== -1 && idxY !== -1) {
-                        pointData[p.id] = {
-                            x: parseFloat(cols[idxX]),
-                            y: parseFloat(cols[idxY])
+                        const valX = parseFloat(cols[idxX]);
+                        const valY = parseFloat(cols[idxY]);
+
+                        // Validar NaN
+                        if (!isNaN(valX) && !isNaN(valY)) {
+                            pointData[p.id] = { x: valX, y: valY };
                         }
                     }
                 })
@@ -125,11 +178,11 @@ export default function EstabilidadePage() {
                 frames: parsedData.length,
                 fps: 30
             })
-            toast.success("Dados carregados com sucesso!")
+            toast.success(`Dados carregados: ${parsedData.length} frames (${type})`)
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error)
-            toast.error("Erro ao processar arquivo")
+            toast.error(`Erro: ${error.message}`)
         } finally {
             setIsProcessing(false)
         }
@@ -151,6 +204,8 @@ export default function EstabilidadePage() {
             }
         })
 
+        if (x.length === 0) return null;
+
         // Inverter Y para SVG coordinate system visualization
         const yInverted = y.map(val => -val)
 
@@ -171,13 +226,13 @@ export default function EstabilidadePage() {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none">
-                                        Análise de Estabilidade Temporal
+                                        Análise de Estabilidade
                                     </h1>
                                     <span className="text-xs font-medium text-rose-600 uppercase tracking-wider">Clinical Suite</span>
                                 </div>
                             </div>
                             <p className="text-slate-500 text-sm ml-[3.25rem]">
-                                Dispersão espacial (XY) frame-a-frame para detecção de micromovimentos
+                                Dispersão espacial (XY) frame-a-frame para detecção de tremor ou instabilidade
                             </p>
                         </div>
 
@@ -203,7 +258,7 @@ export default function EstabilidadePage() {
                             <Activity size={48} className="mb-4 opacity-50" />
                             <h3 className="text-lg font-semibold text-slate-600">Nenhum dado de estabilidade</h3>
                             <p className="text-sm mb-6 max-w-md text-center">
-                                Carregue um arquivo <span className="font-mono bg-slate-100 px-1 rounded text-slate-700">all_points.csv</span> para visualizar a dispersão espacial dos landmarks
+                                Carregue um arquivo CSV (<span className="font-mono bg-slate-100 px-1 rounded text-slate-700">all_points</span> ou <span className="font-mono bg-slate-100 px-1 rounded text-slate-700">eyes_only</span>)
                             </p>
                             <Button onClick={() => fileInputRef.current?.click()} className="bg-rose-600 hover:bg-rose-700">
                                 Selecionar Arquivo
@@ -219,7 +274,7 @@ export default function EstabilidadePage() {
                     )}
 
                     {/* CONTENT GRID */}
-                    {data && plotData && (
+                    {data && (
                         <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
 
                             {/* SIDE CONTROL PANEL */}
@@ -230,15 +285,15 @@ export default function EstabilidadePage() {
                                     </h3>
 
                                     <div className="space-y-2">
-                                        <label className="text-xs font-medium text-slate-700">Selecione o Landmark</label>
+                                        <label className="text-xs font-medium text-slate-700">Selecione o Landmark ({availablePoints.length} disponíveis)</label>
                                         <select
-                                            className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2.5 outline-none font-medium h-24 custom-scrollbar"
-                                            size={4}
+                                            className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2.5 outline-none font-medium h-64 custom-scrollbar"
+                                            size={10}
                                             value={selectedPointId}
                                             onChange={(e) => setSelectedPointId(e.target.value)}
                                         >
-                                            {POINTS_CONFIG.map(p => (
-                                                <option key={p.id} value={p.id} className="py-1">
+                                            {availablePoints.map(p => (
+                                                <option key={p.id} value={p.id} className="py-1 px-2 hover:bg-rose-50 rounded cursor-pointer">
                                                     {p.label}
                                                 </option>
                                             ))}
@@ -248,13 +303,12 @@ export default function EstabilidadePage() {
                                     {/* INFO BOX */}
                                     <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-xs space-y-2">
                                         <div className="flex items-center gap-2 text-rose-700 font-bold">
-                                            <Info size={14} /> Dica Clínica
+                                            <Info size={14} /> Tipo de Arquivo: {csvType === 'all_points' ? 'All Points (478)' : 'Eyes Only (Subset)'}
                                         </div>
                                         <p className="text-slate-600 leading-snug">
-                                            Para avaliar instabilidade cefálica (head tremor), utilize os <span className="font-bold text-slate-800">Cantos dos Olhos</span> (externo ou interno).
-                                        </p>
-                                        <p className="text-slate-600 leading-snug">
-                                            Pálpebras incluem o movimento do piscar na vertical.
+                                            {csvType === 'all_points'
+                                                ? "Pontos principais pré-selecionados para estabilidade (Cantos e Pálpebras)."
+                                                : "Visualizando todas as colunas de coordenadas disponíveis no arquivo."}
                                         </p>
                                     </div>
                                 </div>
@@ -269,8 +323,8 @@ export default function EstabilidadePage() {
                                             <span className="font-mono font-bold text-slate-700">{fileInfo?.frames}</span>
                                         </div>
                                         <div className="flex justify-between">
-                                            <span className="text-slate-500">Pontos Plotados</span>
-                                            <span className="font-mono font-bold text-slate-700">{plotData.x.length}</span>
+                                            <span className="text-slate-500">Pontos Visíveis</span>
+                                            <span className="font-mono font-bold text-slate-700">{plotData?.x.length || 0}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -283,74 +337,77 @@ export default function EstabilidadePage() {
                                         Scatter GL
                                     </span>
                                 </div>
-                                <div className="flex-1 rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100 relative">
-                                    <Plot
-                                        data={[
-                                            {
-                                                x: plotData.x,
-                                                y: plotData.y,
-                                                // @ts-ignore
-                                                type: 'scattergl',
-                                                mode: 'markers',
-                                                marker: {
-                                                    size: 6,
+                                <div className="flex-1 rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100 relative items-center justify-center flex">
+                                    {plotData ? (
+                                        <Plot
+                                            data={[
+                                                {
+                                                    x: plotData.x,
+                                                    y: plotData.y,
                                                     // @ts-ignore
-                                                    color: plotData.frames,
-                                                    colorscale: 'Viridis',
-                                                    showscale: true,
-                                                    colorbar: {
-                                                        title: 'Tempo (Frame)',
-                                                        titleside: 'right',
-                                                        thickness: 10,
-                                                        len: 0.5,
-                                                        yanchor: 'top',
-                                                        y: 1,
-                                                        x: 1,
-
+                                                    type: 'scattergl',
+                                                    mode: 'markers',
+                                                    marker: {
+                                                        size: 6,
+                                                        // @ts-ignore
+                                                        color: plotData.frames,
+                                                        colorscale: 'Viridis',
+                                                        showscale: true,
+                                                        colorbar: {
+                                                            title: 'Tempo (Frame)',
+                                                            titleside: 'right',
+                                                            thickness: 10,
+                                                            len: 0.5,
+                                                            yanchor: 'top',
+                                                            y: 1,
+                                                            x: 1,
+                                                        },
+                                                        opacity: 0.7,
+                                                        line: {
+                                                            color: 'white',
+                                                            width: 0.5
+                                                        }
                                                     },
-                                                    opacity: 0.7,
-                                                    line: {
-                                                        color: 'white',
-                                                        width: 0.5
-                                                    }
+                                                    text: plotData.frames.map(f => `Frame: ${f}`),
+                                                    hoverinfo: 'x+y+text'
+                                                }
+                                            ]}
+                                            layout={{
+                                                autosize: true,
+                                                hovermode: 'closest',
+                                                margin: { t: 40, r: 40, b: 60, l: 60 },
+                                                title: {
+                                                    text: 'Dispersão Espacial (Trajetória)',
+                                                    font: { family: 'Inter, sans-serif', size: 14, color: '#64748b' }
                                                 },
-                                                text: plotData.frames.map(f => `Frame: ${f}`),
-                                                hoverinfo: 'x+y+text'
-                                            }
-                                        ]}
-                                        layout={{
-                                            autosize: true,
-                                            hovermode: 'closest',
-                                            margin: { t: 40, r: 40, b: 60, l: 60 },
-                                            title: {
-                                                text: 'Dispersão Espacial (Trajetória)',
-                                                font: { family: 'Inter, sans-serif', size: 14, color: '#64748b' }
-                                            },
-                                            xaxis: {
-                                                title: 'Coordenada Horizontal (X)',
-                                                zeroline: false,
-                                                showgrid: true,
-                                                gridcolor: '#e2e8f0',
-                                                tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
-                                            } as any,
-                                            yaxis: {
-                                                title: 'Coordenada Vertical (Y - Invertido)',
-                                                zeroline: false,
-                                                showgrid: true,
-                                                gridcolor: '#e2e8f0',
-                                                tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
-                                            } as any,
-                                            paper_bgcolor: 'transparent',
-                                            plot_bgcolor: 'transparent',
-                                        }}
-                                        style={{ width: '100%', height: '100%' }}
-                                        config={{
-                                            responsive: true,
-                                            displayModeBar: true,
-                                            displaylogo: false,
-                                            modeBarButtonsToRemove: ['lasso2d', 'select2d']
-                                        }}
-                                    />
+                                                xaxis: {
+                                                    title: 'Coordenada Horizontal (X)',
+                                                    zeroline: false,
+                                                    showgrid: true,
+                                                    gridcolor: '#e2e8f0',
+                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
+                                                } as any,
+                                                yaxis: {
+                                                    title: 'Coordenada Vertical (Y - Invertido)',
+                                                    zeroline: false,
+                                                    showgrid: true,
+                                                    gridcolor: '#e2e8f0',
+                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
+                                                } as any,
+                                                paper_bgcolor: 'transparent',
+                                                plot_bgcolor: 'transparent',
+                                            }}
+                                            style={{ width: '100%', height: '100%' }}
+                                            config={{
+                                                responsive: true,
+                                                displayModeBar: true,
+                                                displaylogo: false,
+                                                modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="text-slate-400 text-sm">Nenhum ponto selecionado ou dados inválidos</div>
+                                    )}
                                 </div>
                             </div>
 
