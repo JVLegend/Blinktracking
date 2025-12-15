@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Clock, Eye, Download, BarChart3, Activity, CheckCircle, AlertCircle } from "lucide-react"
+import { Clock, Eye, Download, BarChart3, Activity, CheckCircle, AlertCircle, Zap, Ruler } from "lucide-react"
 import { toast } from "sonner"
 import { FileUploadCard } from "../../components/FileUploadCard"
 
@@ -36,8 +36,15 @@ export default function AnalysePiscadasPage() {
     averageDuration: 0,
     blinkRate: 0,
     blinkRateIncomplete: 0,
-    percentageComplete: 0
+    percentageComplete: 0,
+    avgAmplitude: 0,
+    avgClosingSpeed: 0,
+    avgOpeningSpeed: 0,
+    avgMcc: 0 // Mean Cycle Control (placeholder se necessário)
   })
+
+  // State para tabulação ou filtro se necessário no futuro
+  // ...
 
   const processCSVData = (csvText: string) => {
     try {
@@ -66,7 +73,6 @@ export default function AnalysePiscadasPage() {
         const totalFrames = lastFrame - firstFrame + 1;
         // Simple heuristic based on amount of data rows (assuming ~1 min video usually)
         if (dataRows.length > 3000) fps = 60; // Just a guess if metadata missing
-        // If user wants consistent FPS they can use the script. Here we default to 30 or guess.
       }
       setDetectedFPS(fps);
 
@@ -87,16 +93,9 @@ export default function AnalysePiscadasPage() {
       let colNames = { right: [] as string[], left: [] as string[] }; // For eyes_only
 
       if (csvType === 'all_points') {
-        // MediaPipe 468/478 Landmarks for EAR (Soukupova et al.)
-        // Right: [33, 160, 158, 133, 153, 144] (P1..P6)
-        // Left:  [362, 385, 387, 263, 373, 380]
         indices.right = [33, 160, 158, 133, 153, 144];
         indices.left = [362, 385, 387, 263, 373, 380];
       } else {
-        // Eyes Only (Legacy format mapping)
-        // Need to map our P1..P6 logic to the column names
-        // P1-P4 (Width), P2-P6 (Vertical1), P3-P5 (Vertical2)
-        // Based on previous script logic mapping
         colNames.right = ['right_lower_1', 'right_upper_3', 'right_upper_5', 'right_lower_9', 'right_lower_6', 'right_lower_4'];
         colNames.left = ['left_lower_1', 'left_upper_3', 'left_upper_5', 'left_lower_9', 'left_lower_6', 'left_lower_4'];
       }
@@ -106,8 +105,6 @@ export default function AnalysePiscadasPage() {
 
       dataRows.forEach(row => {
         const cols = row.split(delimiter);
-
-        // Extract Eye Points
         let rPts: { x: number, y: number }[] = [];
         let lPts: { x: number, y: number }[] = [];
 
@@ -124,8 +121,6 @@ export default function AnalysePiscadasPage() {
           return;
         }
 
-        // Calculate EAR
-        // EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
         const calcEAR = (p: typeof rPts) => {
           const vert1 = dist(p[1], p[5]); // P2-P6
           const vert2 = dist(p[2], p[4]); // P3-P5
@@ -142,14 +137,12 @@ export default function AnalysePiscadasPage() {
       });
 
       // --- Logic: Dynamic Baseline ---
-      // 90th percentile as "open eye" baseline
       validEars.sort((a, b) => a - b);
       const baselineEAR = validEars[Math.floor(validEars.length * 0.9)] || 0.3;
 
-      // Thresholds
-      const THRESHOLD_CLOSE = baselineEAR * 0.75; // Starts closing
-      const THRESHOLD_COMPLETE = baselineEAR * 0.50; // Fully closed
-      const MIN_FRAMES = 2; // Noise filter
+      const THRESHOLD_CLOSE = baselineEAR * 0.75;
+      const THRESHOLD_COMPLETE = baselineEAR * 0.50;
+      const MIN_FRAMES = 2;
 
       console.log(`Baseline: ${baselineEAR.toFixed(3)}, Close: ${THRESHOLD_CLOSE.toFixed(3)}, Complete: ${THRESHOLD_COMPLETE.toFixed(3)}`);
 
@@ -158,9 +151,9 @@ export default function AnalysePiscadasPage() {
       let inBlink = false;
       let startFrameIdx = 0;
       let minEARInBlink = 1.0;
+      let minEARFrameIdx = 0; // Track frame of max closure
 
       earValues.forEach((ear, idx) => {
-        // Basic Smoothing (Moving Average) could be added here if needed
         const currentEAR = ear || 1.0;
 
         if (!inBlink) {
@@ -168,12 +161,14 @@ export default function AnalysePiscadasPage() {
             inBlink = true;
             startFrameIdx = idx;
             minEARInBlink = currentEAR;
+            minEARFrameIdx = idx;
           }
         } else {
-          // Update minimum EAR detected during this blink
-          if (currentEAR < minEARInBlink) minEARInBlink = currentEAR;
+          if (currentEAR < minEARInBlink) {
+            minEARInBlink = currentEAR;
+            minEARFrameIdx = idx;
+          }
 
-          // Recovery (End of blink)
           if (currentEAR >= THRESHOLD_CLOSE) {
             const endFrameIdx = idx;
             const durationFrames = endFrameIdx - startFrameIdx;
@@ -183,6 +178,17 @@ export default function AnalysePiscadasPage() {
               const startTime = startFrameIdx / fps;
               const duration = durationFrames / fps;
 
+              // Advanced Metrics
+              const closingDuration = (minEARFrameIdx - startFrameIdx) / fps;
+              const openingDuration = (endFrameIdx - minEARFrameIdx) / fps;
+              const amplitude = baselineEAR - minEARInBlink; // How much it closed
+
+              const closingSpeed = closingDuration > 0.001 ? (amplitude / closingDuration) : 0;
+              const openingSpeed = openingDuration > 0.001 ? (amplitude / openingDuration) : 0; // EAR/sec
+
+              // RBA: Relative Blink Amplitude (100% = full efficient closure relative to baseline)
+              const rba = ((baselineEAR - minEARInBlink) / baselineEAR) * 100;
+
               blinks.push({
                 id: blinks.length + 1,
                 minute: Math.floor(startTime / 60) + 1,
@@ -191,7 +197,11 @@ export default function AnalysePiscadasPage() {
                 earMin: minEARInBlink.toFixed(3),
                 type: type,
                 frameStart: startFrameIdx,
-                frameEnd: endFrameIdx
+                frameEnd: endFrameIdx,
+                amplitude: amplitude.toFixed(3),
+                closingSpeed: closingSpeed.toFixed(2),
+                openingSpeed: openingSpeed.toFixed(2),
+                rba: rba.toFixed(1)
               });
             }
             inBlink = false;
@@ -203,7 +213,6 @@ export default function AnalysePiscadasPage() {
       // --- Aggregation ---
       setAnalysisData(blinks);
 
-      // Group by Minute
       const minuteGroups: Record<number, { complete: number, incomplete: number }> = {};
       blinks.forEach(b => {
         if (!minuteGroups[b.minute]) minuteGroups[b.minute] = { complete: 0, incomplete: 0 };
@@ -225,6 +234,9 @@ export default function AnalysePiscadasPage() {
       const complete = blinks.filter(b => b.type === 'Completa').length;
       const incomplete = total - complete;
       const totalDuration = blinks.reduce((sum, b) => sum + parseFloat(b.duration), 0);
+      const totalAmplitude = blinks.reduce((sum, b) => sum + parseFloat(b.amplitude), 0);
+      const totalClosingSpeed = blinks.reduce((sum, b) => sum + parseFloat(b.closingSpeed), 0);
+      const totalOpeningSpeed = blinks.reduce((sum, b) => sum + parseFloat(b.openingSpeed), 0);
 
       const videoDurationMin = (dataRows.length / fps) / 60;
       const rate = videoDurationMin > 0 ? total / videoDurationMin : 0;
@@ -235,8 +247,12 @@ export default function AnalysePiscadasPage() {
         incompleteBlinks: incomplete,
         averageDuration: total > 0 ? parseFloat((totalDuration / total).toFixed(3)) : 0,
         blinkRate: parseFloat(rate.toFixed(1)),
-        blinkRateIncomplete: 0, // Not calculated yet
-        percentageComplete: total > 0 ? parseFloat(((complete / total) * 100).toFixed(1)) : 0
+        blinkRateIncomplete: 0,
+        percentageComplete: total > 0 ? parseFloat(((complete / total) * 100).toFixed(1)) : 0,
+        avgAmplitude: total > 0 ? parseFloat((totalAmplitude / total).toFixed(3)) : 0,
+        avgClosingSpeed: total > 0 ? parseFloat((totalClosingSpeed / total).toFixed(2)) : 0,
+        avgOpeningSpeed: total > 0 ? parseFloat((totalOpeningSpeed / total).toFixed(2)) : 0,
+        avgMcc: 0
       });
 
       toast.success(`Análise concluída: ${total} piscadas detectadas!`);
@@ -262,16 +278,15 @@ export default function AnalysePiscadasPage() {
   }
 
   const exportCSV = () => {
-    // Create CSV for download
-    let csv = "ID,Minuto,Inicio(s),Duracao(s),EAR_Min,Tipo\n";
+    let csv = "ID,Minuto,Inicio(s),Duracao(s),EAR_Min,Amplitude,Vel_Fechamento,Vel_Abertura,RBA(%),Tipo\n";
     analysisData.forEach(b => {
-      csv += `${b.id},${b.minute},${b.startTime},${b.duration},${b.earMin},${b.type}\n`;
+      csv += `${b.id},${b.minute},${b.startTime},${b.duration},${b.earMin},${b.amplitude},${b.closingSpeed},${b.openingSpeed},${b.rba},${b.type}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `relatorio_piscadas.csv`;
+    a.download = `relatorio_piscadas_detalhado.csv`;
     a.click();
   }
 
@@ -284,7 +299,7 @@ export default function AnalysePiscadasPage() {
             Análise Avançada de Piscadas
           </h1>
           <p className="text-muted-foreground">
-            Detecção baseada no algoritmo EAR (Eye Aspect Ratio) com classificação automática.
+            Detecção baseada no algoritmo EAR com métricas de velocidade e amplitude.
           </p>
         </div>
 
@@ -298,7 +313,8 @@ export default function AnalysePiscadasPage() {
         {analysisData.length > 0 && (
           <div className="space-y-6 animate-in fade-in duration-500">
 
-            {/* KPI CARDS */}
+            {/* MAIN KPI CARDS */}
+            <h2 className="text-lg font-semibold text-muted-foreground">Visão Geral</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="p-6">
@@ -343,6 +359,40 @@ export default function AnalysePiscadasPage() {
               </Card>
             </div>
 
+            {/* NEW METRICS CARDS */}
+            <h2 className="text-lg font-semibold text-muted-foreground">Cinemática da Pálpebra</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 text-slate-600 font-medium mb-2">
+                    <Zap className="h-4 w-4 text-orange-500" /> Vel. Fechamento
+                  </div>
+                  <div className="text-2xl font-bold">{statistics.avgClosingSpeed} <span className="text-sm font-normal text-muted-foreground">EAR/s</span></div>
+                  <p className="text-xs text-muted-foreground mt-1">Média de todas as piscadas</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 text-slate-600 font-medium mb-2">
+                    <Zap className="h-4 w-4 text-blue-500" /> Vel. Abertura
+                  </div>
+                  <div className="text-2xl font-bold">{statistics.avgOpeningSpeed} <span className="text-sm font-normal text-muted-foreground">EAR/s</span></div>
+                  <p className="text-xs text-muted-foreground mt-1">Fase de recuperação</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-2 text-slate-600 font-medium mb-2">
+                    <Ruler className="h-4 w-4 text-purple-500" /> Amplitude Média
+                  </div>
+                  <div className="text-2xl font-bold">{statistics.avgAmplitude} <span className="text-sm font-normal text-muted-foreground">EAR</span></div>
+                  <p className="text-xs text-muted-foreground mt-1">Delta do Baseline</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Separator />
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* TABLE PER MINUTE */}
               <Card>
@@ -373,10 +423,10 @@ export default function AnalysePiscadasPage() {
                 </CardContent>
               </Card>
 
-              {/* DETAILED LIST (Preview) */}
-              <Card className="flex flex-col">
+              {/* DETAILED LIST */}
+              <Card className="flex flex-col h-[500px]">
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">Últimas 10 Piscadas Detectadas</CardTitle>
+                  <CardTitle className="text-base">Detalhamento Individual</CardTitle>
                   <Button variant="outline" size="sm" onClick={exportCSV}>
                     <Download className="h-4 w-4 mr-2" /> Exportar CSV
                   </Button>
@@ -385,22 +435,24 @@ export default function AnalysePiscadasPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tempo (s)</TableHead>
-                        <TableHead>Duração</TableHead>
-                        <TableHead>EAR Min</TableHead>
-                        <TableHead>Classificação</TableHead>
+                        <TableHead>Tempo(s)</TableHead>
+                        <TableHead>Vel. Fech.</TableHead>
+                        <TableHead>Amplitude</TableHead>
+                        <TableHead>RBA %</TableHead>
+                        <TableHead>Tipo</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {analysisData.slice(-10).reverse().map((b) => (
+                      {analysisData.slice().reverse().map((b) => (
                         <TableRow key={b.id}>
                           <TableCell>{b.startTime}</TableCell>
-                          <TableCell>{b.duration}s</TableCell>
-                          <TableCell>{b.earMin}</TableCell>
+                          <TableCell>{b.closingSpeed}</TableCell>
+                          <TableCell>{b.amplitude}</TableCell>
+                          <TableCell>{b.rba}%</TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${b.type === 'Completa'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
                               }`}>
                               {b.type}
                             </span>
