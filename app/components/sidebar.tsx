@@ -14,7 +14,8 @@ import {
   Code,
   Lightbulb,
   Eye,
-  User
+  User,
+  Move
 } from "lucide-react"
 
 export function Sidebar() {
@@ -146,6 +147,14 @@ export function Sidebar() {
               >
                 <PieChart className="w-5 h-5" />
                 <span className="font-medium">Estatísticas das Piscadas</span>
+              </Link>
+              <Link
+                href="/analise/estabilidade"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
+                  ${isActive('/analise/estabilidade') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
+              >
+                <Move className="w-5 h-5" />
+                <span className="font-medium">Estabilidade da Cabeça</span>
               </Link>
             </div>
           </div>
