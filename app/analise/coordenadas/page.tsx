@@ -661,7 +661,6 @@ export default function CoordenadasPage() {
                       {/* Desenhar pontos */}
                       {normalizedPoints.map((point, idx) => {
                         const isEyePoint = (pointIndex: number): boolean => {
-                          // Índices dos olhos do MediaPipe
                           const eyeIndices = [
                             246, 161, 160, 159, 158, 157, 173, 33, 7, 163, 144, 145, 153, 154, 155, 133,
                             466, 388, 387, 386, 385, 384, 398, 263, 249, 390, 373, 374, 380, 381, 382, 362
@@ -676,22 +675,35 @@ export default function CoordenadasPage() {
 
                         // Determinar cor do ponto
                         let config = { color: '#CCCCCC', radius: "2" }; // Default
+                        let isHighlighted = false;
 
                         if (point.group === 'all_points') {
                           const pointIndex = parseInt(point.label.substring(1));
 
                           if (earIndices.includes(pointIndex)) {
                             config = { color: '#22c55e', radius: "6" }; // EAR = Verde e Grande
+                            isHighlighted = true;
                           } else if (isEyePoint(pointIndex)) {
                             config = { color: '#EF4444', radius: "3" }; // Outros pontos do olho = Vermelho
                           } else {
                             config = { color: '#E5E7EB', radius: "2" }; // Resto = Cinza claro
                           }
                         } else {
-                          config = {
-                            color: pointsConfig[point.group as keyof typeof pointsConfig].color,
-                            radius: "5"
-                          };
+                          // Mapeamento dos labels EAR para eyes_only (RU/RL/LU/LL)
+                          const earLabels = [
+                            'RL1', 'RU3', 'RU5', 'RL9', 'RL6', 'RL4', // Right Eye EAR
+                            'LL1', 'LU3', 'LU5', 'LL9', 'LL6', 'LL4'  // Left Eye EAR
+                          ];
+
+                          if (earLabels.includes(point.label)) {
+                            config = { color: '#22c55e', radius: "6" }; // EAR Verde
+                            isHighlighted = true;
+                          } else {
+                            config = {
+                              color: pointsConfig[point.group as keyof typeof pointsConfig].color,
+                              radius: "4"
+                            };
+                          }
                         }
 
                         return (
@@ -702,7 +714,7 @@ export default function CoordenadasPage() {
                               r={config.radius}
                               fill={config.color}
                               stroke="white"
-                              strokeWidth={earIndices.includes(parseInt(point.label.substring(1))) ? "2" : "0.5"}
+                              strokeWidth={isHighlighted ? "2" : "0.5"}
                             />
                             {csvType === 'eyes_only' && (
                               <text
@@ -854,7 +866,7 @@ export default function CoordenadasPage() {
             </>
           )}
         </div>
-      </div>
+      </div >
     </SidebarInset >
   );
 }
