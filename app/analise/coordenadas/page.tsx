@@ -114,8 +114,7 @@ export default function CoordenadasPage() {
 
       setData(parsedData);
       setCurrentFrame(0);
-      setSelectedCSVUrl(null); // Limpar seleção do blob storage
-      setSelectedCSVFilename(null);
+
       toast.success(`${parsedData.length} frames carregados de ${uploadedFile.name}!`);
       setLoading(false);
     } catch (error) {
@@ -345,7 +344,7 @@ export default function CoordenadasPage() {
       const distFromCenter = base.y - normalizedCenterY;
 
       // Quanto mais fechado, mais aproxima do centro (reduz a distância)
-      const amplifiedDist = distFromCenter * (1 - closingRatio * (1 - 1/closingAmplification));
+      const amplifiedDist = distFromCenter * (1 - closingRatio * (1 - 1 / closingAmplification));
 
       return { ...base, y: normalizedCenterY + amplifiedDist };
     };
@@ -661,32 +660,38 @@ export default function CoordenadasPage() {
 
                       {/* Desenhar pontos */}
                       {normalizedPoints.map((point, idx) => {
-                        // Função para verificar se o ponto é do olho
                         const isEyePoint = (pointIndex: number): boolean => {
-                          // Índices dos olhos do MediaPipe (rightEyeUpper0/Lower0 e leftEyeUpper0/Lower0)
+                          // Índices dos olhos do MediaPipe
                           const eyeIndices = [
-                            // Right eye
-                            246, 161, 160, 159, 158, 157, 173, // upper
-                            33, 7, 163, 144, 145, 153, 154, 155, 133, // lower
-                            // Left eye
-                            466, 388, 387, 386, 385, 384, 398, // upper
-                            263, 249, 390, 373, 374, 380, 381, 382, 362 // lower
+                            246, 161, 160, 159, 158, 157, 173, 33, 7, 163, 144, 145, 153, 154, 155, 133,
+                            466, 388, 387, 386, 385, 384, 398, 263, 249, 390, 373, 374, 380, 381, 382, 362
                           ];
                           return eyeIndices.includes(pointIndex);
                         };
 
+                        const earIndices = [
+                          33, 160, 158, 133, 153, 144, // Right EAR
+                          362, 385, 387, 263, 373, 380 // Left EAR
+                        ];
+
                         // Determinar cor do ponto
-                        let config;
+                        let config = { color: '#CCCCCC', radius: "2" }; // Default
+
                         if (point.group === 'all_points') {
-                          // Extrair índice do label (ex: "P123" -> 123)
                           const pointIndex = parseInt(point.label.substring(1));
-                          const isEye = isEyePoint(pointIndex);
-                          config = {
-                            color: isEye ? '#FF0000' : '#00FF00', // Vermelho para olhos, verde para resto
-                            label: 'P'
-                          };
+
+                          if (earIndices.includes(pointIndex)) {
+                            config = { color: '#22c55e', radius: "6" }; // EAR = Verde e Grande
+                          } else if (isEyePoint(pointIndex)) {
+                            config = { color: '#EF4444', radius: "3" }; // Outros pontos do olho = Vermelho
+                          } else {
+                            config = { color: '#E5E7EB', radius: "2" }; // Resto = Cinza claro
+                          }
                         } else {
-                          config = pointsConfig[point.group as keyof typeof pointsConfig];
+                          config = {
+                            color: pointsConfig[point.group as keyof typeof pointsConfig].color,
+                            radius: "5"
+                          };
                         }
 
                         return (
@@ -694,10 +699,10 @@ export default function CoordenadasPage() {
                             <circle
                               cx={point.x}
                               cy={point.y}
-                              r={csvType === 'all_points' ? "3" : "8"}
+                              r={config.radius}
                               fill={config.color}
                               stroke="white"
-                              strokeWidth="2"
+                              strokeWidth={earIndices.includes(parseInt(point.label.substring(1))) ? "2" : "0.5"}
                             />
                             {csvType === 'eyes_only' && (
                               <text
@@ -739,12 +744,16 @@ export default function CoordenadasPage() {
                     {csvType === 'all_points' && (
                       <>
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border-2 border-white bg-red-500" />
-                          <span className="text-sm">Pontos dos Olhos (32 pontos)</span>
+                          <div className="w-4 h-4 rounded-full border-2 border-white bg-green-500" />
+                          <span className="text-sm">Pontos EAR (12 pontos)</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border-2 border-white bg-green-500" />
-                          <span className="text-sm">Outros Pontos (446 pontos)</span>
+                          <div className="w-4 h-4 rounded-full border-2 border-white bg-red-500" />
+                          <span className="text-sm">Contorno dos Olhos</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 rounded-full border-2 border-white bg-gray-300" />
+                          <span className="text-sm">Malha Facial (Mesh)</span>
                         </div>
                       </>
                     )}
@@ -846,6 +855,6 @@ export default function CoordenadasPage() {
           )}
         </div>
       </div>
-    </SidebarInset>
+    </SidebarInset >
   );
 }
