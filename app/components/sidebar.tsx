@@ -192,7 +192,7 @@ export function Sidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border bg-sidebar">
         <div className="text-xs text-sidebar-foreground/50 text-center">
-          <p>SmartBlink v1.0</p>
+          <p>SmartBlink v2.0</p>
           <p>Sistema Oftalmológico</p>
         </div>
       </div>

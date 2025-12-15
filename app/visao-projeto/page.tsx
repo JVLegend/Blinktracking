@@ -1,17 +1,17 @@
 import { SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { 
-  Brain, 
-  Eye, 
-  Microscope, 
-  Lightbulb, 
-  Users, 
-  FileText, 
-  ClipboardList, 
-  Calendar, 
-  Calculator, 
+import {
+  Brain,
+  Eye,
+  Microscope,
+  Lightbulb,
+  Users,
+  FileText,
+  ClipboardList,
+  Calendar,
+  Calculator,
   Scale,
-  AlertTriangle 
+  AlertTriangle
 } from "lucide-react"
 
 export default function VisionPage() {
@@ -39,7 +39,7 @@ export default function VisionPage() {
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Instituição</h3>
                   <p className="text-sm text-muted-foreground">
-                    Disciplina de Oftalmologia, Departamento de Oftalmologia e Otorrinolaringologia, 
+                    Disciplina de Oftalmologia, Departamento de Oftalmologia e Otorrinolaringologia,
                     Faculdade de Medicina da Universidade de São Paulo
                   </p>
                 </div>
@@ -57,6 +57,7 @@ export default function VisionPage() {
                     <li>Dr Lucas Costa Cortez</li>
                     <li>Dra Suzana Matayoshi</li>
                     <li>Dr. Mario Luiz Monteiro</li>
+                    <li>Dra. Maria Antonieta - Pesquisadora Colaboradora</li>
                   </ul>
                 </div>
               </div>
@@ -72,13 +73,13 @@ export default function VisionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                A integração da Inteligência Artificial na oftalmologia representa um dos avanços mais 
-                significativos na medicina moderna. Com sua capacidade de processar e analisar grandes 
-                volumes de dados com precisão excepcional, a IA está transformando a maneira como 
+                A integração da Inteligência Artificial na oftalmologia representa um dos avanços mais
+                significativos na medicina moderna. Com sua capacidade de processar e analisar grandes
+                volumes de dados com precisão excepcional, a IA está transformando a maneira como
                 diagnosticamos e tratamos condições oculares.
               </p>
               <p className="text-sm text-muted-foreground">
-                O SmartBlink surge neste contexto como uma ferramenta inovadora, focada na análise 
+                O SmartBlink surge neste contexto como uma ferramenta inovadora, focada na análise
                 precisa do piscar de olhos, um indicador crucial para várias condições oftalmológicas.
               </p>
             </CardContent>
@@ -94,8 +95,8 @@ export default function VisionPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  A IA permite a detecção precoce de anomalias no piscar, 
-                  possibilitando intervenções mais eficazes e melhorando 
+                  A IA permite a detecção precoce de anomalias no piscar,
+                  possibilitando intervenções mais eficazes e melhorando
                   significativamente o prognóstico dos pacientes.
                 </p>
               </CardContent>
@@ -110,8 +111,8 @@ export default function VisionPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Através de algoritmos avançados, nossa tecnologia oferece 
-                  medições precisas e objetivas do piscar, eliminando a 
+                  Através de algoritmos avançados, nossa tecnologia oferece
+                  medições precisas e objetivas do piscar, eliminando a
                   subjetividade da avaliação manual.
                 </p>
               </CardContent>
@@ -126,8 +127,8 @@ export default function VisionPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Nossa plataforma evolui constantemente, incorporando novos 
-                  conhecimentos e melhorando a precisão diagnóstica através 
+                  Nossa plataforma evolui constantemente, incorporando novos
+                  conhecimentos e melhorando a precisão diagnóstica através
                   do aprendizado de máquina.
                 </p>
               </CardContent>
@@ -140,7 +141,7 @@ export default function VisionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                O uso da IA no SmartBlink não apenas otimiza o processo diagnóstico, mas também 
+                O uso da IA no SmartBlink não apenas otimiza o processo diagnóstico, mas também
                 oferece benefícios tangíveis para médicos e pacientes:
               </p>
               <ul className="list-disc pl-6 space-y-2 text-sm text-muted-foreground">
@@ -163,19 +164,19 @@ export default function VisionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                O piscar adequado é essencial para a manutenção da saúde ocular, uma vez que 
-                distribui o filme lacrimal, remove debris do filme lacrimal, exclui estímulos 
+                O piscar adequado é essencial para a manutenção da saúde ocular, uma vez que
+                distribui o filme lacrimal, remove debris do filme lacrimal, exclui estímulos
                 visuais, estimula a secreção pela glândula de meibomius e sua na drenagem lacrimal.
               </p>
               <p className="text-sm text-muted-foreground">
-                Em contrapartida, a dinâmica alterada do piscar pode ter uma série de implicações 
-                na superfície ocular, interferência na função presente em diversas desordens 
+                Em contrapartida, a dinâmica alterada do piscar pode ter uma série de implicações
+                na superfície ocular, interferência na função presente em diversas desordens
                 sistêmicas e neurológicas.
               </p>
               <p className="text-sm text-muted-foreground">
-                O propósito desse estudo é investigar a dinâmica do piscar em diferentes grupos de 
-                pacientes do ambulatório de oftalmologia para comparação entre olhos saudáveis, 
-                olhos com diversas patologias oftalmológicas e estados pré e pós cirúrgicos 
+                O propósito desse estudo é investigar a dinâmica do piscar em diferentes grupos de
+                pacientes do ambulatório de oftalmologia para comparação entre olhos saudáveis,
+                olhos com diversas patologias oftalmológicas e estados pré e pós cirúrgicos
                 específicos.
               </p>
             </CardContent>
@@ -335,8 +336,8 @@ export default function VisionPage() {
                     Riscos
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Riscos mínimos decorrentes da exposição do caso, como possibilidade 
-                    de desconforto ou constrangimento do paciente por ter seu caso ou 
+                    Riscos mínimos decorrentes da exposição do caso, como possibilidade
+                    de desconforto ou constrangimento do paciente por ter seu caso ou
                     imagem publicado, mesmo sem divulgação de dados pessoais.
                   </p>
                 </div>
@@ -344,8 +345,8 @@ export default function VisionPage() {
                 <div className="bg-muted rounded-lg p-4">
                   <h3 className="font-semibold text-lg mb-4">Benefícios</h3>
                   <p className="text-sm text-muted-foreground">
-                    O conhecimento e registro da dinâmica do piscar contribuirá para 
-                    identificar possíveis complicações, quantificar impacto das cirurgias 
+                    O conhecimento e registro da dinâmica do piscar contribuirá para
+                    identificar possíveis complicações, quantificar impacto das cirurgias
                     e aprimorar as técnicas de abordagem.
                   </p>
                 </div>
