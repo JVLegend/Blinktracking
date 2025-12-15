@@ -518,14 +518,14 @@ export default function AnalysePiscadasPage() {
                       <thead className="text-xs text-slate-400 uppercase bg-slate-50/50 sticky top-0 z-10">
                         <tr>
                           <th className="px-4 py-3 font-medium">Tempo</th>
-                          <th className="px-4 py-3 font-medium">V.Fech</th>
-                          <th className="px-4 py-3 font-medium">Ampl.</th>
-                          <th className="px-4 py-3 font-medium">RBA%</th>
+                          <th className="px-4 py-3 font-medium">V.Fech <span className="text-[9px] lowercase opacity-70">(ear/s)</span></th>
+                          <th className="px-4 py-3 font-medium">Ampl. <span className="text-[9px] lowercase opacity-70">(ear)</span></th>
+                          <th className="px-4 py-3 font-medium">RBA <span className="text-[9px] lowercase opacity-70">(%)</span></th>
                           <th className="px-4 py-3 font-medium text-right">Tipo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-mono text-xs">
-                        {analysisData.slice().reverse().map((b) => (
+                        {analysisData.map((b) => (
                           <tr key={b.id} className="hover:bg-slate-50 transition-colors group">
                             <td className="px-4 py-3 text-slate-600">{b.startTime}s</td>
                             <td className="px-4 py-3 text-slate-500">{b.closingSpeed}</td>
