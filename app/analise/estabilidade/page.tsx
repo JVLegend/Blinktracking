@@ -1,48 +1,90 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import React, { useState, useMemo, useRef } from "react"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { SidebarInset } from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { FileUploadCard } from "../../components/FileUploadCard" // Corrigido path relativo se necessário, mas app/components deve ser acessível. O arquivo original usava path relativo ../../components
+import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import dynamic from "next/dynamic"
 import { PlotParams } from "react-plotly.js"
-import { Activity, Move } from "lucide-react"
-import { toast } from "sonner"
+import {
+    Move,
+    Upload,
+    Activity,
+    Info,
+    Loader2,
+    MousePointer2,
+    Maximize
+} from "lucide-react"
 
+// --- FONT CONFIG ---
+const inter = Inter({
+    subsets: ["latin"],
+    variable: "--font-inter"
+})
+
+const mono = JetBrains_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono"
+})
+
+// --- PLOTLY LAZY LOAD ---
 const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default), {
     ssr: false,
-    loading: () => <p className="text-center p-10 text-muted-foreground">Carregando visualização...</p>
+    loading: () => (
+        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+            <Loader2 className="animate-spin" size={24} />
+            <span className="text-sm">Carregando visualizador gráfico...</span>
+        </div>
+    )
 }) as React.ComponentType<PlotParams>;
 
+// --- CONFIG ---
 const POINTS_CONFIG = [
-    { id: 'r_p1', idx: 33, label: 'Olho Direito - Canto Externo (P1 - 33)' },
-    { id: 'r_p2', idx: 160, label: 'Olho Direito - Pálpebra Sup 1 (P2 - 160)' },
-    { id: 'r_p3', idx: 158, label: 'Olho Direito - Pálpebra Sup 2 (P3 - 158)' },
-    { id: 'r_p4', idx: 133, label: 'Olho Direito - Canto Interno (P4 - 133)' },
-    { id: 'r_p5', idx: 153, label: 'Olho Direito - Pálpebra Inf 1 (P5 - 153)' },
-    { id: 'r_p6', idx: 144, label: 'Olho Direito - Pálpebra Inf 2 (P6 - 144)' },
+    { id: 'r_p1', idx: 33, label: 'Olho Direito - Canto Externo (P33)' },
+    { id: 'r_p2', idx: 160, label: 'Olho Direito - Pálpebra Sup 1 (P160)' },
+    { id: 'r_p3', idx: 158, label: 'Olho Direito - Pálpebra Sup 2 (P158)' },
+    { id: 'r_p4', idx: 133, label: 'Olho Direito - Canto Interno (P133)' },
+    { id: 'r_p5', idx: 153, label: 'Olho Direito - Pálpebra Inf 1 (P153)' },
+    { id: 'r_p6', idx: 144, label: 'Olho Direito - Pálpebra Inf 2 (P144)' },
 
-    { id: 'l_p1', idx: 362, label: 'Olho Esquerdo - Canto Interno (P1 - 362)' },
-    { id: 'l_p2', idx: 385, label: 'Olho Esquerdo - Pálpebra Sup 1 (P2 - 385)' },
-    { id: 'l_p3', idx: 387, label: 'Olho Esquerdo - Pálpebra Sup 2 (P3 - 387)' },
-    { id: 'l_p4', idx: 263, label: 'Olho Esquerdo - Canto Externo (P4 - 263)' },
-    { id: 'l_p5', idx: 373, label: 'Olho Esquerdo - Pálpebra Inf 1 (P5 - 373)' },
-    { id: 'l_p6', idx: 380, label: 'Olho Esquerdo - Pálpebra Inf 2 (P6 - 380)' },
+    { id: 'l_p1', idx: 362, label: 'Olho Esquerdo - Canto Interno (P362)' },
+    { id: 'l_p2', idx: 385, label: 'Olho Esquerdo - Pálpebra Sup 1 (P385)' },
+    { id: 'l_p3', idx: 387, label: 'Olho Esquerdo - Pálpebra Sup 2 (P387)' },
+    { id: 'l_p4', idx: 263, label: 'Olho Esquerdo - Canto Externo (P263)' },
+    { id: 'l_p5', idx: 373, label: 'Olho Esquerdo - Pálpebra Inf 1 (P373)' },
+    { id: 'l_p6', idx: 380, label: 'Olho Esquerdo - Pálpebra Inf 2 (P380)' },
 ]
 
 export default function EstabilidadePage() {
+    // --- STATE ---
     const [data, setData] = useState<any[] | null>(null)
     const [selectedPointId, setSelectedPointId] = useState<string>("r_p1")
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [fileInfo, setFileInfo] = useState<{ name: string, frames: number, fps: number } | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
 
-    const handleProcessFile = async () => {
-        if (!uploadedFile) return
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
+    // --- LOGIC ---
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            toast.error("Por favor, selecione um arquivo CSV");
+            return;
+        }
+
+        setUploadedFile(file);
+        handleProcessFile(file);
+    };
+
+    const handleProcessFile = async (file: File) => {
         setIsProcessing(true)
 
         try {
-            const text = await uploadedFile.text()
+            const text = await file.text()
             const lines = text.trim().split('\n').filter(l => l.trim().length > 0)
 
             if (lines.length < 2) throw new Error("Arquivo vazio ou inválido")
@@ -79,7 +121,7 @@ export default function EstabilidadePage() {
 
             setData(parsedData)
             setFileInfo({
-                name: uploadedFile.name,
+                name: file.name,
                 frames: parsedData.length,
                 fps: 30
             })
@@ -109,6 +151,7 @@ export default function EstabilidadePage() {
             }
         })
 
+        // Inverter Y para SVG coordinate system visualization
         const yInverted = y.map(val => -val)
 
         return { x, y: yInverted, frames }
@@ -116,80 +159,131 @@ export default function EstabilidadePage() {
 
     return (
         <SidebarInset>
-            <div className="flex flex-col h-full p-8 max-w-[1600px] mx-auto space-y-6">
-                <div>
-                    <h1 className="text-3xl font-bold flex items-center gap-2">
-                        <Move className="h-8 w-8 text-primary" />
-                        Análise de Estabilidade da Cabeça
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Visualize a dispersão espacial dos pontos faciais.
-                    </p>
-                </div>
+            <div className={`min-h-full bg-gradient-to-b from-[#fff1f2] to-slate-50 text-slate-900 p-8 font-sans ${inter.variable} ${mono.variable}`}>
+                <div className="max-w-[1600px] mx-auto space-y-6">
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    <div className="space-y-6">
-                        <FileUploadCard
-                            uploadedFile={uploadedFile}
-                            onFileSelect={setUploadedFile}
-                            onProcessFile={handleProcessFile}
-                            isLoading={isProcessing}
-                        />
-
-                        {fileInfo && (
-                            <div className="p-4 bg-muted rounded-lg text-sm space-y-2">
-                                <p><span className="font-semibold">Arquivo:</span> {fileInfo.name}</p>
-                                <p><span className="font-semibold">Frames:</span> {fileInfo.frames}</p>
+                    {/* HEADER */}
+                    <header className="flex justify-between items-end">
+                        <div>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-rose-500/30">
+                                    <Move size={24} strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 leading-none">
+                                        Análise de Estabilidade Temporal
+                                    </h1>
+                                    <span className="text-xs font-medium text-rose-600 uppercase tracking-wider">Clinical Suite</span>
+                                </div>
                             </div>
-                        )}
+                            <p className="text-slate-500 text-sm ml-[3.25rem]">
+                                Dispersão espacial (XY) frame-a-frame para detecção de micromovimentos
+                            </p>
+                        </div>
 
-                        {data && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">Configuração</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
+                        {/* ACTIONS */}
+                        <div className="flex gap-3">
+                            <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium text-sm hover:bg-slate-50 hover:text-rose-600 transition-colors shadow-sm cursor-pointer">
+                                <Upload size={18} />
+                                Carregar CSV
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={handleFileUpload}
+                                    className="hidden"
+                                />
+                            </label>
+                        </div>
+                    </header>
+
+                    {/* EMPTY STATE */}
+                    {!data && !isProcessing && (
+                        <div className="h-[400px] border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 bg-white/50">
+                            <Activity size={48} className="mb-4 opacity-50" />
+                            <h3 className="text-lg font-semibold text-slate-600">Nenhum dado de estabilidade</h3>
+                            <p className="text-sm mb-6 max-w-md text-center">
+                                Carregue um arquivo <span className="font-mono bg-slate-100 px-1 rounded text-slate-700">all_points.csv</span> para visualizar a dispersão espacial dos landmarks
+                            </p>
+                            <Button onClick={() => fileInputRef.current?.click()} className="bg-rose-600 hover:bg-rose-700">
+                                Selecionar Arquivo
+                            </Button>
+                        </div>
+                    )}
+
+                    {isProcessing && (
+                        <div className="h-[400px] flex flex-col items-center justify-center text-rose-600">
+                            <Loader2 size={48} className="animate-spin mb-4" />
+                            <p className="font-medium">Processando trajetória espacial...</p>
+                        </div>
+                    )}
+
+                    {/* CONTENT GRID */}
+                    {data && plotData && (
+                        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-6">
+
+                            {/* SIDE CONTROL PANEL */}
+                            <div className="space-y-6">
+                                <div className="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <MousePointer2 size={14} /> Ponto de Rastreio
+                                    </h3>
+
                                     <div className="space-y-2">
-                                        <label className="text-sm font-medium">Ponto de Interesse (EAR)</label>
+                                        <label className="text-xs font-medium text-slate-700">Selecione o Landmark</label>
                                         <select
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2.5 outline-none font-medium h-24 custom-scrollbar"
+                                            size={4}
                                             value={selectedPointId}
                                             onChange={(e) => setSelectedPointId(e.target.value)}
                                         >
                                             {POINTS_CONFIG.map(p => (
-                                                <option key={p.id} value={p.id}>
+                                                <option key={p.id} value={p.id} className="py-1">
                                                     {p.label}
                                                 </option>
                                             ))}
                                         </select>
                                     </div>
 
-                                    <div className="text-xs text-muted-foreground bg-blue-50 p-3 rounded border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800">
-                                        <p className="font-semibold mb-1">Dica de Análise:</p>
-                                        <ul className="list-disc pl-4 space-y-1">
-                                            <li>Use <strong>Cantos dos Olhos</strong> para detectar movimentos puros da cabeça.</li>
-                                            <li>Use <strong>Pálpebras</strong> para ver o movimento combinado.</li>
-                                        </ul>
+                                    {/* INFO BOX */}
+                                    <div className="p-3 bg-rose-50/50 border border-rose-100 rounded-xl text-xs space-y-2">
+                                        <div className="flex items-center gap-2 text-rose-700 font-bold">
+                                            <Info size={14} /> Dica Clínica
+                                        </div>
+                                        <p className="text-slate-600 leading-snug">
+                                            Para avaliar instabilidade cefálica (head tremor), utilize os <span className="font-bold text-slate-800">Cantos dos Olhos</span> (externo ou interno).
+                                        </p>
+                                        <p className="text-slate-600 leading-snug">
+                                            Pálpebras incluem o movimento do piscar na vertical.
+                                        </p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        )}
-                    </div>
+                                </div>
 
-                    <div className="lg:col-span-3">
-                        <Card className="h-full min-h-[600px]">
-                            <CardHeader>
-                                <CardTitle className="flex justify-between items-center">
-                                    <span>Dispersão Espacial (X vs Y)</span>
-                                    {plotData && (
-                                        <span className="text-sm font-normal text-muted-foreground">
-                                            {plotData.x.length} pontos plotados
-                                        </span>
-                                    )}
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="h-[600px]">
-                                {plotData ? (
+                                <div className="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 p-5 shadow-sm">
+                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                        Estatística do Arquivo
+                                    </h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-500">Total Frames</span>
+                                            <span className="font-mono font-bold text-slate-700">{fileInfo?.frames}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-slate-500">Pontos Plotados</span>
+                                            <span className="font-mono font-bold text-slate-700">{plotData.x.length}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* MAIN PLOT AREA */}
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 relative min-h-[600px] flex flex-col">
+                                <div className="absolute top-4 right-4 z-10">
+                                    <span className="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-medium rounded-full border border-slate-200">
+                                        Scatter GL
+                                    </span>
+                                </div>
+                                <div className="flex-1 rounded-xl overflow-hidden bg-slate-50/50 border border-slate-100 relative">
                                     <Plot
                                         data={[
                                             {
@@ -199,16 +293,26 @@ export default function EstabilidadePage() {
                                                 type: 'scattergl',
                                                 mode: 'markers',
                                                 marker: {
-                                                    size: 4,
+                                                    size: 6,
                                                     // @ts-ignore
                                                     color: plotData.frames,
                                                     colorscale: 'Viridis',
                                                     showscale: true,
                                                     colorbar: {
-                                                        title: 'Frame',
-                                                        titleside: 'right'
+                                                        title: 'Tempo (Frame)',
+                                                        titleside: 'right',
+                                                        thickness: 10,
+                                                        len: 0.5,
+                                                        yanchor: 'top',
+                                                        y: 1,
+                                                        x: 1,
+
                                                     },
-                                                    opacity: 0.6
+                                                    opacity: 0.7,
+                                                    line: {
+                                                        color: 'white',
+                                                        width: 0.5
+                                                    }
                                                 },
                                                 text: plotData.frames.map(f => `Frame: ${f}`),
                                                 hoverinfo: 'x+y+text'
@@ -217,33 +321,58 @@ export default function EstabilidadePage() {
                                         layout={{
                                             autosize: true,
                                             hovermode: 'closest',
-                                            margin: { t: 20, r: 20, b: 40, l: 40 },
+                                            margin: { t: 40, r: 40, b: 60, l: 60 },
+                                            title: {
+                                                text: 'Dispersão Espacial (Trajetória)',
+                                                font: { family: 'Inter, sans-serif', size: 14, color: '#64748b' }
+                                            },
                                             xaxis: {
-                                                title: 'Posição X (pixels)',
+                                                title: 'Coordenada Horizontal (X)',
                                                 zeroline: false,
                                                 showgrid: true,
+                                                gridcolor: '#e2e8f0',
+                                                tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
                                             } as any,
                                             yaxis: {
-                                                title: 'Posição Y (pixels - invertido)',
+                                                title: 'Coordenada Vertical (Y - Invertido)',
                                                 zeroline: false,
                                                 showgrid: true,
+                                                gridcolor: '#e2e8f0',
+                                                tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
                                             } as any,
                                             paper_bgcolor: 'transparent',
                                             plot_bgcolor: 'transparent',
                                         }}
                                         style={{ width: '100%', height: '100%' }}
-                                        config={{ responsive: true, displayModeBar: true }}
+                                        config={{
+                                            responsive: true,
+                                            displayModeBar: true,
+                                            displaylogo: false,
+                                            modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                                        }}
                                     />
-                                ) : (
-                                    <div className="h-full flex items-center justify-center text-muted-foreground flex-col gap-4">
-                                        <Activity className="h-16 w-16 opacity-20" />
-                                        <p>Carregue um arquivo CSV para visualizar a análise</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    )}
+
                 </div>
+                <style jsx global>{`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #fda4af; 
+            border-radius: 2px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #f43f5e;
+          }
+        `}</style>
             </div>
         </SidebarInset>
     )
