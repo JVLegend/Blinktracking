@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { LucideIcon } from "lucide-react"
-import { 
+import {
   Home,
   Lightbulb,
   Brain,
@@ -109,11 +109,6 @@ const routes: SidebarSection[] = [
         label: "Paper",
         icon: FileText,
         href: "/documentacao/paper",
-      },
-      {
-        label: "Códigos",
-        icon: Code,
-        href: "/codigos",
       }
     ]
   }
@@ -148,7 +143,7 @@ export function Sidebar() {
               <ul className="menu menu-sm">
                 {section.items.map((item) => (
                   <li key={item.href}>
-                    <Link 
+                    <Link
                       href={item.href}
                       className={`flex items-center gap-3 px-3 py-2 hover:bg-base-300 rounded-lg transition-colors
                         ${pathname === item.href ? 'bg-primary/10 text-primary font-medium' : ''}`}
@@ -173,7 +168,7 @@ export function Sidebar() {
 
             <ul className="menu menu-sm">
               <li>
-                <Link 
+                <Link
                   href="/configuracoes"
                   className={`flex items-center gap-3 px-3 py-2 hover:bg-base-300 rounded-lg transition-colors
                     ${pathname === '/configuracoes' ? 'bg-primary/10 text-primary font-medium' : ''}`}
@@ -183,7 +178,7 @@ export function Sidebar() {
                 </Link>
               </li>
               <li>
-                <Link 
+                <Link
                   href="/usuarios"
                   className={`flex items-center gap-3 px-3 py-2 hover:bg-base-300 rounded-lg transition-colors
                     ${pathname === '/usuarios' ? 'bg-primary/10 text-primary font-medium' : ''}`}

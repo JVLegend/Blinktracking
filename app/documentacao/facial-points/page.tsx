@@ -1,9 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { InfoIcon, Eye, Brain, Activity, FileText, Grid2X2 } from "lucide-react"
+import { InfoIcon, Brain, Activity, Grid2X2, Calculator, Layers } from "lucide-react"
 import { SidebarInset } from "@/components/ui/sidebar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function FacialPointsPage() {
   return (
@@ -11,340 +10,167 @@ export default function FacialPointsPage() {
       <div className="flex-1 space-y-10 p-10 max-w-7xl mx-auto">
         {/* Cabeçalho */}
         <div className="space-y-3">
-          <h1 className="text-4xl font-bold">Pontos Faciais</h1>
-          <p className="text-lg opacity-70">
-            Documentação detalhada sobre os métodos de extração de pontos faciais utilizados no projeto
+          <h1 className="text-4xl font-bold">Pontos Faciais & Metodologia</h1>
+          <p className="text-lg text-slate-500">
+            Documentação técnica sobre a malha facial (MediaPipe) e o algoritmo de análise ocular.
           </p>
         </div>
 
-        {/* Visão Geral */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body p-8">
+        {/* Visão Geral - MediaPipe Only */}
+        <div className="card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+          <div className="p-8">
             <div className="flex items-center gap-3 mb-6">
-              <Grid2X2 className="h-7 w-7 text-primary" />
-              <h2 className="card-title text-2xl">Visão Geral</h2>
+              <Brain className="h-7 w-7 text-sky-600" />
+              <h2 className="text-2xl font-bold text-slate-800">MediaPipe Face Mesh</h2>
             </div>
-            <p className="text-lg opacity-70 mb-8">
-              O projeto implementa dois métodos avançados de extração de pontos faciais, cada um com suas características específicas:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="card-body p-6">
-                  <h3 className="card-title text-xl mb-3">Extração Normal</h3>
-                  <div className="badge badge-primary badge-outline text-sm px-3 py-3 mb-4">dlib</div>
-                  <p className="opacity-70 leading-relaxed">
-                    Método tradicional e preciso para detecção facial, ideal para condições controladas de iluminação.
-                  </p>
-                </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+              <div>
+                <p className="text-lg text-slate-600 mb-6 leading-relaxed">
+                  O projeto utiliza exclusivamente o <strong>Google MediaPipe Face Mesh</strong>, uma solução de visão computacional de última geração que mapeia <strong>478 pontos tridimensionais</strong> na face humana.
+                </p>
+                <ul className="space-y-4">
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold mt-1">1</span>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">Alta Densidade</h4>
+                      <p className="text-sm text-slate-500">Mapeamento detalhado de sobrancelhas, lábios e, crucialmente, a geometria complexa dos olhos e íris.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold mt-1">2</span>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">Robustez</h4>
+                      <p className="text-sm text-slate-500">Funciona bem sob variações de iluminação e rotação da cabeça, superando métodos antigos baseados em 68 pontos.</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center text-xs font-bold mt-1">3</span>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">Rastreamento de Íris</h4>
+                      <p className="text-sm text-slate-500">Inclui pontos específicos para o centro e contorno da íris, permitindo métricas de direção do olhar.</p>
+                    </div>
+                  </li>
+                </ul>
               </div>
-              <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="card-body p-6">
-                  <h3 className="card-title text-xl mb-3">Extração Potente</h3>
-                  <div className="badge badge-primary badge-outline text-sm px-3 py-3 mb-4">MediaPipe</div>
-                  <p className="opacity-70 leading-relaxed">
-                    Solução moderna e robusta, com melhor desempenho em condições variadas de iluminação.
-                  </p>
-                </div>
+              <div className="bg-slate-50 p-6 rounded-xl border border-slate-100">
+                <Image
+                  src="/docs/mediapipe-landmarks.png"
+                  alt="MediaPipe Mesh"
+                  width={600}
+                  height={400}
+                  className="rounded-lg shadow-sm mix-blend-multiply opacity-90 hover:opacity-100 transition-opacity"
+                />
+                <p className="text-center text-xs text-slate-400 mt-4">Visualização da malha de 468/478 pontos</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Métodos de Extração */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body p-8">
+        {/* CÁLCULO DO EAR (Eye Aspect Ratio) */}
+        <div className="card bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+          <div className="p-8">
             <div className="flex items-center gap-3 mb-8">
-              <Eye className="h-7 w-7 text-primary" />
-              <h2 className="card-title text-2xl">Métodos de Extração</h2>
+              <Calculator className="h-7 w-7 text-teal-600" />
+              <h2 className="text-2xl font-bold text-slate-800">Cálculo do EAR (Eye Aspect Ratio)</h2>
             </div>
 
-            <div className="space-y-16">
-              {/* Dlib */}
-              <div>
-                <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
-                  <Brain className="h-6 w-6 text-primary" />
-                  Dlib
-                </h3>
-                <div className="max-w-4xl mx-auto bg-base-200 p-8 rounded-xl shadow-lg">
-                  <Image
-                    src="/docs/dlib-landmarks.png"
-                    alt="Pontos faciais do Dlib"
-                    width={800}
-                    height={500}
-                    className="mx-auto rounded-lg shadow-md w-auto h-auto"
-                  />
-                </div>
-                <div className="mt-8 space-y-6">
-                  <p className="text-lg opacity-70 leading-relaxed max-w-4xl">
-                    O Dlib utiliza um modelo pré-treinado para detectar 68 pontos faciais.
-                    Cada ponto representa uma característica específica do rosto, como olhos,
-                    nariz, boca e contorno facial.
+            <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-10">
+
+              {/* Coluna da Esquerda: Explicação Teórica */}
+              <div className="space-y-6">
+                <p className="text-slate-600">
+                  Para detectar piscadas de forma confiável e independente da distância da câmera, utilizamos a métrica <strong>EAR (Eye Aspect Ratio)</strong>.
+                  Esta fórmula matemática relaciona a altura e a largura do olho para determinar seu grau de abertura.
+                </p>
+
+                <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-4">A Fórmula</h3>
+                  <div className="font-mono text-lg md:text-xl text-center py-4 text-slate-800 bg-white rounded-lg border border-slate-100 shadow-sm">
+                    EAR = (|P2-P6| + |P3-P5|) / (2 * |P1-P4|)
+                  </div>
+                  <p className="text-xs text-slate-400 mt-4 text-center italic">
+                    Onde ||Px-Py|| é a distância Euclidiana entre dois pontos.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                      <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Distribuição dos Pontos</h4>
-                        <ul className="space-y-2 opacity-70">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos 0-16: Contorno do rosto
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos 17-26: Sobrancelhas
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos 27-35: Nariz
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos 36-47: Olhos
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos 48-67: Boca
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                      <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Características</h4>
-                        <ul className="space-y-2 opacity-70">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Alta precisão em condições controladas
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Processamento rápido
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Detecção robusta de pontos
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Ideal para análise de expressões
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              </div>
 
-              {/* MediaPipe */}
-              <div>
-                <h3 className="text-2xl font-semibold mb-6 flex items-center gap-3">
-                  <Brain className="h-6 w-6 text-primary" />
-                  MediaPipe
-                </h3>
-                <div className="max-w-4xl mx-auto bg-base-200 p-8 rounded-xl shadow-lg">
-                  <Image
-                    src="/docs/mediapipe-landmarks.png"
-                    alt="Pontos faciais do MediaPipe"
-                    width={800}
-                    height={500}
-                    className="mx-auto rounded-lg shadow-md w-auto h-auto"
-                  />
-                </div>
-                <div className="mt-8 space-y-6">
-                  <p className="text-lg opacity-70 leading-relaxed max-w-4xl">
-                    O MediaPipe Face Mesh detecta 468 pontos faciais em 3D.
-                    Oferece uma malha facial mais densa e precisa, incluindo detalhes
-                    como sobrancelhas, íris e lábios.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                      <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Pontos Extraídos (CSV)</h4>
-                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na extração de dados para análise (índices oficiais do contorno do olho):</p>
-                        <ul className="space-y-2 opacity-70">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Olho Direito:
-                            <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior (rightEyeUpper0): [246, 161, 160, 159, 158, 157, 173]</li>
-                              <li>Pálpebra Inferior (rightEyeLower0): [33, 7, 163, 144, 145, 153, 154, 155, 133]</li>
-                            </ul>
-                          </li>
-                          <li className="flex items-center gap-2 mt-4">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Olho Esquerdo:
-                            <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior (leftEyeUpper0): [466, 388, 387, 386, 385, 384, 398]</li>
-                              <li>Pálpebra Inferior (leftEyeLower0): [263, 249, 390, 373, 374, 380, 381, 382, 362]</li>
-                            </ul>
-                          </li>
-                        </ul>
-                        <div className="mt-4 p-3 bg-base-300 rounded-lg">
-                          <p className="text-xs opacity-60">
-                            <strong>Referência:</strong> Índices oficiais do MediaPipe Face Mesh para contorno dos olhos.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                      <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Pontos de Visualização (Vídeo)</h4>
-                        <p className="text-sm opacity-60 mb-3">Pontos utilizados na renderização do vídeo processado:</p>
-                        <ul className="space-y-2 opacity-70">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Olho Direito:
-                            <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior: [159, 160, 161, 163, 144, 145, 153]</li>
-                              <li>Pálpebra Inferior: [159, 158, 157, 173, 155, 154, 153, 145, 144]</li>
-                              <li>Íris: [469, 470, 471, 472]</li>
-                              <li>Contorno: [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]</li>
-                            </ul>
-                          </li>
-                          <li className="flex items-center gap-2 mt-4">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Olho Esquerdo:
-                            <ul className="ml-4 mt-1 text-sm">
-                              <li>Pálpebra Superior: [386, 387, 388, 390, 373, 374, 380]</li>
-                              <li>Pálpebra Inferior: [386, 385, 384, 398, 382, 381, 380, 374, 373]</li>
-                              <li>Íris: [474, 475, 476, 477]</li>
-                              <li>Contorno: [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]</li>
-                            </ul>
-                          </li>
-                        </ul>
-                        <div className="mt-4 p-3 bg-base-300 rounded-lg">
-                          <p className="text-xs opacity-60">
-                            <strong>Nota:</strong> Inclui detecção de íris e contorno completo para melhor visualização.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-6">
-                    <div className="card bg-base-200 shadow-lg">
-                      <div className="card-body p-6">
-                        <h4 className="font-semibold text-lg mb-4">Características Gerais</h4>
-                        <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 opacity-70">
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Detecção precisa da íris
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Pontos detalhados das pálpebras
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Contorno completo dos olhos
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Melhor em condições variadas
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            Suporte a poses variadas
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-primary"></span>
-                            468 pontos faciais em 3D
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Importância na Análise */}
-        <div className="card bg-base-100 shadow-xl">
-          <div className="card-body p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <Activity className="h-7 w-7 text-primary" />
-              <h2 className="card-title text-2xl">Importância na Análise</h2>
-            </div>
-            <p className="text-lg opacity-70 leading-relaxed mb-8">
-              Os pontos faciais são fundamentais para a análise precisa das expressões e movimentos faciais:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="card-body p-6">
-                  <h4 className="font-semibold text-lg mb-4">Detecção e Medição</h4>
-                  <ul className="space-y-2 opacity-70">
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Detectar movimentos sutis das expressões
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Calcular distâncias entre pontos
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Medir ângulos e proporções
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Acompanhar mudanças temporais
-                    </li>
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-slate-800">Como funciona?</h4>
+                  <ul className="list-disc list-inside space-y-2 text-slate-600">
+                    <li><strong>Olho Aberto:</strong> EAR constante (aprox. 0.30)</li>
+                    <li><strong>Olho Fechado:</strong> A distância vertical tende a zero, e o EAR cai drasticamente (para &lt; 0.15).</li>
                   </ul>
                 </div>
               </div>
-              <div className="card bg-base-200 shadow-lg hover:shadow-xl transition-shadow">
-                <div className="card-body p-6">
-                  <h4 className="font-semibold text-lg mb-4">Análise e Identificação</h4>
-                  <ul className="space-y-2 opacity-70">
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Analisar padrões de movimento
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Identificar assimetrias faciais
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Avaliar expressões específicas
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary"></span>
-                      Gerar dados estatísticos
-                    </li>
-                  </ul>
+
+              {/* Coluna da Direita: Diagrama e Índices */}
+              <div className="bg-slate-900 text-slate-200 p-8 rounded-xl shadow-inner font-mono text-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-4 opacity-20">
+                  <Grid2X2 size={100} />
+                </div>
+
+                <h3 className="text-teal-400 font-bold mb-6">Mapeamento de Pontos</h3>
+
+                {/* ASCII Diagram */}
+                <div className="mb-8 font-mono leading-none whitespace-pre text-center text-slate-400">
+                  {`
+      P2   P3
+      /     \\
+   P1 ------- P4
+      \\     /
+      P6   P5
+`}
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                      <span className="font-bold text-sky-200">Olho Direito</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs opacity-80">
+                      <span>P1 (Canto Ext): <strong>33</strong></span>
+                      <span>P4 (Canto Int): <strong>133</strong></span>
+                      <span>P2 (Sup): <strong>160</strong></span>
+                      <span>P6 (Inf): <strong>144</strong></span>
+                      <span>P3 (Sup): <strong>158</strong></span>
+                      <span>P5 (Inf): <strong>153</strong></span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                      <span className="font-bold text-teal-200">Olho Esquerdo</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs opacity-80">
+                      <span>P1 (Canto Int): <strong>362</strong></span>
+                      <span>P4 (Canto Ext): <strong>263</strong></span>
+                      <span>P2 (Sup): <strong>385</strong></span>
+                      <span>P6 (Inf): <strong>380</strong></span>
+                      <span>P3 (Sup): <strong>387</strong></span>
+                      <span>P5 (Inf): <strong>373</strong></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Nota Informativa */}
-        <div className="alert bg-base-200 shadow-lg p-6">
-          <InfoIcon className="h-6 w-6 text-primary" />
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-2">Diferença entre Extração e Visualização</h3>
-            <p className="text-base opacity-70 mb-3">
-              O projeto utiliza <strong>dois conjuntos diferentes de pontos</strong> do MediaPipe:
+        {/* Nota sobre os Dados */}
+        <div className="alert bg-sky-50 border-sky-100 text-sky-900 rounded-xl p-6 flex gap-4">
+          <InfoIcon className="h-6 w-6 mt-1 flex-shrink-0" />
+          <div>
+            <h3 className="font-bold text-lg mb-2">Padrão de Dados (CSV)</h3>
+            <p className="text-sm opacity-90 max-w-3xl">
+              Nossos scripts atuais geram arquivos CSV contendo todos os <strong>478 pontos</strong> (x, y, z) para cada frame.
+              Isso garante que, mesmo que mudemos a fórmula do EAR no futuro, não será necessário reprocessar os vídeos originais, pois temos a geometria facial completa salva.
             </p>
-            <ul className="space-y-2 opacity-70">
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
-                <div>
-                  <strong>Pontos de Extração (CSV):</strong> rightEyeUpper0 [246, 161, 160, 159, 158, 157, 173], rightEyeLower0 [33, 7, 163, 144, 145, 153, 154, 155, 133], leftEyeUpper0 [466, 388, 387, 386, 385, 384, 398], leftEyeLower0 [263, 249, 390, 373, 374, 380, 381, 382, 362] - Índices oficiais do contorno do olho
-                </div>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary mt-2"></span>
-                <div>
-                  <strong>Pontos de Visualização (Vídeo):</strong> Mesmos pontos do CSV + pontos de íris [473-477, 468-472] para renderização visual completa
-                </div>
-              </li>
-            </ul>
           </div>
         </div>
+
       </div>
     </SidebarInset>
   )
-} 
+}

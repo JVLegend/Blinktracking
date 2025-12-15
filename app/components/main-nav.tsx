@@ -135,15 +135,7 @@ export function MainNav() {
           Documentação
         </h2>
         <div className="space-y-2">
-          <Link href="/codigos">
-            <Button
-              variant={pathname === "/codigos" ? "secondary" : "ghost"}
-              className="w-full justify-start hover:bg-accent"
-            >
-              <Code2 className="mr-2 h-4 w-4" />
-              Códigos
-            </Button>
-          </Link>
+          {/* Códigos removido */}
           <Link href="/visao-projeto">
             <Button
               variant={pathname === "/visao-projeto" ? "secondary" : "ghost"}

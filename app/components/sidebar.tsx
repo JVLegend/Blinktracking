@@ -2,17 +2,17 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  Home, 
-  Scan, 
-  Video, 
-  Image, 
-  BarChart3, 
-  PieChart, 
-  Clock, 
-  FileText, 
-  Code, 
-  Lightbulb, 
+import {
+  Home,
+  Scan,
+  Video,
+  Image,
+  BarChart3,
+  PieChart,
+  Clock,
+  FileText,
+  Code,
+  Lightbulb,
   Eye,
   User
 } from "lucide-react"
@@ -51,8 +51,8 @@ export function Sidebar() {
           {/* Avatar placeholder */}
           <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center border-2 border-primary/30">
             {user.avatar ? (
-              <img 
-                src={user.avatar} 
+              <img
+                src={user.avatar}
                 alt={user.name}
                 className="w-full h-full rounded-full object-cover"
               />
@@ -60,7 +60,7 @@ export function Sidebar() {
               <User className="w-5 h-5 text-primary" />
             )}
           </div>
-          
+
           {/* User info */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-sidebar-foreground truncate">
@@ -76,13 +76,13 @@ export function Sidebar() {
       {/* Navigation with scroll */}
       <nav className="flex-1 overflow-y-auto medical-scrollbar">
         <div className="p-4 space-y-6">
-          
+
           {/* Menu Principal */}
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
               Menu Principal
             </h2>
-            <Link 
+            <Link
               href="/"
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                 ${isActive('/') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -98,7 +98,7 @@ export function Sidebar() {
               Análise de Vídeos
             </h2>
             <div className="space-y-1">
-              <Link 
+              <Link
                 href="/funcionalidades/extrair-pontos"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/funcionalidades/extrair-pontos') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -106,7 +106,7 @@ export function Sidebar() {
                 <Scan className="w-5 h-5" />
                 <span className="font-medium">Extrair Pontos</span>
               </Link>
-              <Link 
+              <Link
                 href="/funcionalidades/gerar-video"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/funcionalidades/gerar-video') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -114,7 +114,7 @@ export function Sidebar() {
                 <Video className="w-5 h-5" />
                 <span className="font-medium">Gerar Vídeo</span>
               </Link>
-              <Link 
+              <Link
                 href="/funcionalidades/visualizar-frames"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/funcionalidades/visualizar-frames') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -131,7 +131,7 @@ export function Sidebar() {
               Análise de Planilhas
             </h2>
             <div className="space-y-1">
-              <Link 
+              <Link
                 href="/analise/coordenadas"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/analise/coordenadas') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -139,7 +139,7 @@ export function Sidebar() {
                 <BarChart3 className="w-5 h-5" />
                 <span className="font-medium">Análise de Coordenadas</span>
               </Link>
-              <Link 
+              <Link
                 href="/analise/estatisticas"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/analise/estatisticas') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -147,7 +147,7 @@ export function Sidebar() {
                 <PieChart className="w-5 h-5" />
                 <span className="font-medium">Estatísticas das Piscadas</span>
               </Link>
-              <Link 
+              <Link
                 href="/analise/piscadas"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/analise/piscadas') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -164,7 +164,7 @@ export function Sidebar() {
               Documentação
             </h2>
             <div className="space-y-1">
-              <Link 
+              <Link
                 href="/documentacao/facial-points"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/documentacao/facial-points') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
@@ -172,15 +172,8 @@ export function Sidebar() {
                 <FileText className="w-5 h-5" />
                 <span className="font-medium">Pontos Faciais</span>
               </Link>
-              <Link 
-                href="/codigos"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
-                  ${isActive('/codigos') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
-              >
-                <Code className="w-5 h-5" />
-                <span className="font-medium">Códigos</span>
-              </Link>
-              <Link 
+              {/* Códigos removido */}
+              <Link
                 href="/visao-projeto"
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
                   ${isActive('/visao-projeto') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
