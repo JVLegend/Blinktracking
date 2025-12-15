@@ -258,40 +258,53 @@ export default function ClinicalPreviewPage() {
             y: p.y * scale + offsetY
         }));
 
-        // Calculate Metrics (Opening)
-        // Simple vertical distance avg between upper/lower lids
-        const getGroupAvgY = (group: string) => {
-            const pts = normalized.filter(p => p.group === group);
-            if (!pts.length) return 0;
-            return pts.reduce((sum, p) => sum + p.y, 0) / pts.length;
+        // --- Metrics Calculation ---
+
+        // Helper to get Y coordinate for a specific landmark index from RAW points (not normalized)
+        const getPointY = (idx: number) => {
+            // For all_points, label is like "P159"
+            const pt = currentFramePoints.find(p => p.label === `P${idx}`);
+            return pt ? pt.y : 0;
         };
 
-        const rightUpperY = getGroupAvgY('right_upper');
-        const rightLowerY = getGroupAvgY('right_lower');
-        const leftUpperY = getGroupAvgY('left_upper');
-        const leftLowerY = getGroupAvgY('left_lower');
+        let rawRightOpening = 0;
+        let rawLeftOpening = 0;
 
-        // Distance in raw pixels (unscaled) for accurate data display
-        const rawGetGroupAvgY = (group: string) => {
-            const pts = currentFramePoints.filter(p => p.group === group);
-            if (!pts.length) return 0;
-            return pts.reduce((sum, p) => sum + p.y, 0) / pts.length;
-        };
+        if (csvType === 'eyes_only') {
+            const getGroupAvgY = (group: string) => {
+                const pts = currentFramePoints.filter(p => p.group === group);
+                if (!pts.length) return 0;
+                return pts.reduce((sum, p) => sum + p.y, 0) / pts.length;
+            };
+            const rawRightUpperY = getGroupAvgY('right_upper');
+            const rawRightLowerY = getGroupAvgY('right_lower');
+            const rawLeftUpperY = getGroupAvgY('left_upper');
+            const rawLeftLowerY = getGroupAvgY('left_lower');
 
-        const rawRightOpening = Math.abs(rawGetGroupAvgY('right_lower') - rawGetGroupAvgY('right_upper'));
-        const rawLeftOpening = Math.abs(rawGetGroupAvgY('left_lower') - rawGetGroupAvgY('left_upper'));
+            rawRightOpening = Math.abs(rawRightLowerY - rawRightUpperY);
+            rawLeftOpening = Math.abs(rawLeftLowerY - rawLeftUpperY);
+        } else {
+            // Full Mesh Mode - Use specific landmarks
+            // Right Eye: Upper (159) - Lower (145)
+            const rUpper = getPointY(159);
+            const rLower = getPointY(145);
+            if (rUpper && rLower) rawRightOpening = Math.abs(rLower - rUpper);
+
+            // Left Eye: Upper (386) - Lower (374)
+            const lUpper = getPointY(386);
+            const lLower = getPointY(374);
+            if (lUpper && lLower) rawLeftOpening = Math.abs(lLower - lUpper);
+        }
 
         return {
             normalizedPoints: normalized,
             metrics: {
                 rightOpening: rawRightOpening,
-                leftOpening: rawLeftOpening,
-                // Helper coords for sparklines or debug
-                ru: rightUpperY, rl: rightLowerY, lu: leftUpperY, ll: leftLowerY
+                leftOpening: rawLeftOpening
             }
         };
 
-    }, [currentFramePoints, globalBounds, isStabilized]);
+    }, [currentFramePoints, globalBounds, isStabilized, csvType]);
 
 
     // --- LOGIC: PLAYBACK ---
@@ -453,18 +466,53 @@ export default function ClinicalPreviewPage() {
                                                     </div>
                                                 </>
                                             )}
+                                            {csvType === 'all_points' && (
+                                                <>
+                                                    <div className="flex items-center gap-2 px-3 py-1 bg-white/80 backdrop-blur rounded-full border border-red-100 text-xs font-medium text-red-700 shadow-sm">
+                                                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                                                        Contorno Olhos
+                                                    </div>
+                                                    <div className="flex items-center gap-2 px-3 py-1 bg-white/80 backdrop-blur rounded-full border border-cyan-100 text-xs font-medium text-cyan-600 shadow-sm">
+                                                        <div className="w-2 h-2 rounded-full bg-cyan-400"></div>
+                                                        Íris
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* SVG RENDERER */}
                                         <svg className="w-full h-full" viewBox="0 0 800 600">
                                             {normalizedPoints.map((p, i) => {
-                                                // Color Logic
                                                 let fill = '#94a3b8'; // default slate-400
-                                                if (p.group.includes('right')) fill = '#0ea5e9'; // sky-500
-                                                if (p.group.includes('left')) fill = '#14b8a6';  // teal-500
+                                                let r = 2;
 
-                                                // Size Logic
-                                                const r = csvType === 'all_points' ? 2 : 4;
+                                                if (csvType === 'eyes_only') {
+                                                    if (p.group.includes('right')) fill = '#0ea5e9'; // sky-500
+                                                    if (p.group.includes('left')) fill = '#14b8a6';  // teal-500
+                                                    r = 4;
+                                                }
+                                                else if (csvType === 'all_points') {
+                                                    const idx = parseInt(p.label.substring(1));
+
+                                                    // Iris Indices (Left and Right)
+                                                    const rightIris = [469, 470, 471, 472];
+                                                    const leftIris = [474, 475, 476, 477];
+
+                                                    // Eye Contour Indices (Upper/Lower for both eyes)
+                                                    const rightEyeContour = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
+                                                    const leftEyeContour = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
+
+                                                    if (rightIris.includes(idx) || leftIris.includes(idx)) {
+                                                        fill = '#06b6d4'; // cyan-500
+                                                        r = 3;
+                                                    } else if (rightEyeContour.includes(idx) || leftEyeContour.includes(idx)) {
+                                                        fill = '#ef4444'; // red-500
+                                                        r = 2.5;
+                                                    } else {
+                                                        fill = '#cbd5e1'; // slate-300
+                                                        r = 1.5;
+                                                    }
+                                                }
 
                                                 return (
                                                     <circle
@@ -567,7 +615,7 @@ export default function ClinicalPreviewPage() {
 
                                         <div className="overflow-y-auto flex-1 p-0 font-mono text-xs custom-scrollbar">
                                             {currentFramePoints.length > 0 ? (
-                                                currentFramePoints.map((p, i) => (
+                                                currentFramePoints.slice(0, 100).map((p, i) => (
                                                     <div key={i} className="flex justify-between items-center px-4 py-2 hover:bg-slate-50 border-b border-slate-50 last:border-0 transition-colors">
                                                         <span className={`font-bold w-12 flex items-center gap-2 ${p.group.includes('left') ? 'text-teal-600' : 'text-sky-600'}`}>
                                                             {p.label}
@@ -580,6 +628,11 @@ export default function ClinicalPreviewPage() {
                                                 ))
                                             ) : (
                                                 <div className="p-4 text-center text-slate-400 italic">Sem pontos</div>
+                                            )}
+                                            {currentFramePoints.length > 100 && (
+                                                <div className="p-2 text-center text-slate-400 italic text-[10px]">
+                                                    + {currentFramePoints.length - 100} pontos ocultos
+                                                </div>
                                             )}
                                         </div>
                                     </div>
