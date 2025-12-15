@@ -56,10 +56,23 @@ def get_eye_points_from_row(row, side):
     
     return points
 
-def analyze_single_csv(csv_path, fps=30):
+def analyze_single_csv(csv_path, default_fps=30):
     """Processa um único CSV e retorna um dicionário com o resumo e um DataFrame com os detalhes."""
+    fps = default_fps
+    
+    # Tentar ler metadado FPS da primeira linha
     try:
-        df = pd.read_csv(csv_path)
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            first_line = f.readline()
+            if first_line.startswith('# FPS:'):
+                val = float(first_line.split(':')[1].strip())
+                if val > 0:
+                    fps = val
+    except:
+        pass # Mantém o default_fps se falhar
+
+    try:
+        df = pd.read_csv(csv_path, comment='#')
     except:
         return None, None
 

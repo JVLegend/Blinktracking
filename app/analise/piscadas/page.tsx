@@ -40,6 +40,7 @@ const dist = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
 export default function AnalysePiscadasPage() {
   // --- STATE ---
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [rawCsvText, setRawCsvText] = useState<string>("")
   const [analysisData, setAnalysisData] = useState<any[]>([]) // Detailed blinks
   const [minuteStats, setMinuteStats] = useState<any[]>([]) // Aggregated per minute
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -62,9 +63,11 @@ export default function AnalysePiscadasPage() {
   })
 
   // --- LOGIC ---
-  const processCSVData = (csvText: string) => {
+  const processCSVData = (csvText: string, fpsToUse: number) => {
     try {
-      const lines = csvText.trim().split('\n').filter(line => line.trim().length > 0)
+      // Filtrar comentários (#) e linhas vazias
+      const lines = csvText.trim().split('\n').filter(line => line.trim().length > 0 && !line.startsWith('#'))
+
       if (lines.length < 2) throw new Error("Arquivo vazio ou inválido");
 
       const headerLine = lines[0].replace(/^\uFEFF/, '')
@@ -78,18 +81,8 @@ export default function AnalysePiscadasPage() {
 
       if (csvType === 'unknown') throw new Error("Formato de colunas desconhecido.");
 
-      // Detect FPS
       const dataRows = lines.slice(1);
-      const idx_frame = headers.indexOf('frame');
-      let fps = 30;
-
-      if (dataRows.length > 1 && idx_frame !== -1) {
-        const firstFrame = parseInt(dataRows[0].split(delimiter)[idx_frame]);
-        const lastFrame = parseInt(dataRows[dataRows.length - 1].split(delimiter)[idx_frame]);
-        // Simple heuristic
-        if (dataRows.length > 3000) fps = 60;
-      }
-      setDetectedFPS(fps);
+      const fps = fpsToUse;
 
       // --- CORE: EAR Calculation ---
       const getPoint = (rowCols: string[], idxX: number, idxY: number) => {
@@ -263,7 +256,7 @@ export default function AnalysePiscadasPage() {
         avgMcc: 0
       });
 
-      toast.success(`Análise concluída: ${total} piscadas detectadas!`);
+      toast.success(`Análise concluída: ${total} piscadas detectadas (FPS: ${fps})!`);
 
     } catch (error: any) {
       console.error(error);
@@ -290,7 +283,26 @@ export default function AnalysePiscadasPage() {
     setIsAnalyzing(true);
     try {
       const text = await file.text();
-      processCSVData(text);
+      setRawCsvText(text);
+
+      let fps = 30; // Default
+
+      // Detect FPS from Metadata (# FPS: XX.XX)
+      const firstLine = text.trim().split('\n')[0];
+      if (firstLine.startsWith('# FPS:')) {
+        const val = parseFloat(firstLine.split(':')[1].trim());
+        if (!isNaN(val) && val > 0) {
+          fps = val;
+          toast.info(`FPS detectado pelos metadados: ${fps}`);
+        }
+      } else {
+        // Fallback Heuristic
+        const lines = text.trim().split('\n');
+        if (lines.length > 3000) fps = 60;
+      }
+
+      setDetectedFPS(fps);
+      processCSVData(text, fps);
     } catch (e) {
       toast.error("Erro desconhecido ao ler arquivo.");
       setIsAnalyzing(false);
@@ -336,7 +348,24 @@ export default function AnalysePiscadasPage() {
             </div>
 
             {/* ACTIONS */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+              {/* FPS CONTROL */}
+              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm mr-2" title="Frames por Segundo do vídeo original">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">FPS Original:</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={detectedFPS}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setDetectedFPS(val);
+                    if (rawCsvText && val > 0) processCSVData(rawCsvText, val);
+                  }}
+                  className="w-16 text-right text-sm font-mono font-bold text-purple-600 bg-transparent outline-none border-b border-transparent focus:border-purple-300 transition-colors"
+                />
+              </div>
+
               <label className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium text-sm hover:bg-slate-50 hover:text-purple-600 transition-colors shadow-sm cursor-pointer">
                 <Upload size={18} />
                 Carregar CSV

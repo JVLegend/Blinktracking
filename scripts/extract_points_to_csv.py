@@ -53,6 +53,9 @@ def extract_points_to_csv(video_path, output_csv_path=None):
 
         # Criar arquivo CSV
         with open(output_csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            # Escrever Metadados (FPS) para leitura automática no front-end
+            csvfile.write(f"# FPS: {fps:.2f}\n")
+
             # Preparar cabeçalho
             fieldnames = ['frame', 'method']
             
