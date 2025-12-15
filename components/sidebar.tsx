@@ -16,6 +16,7 @@ import {
   Cog,
   BookOpen,
   LineChart,
+  Move,
 } from "lucide-react"
 
 interface SidebarItem {
@@ -91,6 +92,11 @@ const routes: SidebarSection[] = [
         label: "Estatísticas das Piscadas",
         icon: Activity,
         href: "/analise/piscadas",
+      },
+      {
+        label: "Estabilidade da Cabeça",
+        icon: Move,
+        href: "/analise/estabilidade",
       }
     ]
   },
