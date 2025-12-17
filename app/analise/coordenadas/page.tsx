@@ -548,7 +548,12 @@ export default function ClinicalPreviewPage() {
                             cy={p.y}
                             r={r}
                             fill={fill}
-                            className="transition-all duration-75 ease-linear"
+                            // Remover transição no modo eyes_only para ver piscadas rápidas (raw data)
+                            // Também remover se FPS for muito alto (>60) para performance
+                            className={csvType === 'eyes_only' || playbackSpeed > 60
+                              ? ""
+                              : "transition-all duration-75 ease-linear"
+                            }
                           />
                         )
                       })}
