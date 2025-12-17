@@ -39,6 +39,10 @@
     *   Cálculo matemático da abertura do olho: `(||p2-p6|| + ||p3-p5||) / (2 * ||p1-p4||)`.
     *   Define limiares objetivos para o que é um "piscar" (ex: EAR < 0.20).
     *   Detecção de **Piscadas Completas** vs **Incompletas**.
+4.  **Filtro Fisiológico (Período Refratário)**:
+    *   Implementação de um intervalo inter-piscada mínimo (Inter-blink Interval) de **500ms (0.5s)**.
+    *   Elimina falsos positivos causados por micro-oscilações do EAR (tremores) imediatamente após um evento.
+    *   Garante contagem compatível com a fisiologia humana.
 3.  **Estabilidade (Head Tremor)**:
     *   Rastreio da dispersão XY de pontos fixos (Ex: Canto Interno do Olho - Pontos 33/133) para isolar movimento palpebral de movimento cefálico.
 

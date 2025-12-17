@@ -282,7 +282,10 @@ python .\scripts\analisar_pasta_piscadas.py .\tmp\graves\
 ```
 
 - **Entrada**: Caminho da pasta contendo os arquivos `.csv`.
-- **Processamento**: Calcula EAR, detecta piscadas completas/incompletas e métricas temporais.
+- **Processamento**: 
+  - Auto-detecção de FPS via metadados (`# FPS: XX`).
+  - Filtro de Período Refratário (0.5s) para eliminar duplicatas.
+  - Calcula EAR, detecta piscadas completas/incompletas.
 - **Saída**: Um arquivo Excel consolidado (`Resumo_Global_Piscadas.xlsx`) na mesma pasta.
 
 ---

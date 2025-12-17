@@ -156,6 +156,8 @@ export default function AnalysePiscadasPage() {
       let startFrameIdx = 0;
       let minEARInBlink = 1.0;
       let minEARFrameIdx = 0;
+      let lastBlinkEndFrame = -9999; // Track end of last valid blink
+      const MIN_INTER_BLINK_TIME = 0.5; // 500ms refractory period
 
       earValues.forEach((ear, idx) => {
         const currentEAR = ear || 1.0;
@@ -177,34 +179,43 @@ export default function AnalysePiscadasPage() {
             const endFrameIdx = idx;
             const durationFrames = endFrameIdx - startFrameIdx;
 
+            // Check validity criteria
             if (durationFrames >= MIN_FRAMES) {
-              const type = minEARInBlink <= THRESHOLD_COMPLETE ? 'Completa' : 'Incompleta';
-              const startTime = startFrameIdx / fps;
-              const duration = durationFrames / fps;
 
-              // Advanced Metrics
-              const closingDuration = (minEARFrameIdx - startFrameIdx) / fps;
-              const openingDuration = (endFrameIdx - minEARFrameIdx) / fps;
-              const amplitude = baselineEAR - minEARInBlink;
+              // Validate Minimum Inter-Blink Interval (0.5s)
+              const timeSinceLastBlink = (startFrameIdx - lastBlinkEndFrame) / fps;
 
-              const closingSpeed = closingDuration > 0.001 ? (amplitude / closingDuration) : 0;
-              const openingSpeed = openingDuration > 0.001 ? (amplitude / openingDuration) : 0;
-              const rba = ((baselineEAR - minEARInBlink) / baselineEAR) * 100;
+              if (timeSinceLastBlink >= MIN_INTER_BLINK_TIME) {
+                const type = minEARInBlink <= THRESHOLD_COMPLETE ? 'Completa' : 'Incompleta';
+                const startTime = startFrameIdx / fps;
+                const duration = durationFrames / fps;
 
-              blinks.push({
-                id: blinks.length + 1,
-                minute: Math.floor(startTime / 60) + 1,
-                startTime: startTime.toFixed(3),
-                duration: duration.toFixed(3),
-                earMin: minEARInBlink.toFixed(3),
-                type: type,
-                frameStart: startFrameIdx,
-                frameEnd: endFrameIdx,
-                amplitude: amplitude.toFixed(3),
-                closingSpeed: closingSpeed.toFixed(2),
-                openingSpeed: openingSpeed.toFixed(2),
-                rba: rba.toFixed(1)
-              });
+                // Advanced Metrics
+                const closingDuration = (minEARFrameIdx - startFrameIdx) / fps;
+                const openingDuration = (endFrameIdx - minEARFrameIdx) / fps;
+                const amplitude = baselineEAR - minEARInBlink;
+
+                const closingSpeed = closingDuration > 0.001 ? (amplitude / closingDuration) : 0;
+                const openingSpeed = openingDuration > 0.001 ? (amplitude / openingDuration) : 0;
+                const rba = ((baselineEAR - minEARInBlink) / baselineEAR) * 100;
+
+                blinks.push({
+                  id: blinks.length + 1,
+                  minute: Math.floor(startTime / 60) + 1,
+                  startTime: startTime.toFixed(3),
+                  duration: duration.toFixed(3),
+                  earMin: minEARInBlink.toFixed(3),
+                  type: type,
+                  frameStart: startFrameIdx,
+                  frameEnd: endFrameIdx,
+                  amplitude: amplitude.toFixed(3),
+                  closingSpeed: closingSpeed.toFixed(2),
+                  openingSpeed: openingSpeed.toFixed(2),
+                  rba: rba.toFixed(1)
+                });
+
+                lastBlinkEndFrame = endFrameIdx; // Update last valid blink end
+              }
             }
             inBlink = false;
             minEARInBlink = 1.0;
