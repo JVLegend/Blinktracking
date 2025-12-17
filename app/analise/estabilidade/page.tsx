@@ -189,11 +189,14 @@ export default function EstabilidadePage() {
         }
     }
 
+    const [isNormalized, setIsNormalized] = useState(true) // Default true for better UX
+    const [isFixedScale, setIsFixedScale] = useState(true) // Default true for comparison
+
     const plotData = useMemo(() => {
         if (!data || !selectedPointId) return null
 
-        const x: number[] = []
-        const y: number[] = []
+        let x: number[] = []
+        let y: number[] = []
         const frames: number[] = []
 
         data.forEach(row => {
@@ -207,11 +210,25 @@ export default function EstabilidadePage() {
 
         if (x.length === 0) return null;
 
-        // Inverter Y para SVG coordinate system visualization
-        const yInverted = y.map(val => -val)
+        // Normalização (Centralizar em 0,0)
+        // Subtrai a média para mostrar apenas a oscilação
+        if (isNormalized) {
+            const meanX = x.reduce((a, b) => a + b, 0) / x.length;
+            const meanY = y.reduce((a, b) => a + b, 0) / y.length;
 
-        return { x, y: yInverted, frames }
-    }, [data, selectedPointId])
+            x = x.map(val => val - meanX);
+            y = y.map(val => val - meanY);
+        }
+
+        // Inverter Y para SVG coordinate system visualization (apenas se não normalizado ou se quiser manter convenção de imagem)
+        // Se normalizado, Y positivo = cima é mais intuitivo em gráficos cartesianos, 
+        // mas original (imagem) Y cresce pra baixo. 
+        // Vamos manter Y negativo para "Cima da tela" ser Y menor se não normalizado.
+        // Se normalizado, vamos inverter também para manter consistência com movimento.
+        const yFinal = y.map(val => -val)
+
+        return { x, y: yFinal, frames }
+    }, [data, selectedPointId, isNormalized])
 
     return (
         <SidebarInset>
@@ -311,8 +328,29 @@ export default function EstabilidadePage() {
                                                 ? "Pontos principais pré-selecionados para estabilidade (Cantos e Pálpebras)."
                                                 : "Visualizando todas as colunas de coordenadas disponíveis no arquivo."}
                                         </p>
+                                        <div className="space-y-3 pt-4 border-t border-slate-100">
+                                            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isNormalized}
+                                                    onChange={(e) => setIsNormalized(e.target.checked)}
+                                                    className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                                />
+                                                Centralizar (Normalizar)
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isFixedScale}
+                                                    onChange={(e) => setIsFixedScale(e.target.checked)}
+                                                    className="rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                                />
+                                                Escala Fixa (Zoom ±50px)
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
+
 
                                 <div className="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 p-5 shadow-sm">
                                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
@@ -378,22 +416,30 @@ export default function EstabilidadePage() {
                                                 hovermode: 'closest',
                                                 margin: { t: 40, r: 40, b: 60, l: 60 },
                                                 title: {
-                                                    text: 'Dispersão Espacial (Trajetória)',
+                                                    text: isNormalized ? 'Dispersão Relativa (Centralizada)' : 'Dispersão Absoluta (Original)',
                                                     font: { family: 'Inter, sans-serif', size: 14, color: '#64748b' }
                                                 },
                                                 xaxis: {
                                                     title: 'Coordenada Horizontal (X)',
-                                                    zeroline: false,
+                                                    zeroline: true,
+                                                    zerolinecolor: '#94a3b8',
                                                     showgrid: true,
                                                     gridcolor: '#e2e8f0',
-                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
+                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' },
+                                                    // Fixed Range Logic
+                                                    range: isFixedScale ? [-50, 50] : undefined,
+                                                    constrain: isFixedScale ? 'domain' : undefined
                                                 } as any,
                                                 yaxis: {
-                                                    title: 'Coordenada Vertical (Y - Invertido)',
-                                                    zeroline: false,
+                                                    title: 'Coordenada Vertical (Y)',
+                                                    zeroline: true,
+                                                    zerolinecolor: '#94a3b8',
                                                     showgrid: true,
                                                     gridcolor: '#e2e8f0',
-                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' }
+                                                    tickfont: { family: 'JetBrains Mono', size: 11, color: '#64748b' },
+                                                    scaleanchor: 'x', // Force 1:1 aspect ratio
+                                                    scaleratio: 1,
+                                                    range: isFixedScale ? [-50, 50] : undefined
                                                 } as any,
                                                 paper_bgcolor: 'transparent',
                                                 plot_bgcolor: 'transparent',
@@ -432,6 +478,6 @@ export default function EstabilidadePage() {
           }
         `}</style>
             </div>
-        </SidebarInset>
+        </SidebarInset >
     )
 }
