@@ -86,18 +86,40 @@ export default function ClinicalPreviewPage() {
   };
 
   const processCSVText = (text: string) => {
-    const rows = text.split("\n").filter(row => row.trim());
-    const headers = rows[0].split(",");
+    // 1. Detect Metadata & Filter Comments
+    const rawLines = text.split("\n");
+    const dataLines: string[] = [];
+
+    rawLines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      if (trimmed.startsWith('# FPS:')) {
+        const fpsVal = parseFloat(trimmed.split(':')[1].trim());
+        if (!isNaN(fpsVal) && fpsVal > 0) {
+          setPlaybackSpeed(fpsVal);
+          toast.info(`FPS ajustado automaticamente: ${fpsVal}`);
+        }
+      }
+
+      if (!trimmed.startsWith('#')) {
+        dataLines.push(trimmed);
+      }
+    });
+
+    if (dataLines.length < 2) throw new Error("Arquivo CSV inválido ou vazio.");
+
+    const headers = dataLines[0].split(",");
 
     const detectedType = detectCSVType(headers);
     setCSVType(detectedType);
 
-    const parsedData: FrameData[] = rows.slice(1).map((row, idx) => {
+    const parsedData: FrameData[] = dataLines.slice(1).map((row, idx) => {
       const values = row.split(",");
       const obj: any = {};
       headers.forEach((header, i) => {
         const value = values[i];
-        obj[header] = isNaN(Number(value)) ? value : Number(value);
+        obj[header.trim()] = isNaN(Number(value)) ? value : Number(value);
       });
       if (obj.frame === undefined) obj.frame = idx;
       return obj;

@@ -63,9 +63,9 @@ def process_folder(folder_path):
         # 2. Processar vídeo visual (Desenhar landmarks)
         # O script original pede um diretório de saída temporário como 2º argumento
         # Vamos salvar na mesma pasta do vídeo original por padrão
-        cmd2 = f'python "{script_process_video}" "{video}" "{folder}"'
-        if not run_command(cmd2, "Geração de Vídeo Visual (Landmarks)"):
-            continue
+        # cmd2 = f'python "{script_process_video}" "{video}" "{folder}"'
+        # if not run_command(cmd2, "Geração de Vídeo Visual (Landmarks)"):
+        #     continue
 
         # 3. Extrair TODOS os pontos (CSV Completo - 478 pts)
         cmd3 = f'python "{script_extract_all}" "{video}"'
