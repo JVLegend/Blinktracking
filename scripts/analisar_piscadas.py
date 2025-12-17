@@ -90,8 +90,20 @@ def get_eye_points_from_row(row, side, csv_type):
 def analyze_blinks(csv_path, output_xlsx_path, fps=30):
     print(f"📊 Lendo arquivo: {csv_path}")
     
+    # 0. Tentar detectar FPS do Metadata
     try:
-        df = pd.read_csv(csv_path)
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            first_line = f.readline()
+            if first_line.startswith('# FPS:'):
+                val = float(first_line.split(':')[1].strip())
+                if val > 0:
+                    fps = val
+                    print(f"ℹ️ FPS detectado via metadata: {fps}")
+    except:
+        pass
+
+    try:
+        df = pd.read_csv(csv_path, comment='#')
     except Exception as e:
         print(f"❌ Erro ao ler CSV: {e}")
         return
@@ -142,6 +154,10 @@ def analyze_blinks(csv_path, output_xlsx_path, fps=30):
     start_frame = 0
     min_ear_in_blink = 1.0
     
+    # Filtro Fisiológico
+    MIN_INTER_BLINK_TIME_SEC = 0.5
+    last_blink_end_frame = -9999
+    
     print("🔎 Detectando eventos...")
     
     valid_ears = df['EAR_Smooth'].dropna()
@@ -174,26 +190,32 @@ def analyze_blinks(csv_path, output_xlsx_path, fps=30):
                 duration_frames = end_frame - start_frame
                 
                 if duration_frames >= MIN_FRAMES:
-                    # Classificar
-                    category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
                     
-                    # Calcular tempos
-                    start_time = start_frame / fps
-                    end_time = end_frame / fps
+                    # Filtro de Período Refratário
+                    time_since_last = (start_frame - last_blink_end_frame) / fps
                     
-                    blink_data = {
-                        'ID': len(blinks) + 1,
-                        'Frame Inicio': start_frame,
-                        'Frame Fim': end_frame,
-                        'Tempo Inicio (s)': round(start_time, 3),
-                        'Tempo Fim (s)': round(end_time, 3),
-                        'Duracao (s)': round((end_frame - start_frame) / fps, 3),
-                        'Duracao (frames)': duration_frames,
-                        'EAR Minimo': round(min_ear_in_blink, 4),
-                        'Classificacao': category,
-                        'Minuto': int(start_time // 60) + 1
-                    }
-                    blinks.append(blink_data)
+                    if time_since_last >= MIN_INTER_BLINK_TIME_SEC:
+                        # Classificar
+                        category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
+                        
+                        # Calcular tempos
+                        start_time = start_frame / fps
+                        end_time = end_frame / fps
+                        
+                        blink_data = {
+                            'ID': len(blinks) + 1,
+                            'Frame Inicio': start_frame,
+                            'Frame Fim': end_frame,
+                            'Tempo Inicio (s)': round(start_time, 3),
+                            'Tempo Fim (s)': round(end_time, 3),
+                            'Duracao (s)': round((end_frame - start_frame) / fps, 3),
+                            'Duracao (frames)': duration_frames,
+                            'EAR Minimo': round(min_ear_in_blink, 4),
+                            'Classificacao': category,
+                            'Minuto': int(start_time // 60) + 1
+                        }
+                        blinks.append(blink_data)
+                        last_blink_end_frame = end_frame
                 
                 in_blink = False
                 min_ear_in_blink = 1.0

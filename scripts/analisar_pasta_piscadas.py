@@ -111,6 +111,9 @@ def analyze_single_csv(csv_path, default_fps=30):
     start_frame = 0
     min_ear_in_blink = 1.0
 
+    MIN_INTER_BLINK_TIME_SEC = 0.5  # Periodo Refratário 500ms
+    last_blink_end_frame = -9999
+
     for i in range(len(df)):
         ear = df.loc[i, 'EAR_Smooth']
         if pd.isna(ear): continue
@@ -128,19 +131,27 @@ def analyze_single_csv(csv_path, default_fps=30):
                 end_frame = i
                 duration_frames = end_frame - start_frame
                 
+                # Critério 1: Duração Mínima
                 if duration_frames >= MIN_FRAMES:
-                    category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
-                    start_time = start_frame / fps
                     
-                    blinks.append({
-                        'Arquivo': os.path.basename(csv_path),
-                        'Frame Inicio': start_frame,
-                        'Frame Fim': end_frame,
-                        'Tempo Inicio (s)': round(start_time, 3),
-                        'Duracao (s)': round((end_frame - start_frame) / fps, 3),
-                        'EAR Minimo': round(min_ear_in_blink, 3),
-                        'Classificacao': category
-                    })
+                    # Critério 2: Período Refratário (Fisiológico)
+                    time_since_last = (start_frame - last_blink_end_frame) / fps
+                    
+                    if time_since_last >= MIN_INTER_BLINK_TIME_SEC:
+                        category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
+                        start_time = start_frame / fps
+                        
+                        blinks.append({
+                            'Arquivo': os.path.basename(csv_path),
+                            'Frame Inicio': start_frame,
+                            'Frame Fim': end_frame,
+                            'Tempo Inicio (s)': round(start_time, 3),
+                            'Duracao (s)': round((end_frame - start_frame) / fps, 3),
+                            'EAR Minimo': round(min_ear_in_blink, 3),
+                            'Classificacao': category
+                        })
+                        last_blink_end_frame = end_frame # Atualiza último evento válido
+
                 in_blink = False
                 min_ear_in_blink = 1.0
 
