@@ -104,7 +104,8 @@ export default function EstabilidadePage() {
 
         try {
             const text = await file.text()
-            const lines = text.trim().split('\n').filter(l => l.trim().length > 0)
+            // Filtrar linhas vazias e comentários (#)
+            const lines = text.trim().split('\n').filter(l => l.trim().length > 0 && !l.startsWith('#'))
 
             if (lines.length < 2) throw new Error("Arquivo vazio ou inválido")
 
