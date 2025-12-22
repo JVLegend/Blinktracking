@@ -198,10 +198,13 @@ export default function GraficosPiscadasPage() {
             const step = Math.max(1, Math.floor(dataRows.length / maxPoints));
             const timeline: any[] = [];
             for (let i = 0; i < dataRows.length; i += step) {
+                const r = resultRight.blinkFlags[i];
+                const l = resultLeft.blinkFlags[i];
                 timeline.push({
                     time: parseFloat((i / fps).toFixed(2)),
-                    blinkRight: resultRight.blinkFlags[i],
-                    blinkLeft: resultLeft.blinkFlags[i],
+                    blinkRight: r && !l ? 1 : 0,
+                    blinkLeft: l && !r ? 1 : 0,
+                    blinkBoth: r && l ? 1 : 0,
                 });
             }
             setTimelineData(timeline);
@@ -338,8 +341,9 @@ export default function GraficosPiscadasPage() {
                                         <h3 className="text-lg font-bold text-slate-800">Timeline de Piscadas (Ocorrência)</h3>
                                     </div>
                                     <div className="flex gap-4 text-xs font-bold uppercase tracking-wider">
-                                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-blue-500 rounded-full"></div> Direito</div>
-                                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-purple-500 rounded-full"></div> Esquerdo</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-emerald-500 rounded-full"></div> Direito</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-rose-500 rounded-full"></div> Esquerdo</div>
+                                        <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-amber-500 rounded-full"></div> Ambos</div>
                                     </div>
                                 </div>
 
@@ -357,7 +361,7 @@ export default function GraficosPiscadasPage() {
                                                 type="stepAfter"
                                                 dataKey="blinkRight"
                                                 name="Dir"
-                                                stroke="#3b82f6"
+                                                stroke="#10b981"
                                                 strokeWidth={2}
                                                 dot={false}
                                                 isAnimationActive={false}
@@ -366,11 +370,19 @@ export default function GraficosPiscadasPage() {
                                                 type="stepAfter"
                                                 dataKey="blinkLeft"
                                                 name="Esq"
-                                                stroke="#a855f7"
+                                                stroke="#e11d48"
                                                 strokeWidth={2}
                                                 dot={false}
                                                 isAnimationActive={false}
-                                                strokeDasharray="4 4"
+                                            />
+                                            <Line
+                                                type="stepAfter"
+                                                dataKey="blinkBoth"
+                                                name="Ambos"
+                                                stroke="#f59e0b"
+                                                strokeWidth={3}
+                                                dot={false}
+                                                isAnimationActive={false}
                                             />
                                         </LineChart>
                                     </ResponsiveContainer>
@@ -405,10 +417,10 @@ export default function GraficosPiscadasPage() {
                                                 <YAxis label={{ value: 'EAR/s', angle: -90, position: 'insideLeft' }} />
                                                 <Tooltip />
                                                 <Legend verticalAlign="top" height={36} />
-                                                <Area type="monotone" dataKey="csR" name="Fechamento (D)" stroke="#f97316" fillOpacity={1} fill="url(#colorCs)" strokeWidth={3} />
-                                                <Area type="monotone" dataKey="osR" name="Abertura (D)" stroke="#3b82f6" fillOpacity={1} fill="url(#colorOs)" strokeWidth={3} />
-                                                <Area type="monotone" dataKey="csL" name="Fechamento (E)" stroke="#ea580c" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" />
-                                                <Area type="monotone" dataKey="osL" name="Abertura (E)" stroke="#2563eb" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" />
+                                                <Area type="monotone" dataKey="csR" name="Fechamento (D)" stroke="#10b981" fillOpacity={1} fill="url(#colorCs)" strokeWidth={3} />
+                                                <Area type="monotone" dataKey="osR" name="Abertura (D)" stroke="#059669" fillOpacity={1} fill="url(#colorOs)" strokeWidth={3} />
+                                                <Area type="monotone" dataKey="csL" name="Fechamento (E)" stroke="#e11d48" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" />
+                                                <Area type="monotone" dataKey="osL" name="Abertura (E)" stroke="#be123c" fillOpacity={0} strokeWidth={2} strokeDasharray="5 5" />
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -430,8 +442,8 @@ export default function GraficosPiscadasPage() {
                                                 <YAxis label={{ value: 'EAR', angle: -90, position: 'insideLeft' }} />
                                                 <Tooltip />
                                                 <Legend verticalAlign="top" height={36} />
-                                                <Bar dataKey="ampR" name="Amplitude Dir" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                                                <Bar dataKey="ampL" name="Amplitude Esq" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                                                <Bar dataKey="ampR" name="Amplitude Dir" fill="#10b981" radius={[4, 4, 0, 0]} />
+                                                <Bar dataKey="ampL" name="Amplitude Esq" fill="#e11d48" radius={[4, 4, 0, 0]} />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -456,8 +468,8 @@ export default function GraficosPiscadasPage() {
                                             <YAxis />
                                             <Tooltip />
                                             <Legend />
-                                            <Area type="basis" dataKey="csR" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Vel. Fechamento Direito" />
-                                            <Area type="basis" dataKey="csL" stackId="2" stroke="#a855f7" fill="#a855f7" fillOpacity={0.6} name="Vel. Fechamento Esquerdo" />
+                                            <Area type="basis" dataKey="csR" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Vel. Fechamento Direito" />
+                                            <Area type="basis" dataKey="csL" stackId="2" stroke="#e11d48" fill="#e11d48" fillOpacity={0.6} name="Vel. Fechamento Esquerdo" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
