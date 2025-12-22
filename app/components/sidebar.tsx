@@ -93,39 +93,6 @@ export function Sidebar() {
             </Link>
           </div>
 
-          {/* Funcionalidades */}
-          <div className="space-y-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
-              Análise de Vídeos
-            </h2>
-            <div className="space-y-1">
-              <Link
-                href="/funcionalidades/extrair-pontos"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
-                  ${isActive('/funcionalidades/extrair-pontos') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
-              >
-                <Scan className="w-5 h-5" />
-                <span className="font-medium">Extrair Pontos</span>
-              </Link>
-              <Link
-                href="/funcionalidades/gerar-video"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
-                  ${isActive('/funcionalidades/gerar-video') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
-              >
-                <Video className="w-5 h-5" />
-                <span className="font-medium">Gerar Vídeo</span>
-              </Link>
-              <Link
-                href="/funcionalidades/visualizar-frames"
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
-                  ${isActive('/funcionalidades/visualizar-frames') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
-              >
-                <Image className="w-5 h-5" />
-                <span className="font-medium">Visualizar Frames</span>
-              </Link>
-            </div>
-          </div>
-
           {/* Análise */}
           <div className="space-y-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
@@ -163,6 +130,39 @@ export function Sidebar() {
               >
                 <Move className="w-5 h-5" />
                 <span className="font-medium">Estabilidade da Cabeça</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Funcionalidades */}
+          <div className="space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 px-2">
+              Análise de Vídeos
+            </h2>
+            <div className="space-y-1">
+              <Link
+                href="/funcionalidades/extrair-pontos"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
+                  ${isActive('/funcionalidades/extrair-pontos') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
+              >
+                <Scan className="w-5 h-5" />
+                <span className="font-medium">Extrair Pontos</span>
+              </Link>
+              <Link
+                href="/funcionalidades/gerar-video"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
+                  ${isActive('/funcionalidades/gerar-video') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
+              >
+                <Video className="w-5 h-5" />
+                <span className="font-medium">Gerar Vídeo</span>
+              </Link>
+              <Link
+                href="/funcionalidades/visualizar-frames"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
+                  ${isActive('/funcionalidades/visualizar-frames') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
+              >
+                <Image className="w-5 h-5" />
+                <span className="font-medium">Visualizar Frames</span>
               </Link>
             </div>
           </div>
