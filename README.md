@@ -152,11 +152,19 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 
 ### Resumo dos Scripts Disponíveis
 
+#### Extração de Pontos
 | Script | Saída | Pontos | Tamanho | Uso Recomendado |
 |--------|-------|--------|---------|-----------------|
 | `extract_points_to_csv.py` | 📊 **CSV** | 32 (olhos) | ~70 MB | ✅ Análise de piscadas |
 | `extract_all_points_to_csv.py` | 📊 **CSV** | 478 (face completa) | ~1 GB | Análise facial completa |
 | `process_video_mediapipe.py` | 🎥 **MP4** | Visualização | Igual ao original | Vídeo com pontos desenhados |
+
+#### Análise de Métricas
+| Script | Entrada | Saída | Uso Recomendado |
+|--------|---------|-------|-----------------|
+| `analisar_metricas_completas.py` | 1 CSV | Excel/JSON | ✅ Análise detalhada de um vídeo |
+| `analisar_pasta_metricas.py` | Pasta | Excel (individual + consolidado) | ✅ Análise em lote |
+| `analisar_pasta_piscadas.py` | Pasta | Excel consolidado | Análise simplificada (legacy) |
 
 ---
 
@@ -273,16 +281,82 @@ Para processar múltiplos vídeos de uma vez, use os scripts batch:
 - Processa todos os `.MOV` da pasta configurada
 - Gera vídeos MP4 com os pontos desenhados
 
-### 5. Análise de Arquivos CSV em Lote
+### 5. Análise Completa de Métricas (Arquivo Único)
 
-Para processar uma pasta contendo vários arquivos CSV (do tipo `eyes_only` ou `all_points`) e gerar um relatório consolidado de piscadas:
+Analisa um único CSV e gera relatório completo com todas as métricas de piscadas:
 
 ```bash
-python .\scripts\analisar_pasta_piscadas.py .\tmp\graves\
+# Uso básico (FPS lido automaticamente do CSV)
+python scripts/analisar_metricas_completas.py video.csv
+
+# Forçar tipo de CSV
+python scripts/analisar_metricas_completas.py video_all_points.csv --tipo all_points
+
+# Exportar como JSON
+python scripts/analisar_metricas_completas.py video.csv --saida resultado.json
+```
+
+**Métricas calculadas:**
+- Frame exato de cada piscada (início, mínimo EAR, fim)
+- Classificação: Completa ou Incompleta
+- Amplitude e RBA (Relative Blink Amplitude)
+- Velocidade de fechamento e abertura (EAR/s)
+- Timeline de piscadas por olho
+- Piscadas sincronizadas (binoculares)
+- Série temporal EAR completa
+
+**Abas do Excel de saída:**
+| Aba | Conteúdo |
+|-----|----------|
+| Info | Metadados (FPS, duração, tipo CSV) |
+| Resumo por Olho | Estatísticas agregadas por olho |
+| Piscadas Direito | Detalhamento completo olho direito |
+| Piscadas Esquerdo | Detalhamento completo olho esquerdo |
+| Por Minuto | Distribuição temporal |
+| Velocidades | Distribuição de velocidade binocular |
+| Timeline | Dados para gráfico de timeline |
+| Serie EAR | Valores EAR amostrados |
+
+---
+
+### 6. Análise de Métricas em Lote (Pasta)
+
+Analisa todos os CSVs de uma pasta e gera relatórios individuais + consolidado:
+
+```bash
+# Analisar todos os CSVs do diretório atual
+python scripts/analisar_pasta_metricas.py
+
+# Apenas CSVs eyes_only (32 pontos)
+python scripts/analisar_pasta_metricas.py ./videos --tipo eyes_only
+
+# Apenas CSVs all_points (478 pontos)
+python scripts/analisar_pasta_metricas.py ./dados --tipo all_points
+
+# Especificar pasta de saída
+python scripts/analisar_pasta_metricas.py ./videos --saida ./resultados
+```
+
+**Saídas geradas:**
+- Um `*_metricas.xlsx` para cada CSV processado
+- `Relatorio_Consolidado_<tipo>.xlsx` com:
+  - **Resumo Geral**: Totais agregados de todos os arquivos
+  - **Por Arquivo**: Métricas resumidas de cada arquivo
+  - **Todas Piscadas**: Lista detalhada de todas as piscadas
+  - **Erros**: Lista de arquivos que falharam (se houver)
+
+---
+
+### 7. Análise Simplificada em Lote (Legacy)
+
+Para processar uma pasta contendo vários arquivos CSV e gerar um relatório consolidado básico:
+
+```bash
+python scripts/analisar_pasta_piscadas.py ./tmp/graves/
 ```
 
 - **Entrada**: Caminho da pasta contendo os arquivos `.csv`.
-- **Processamento**: 
+- **Processamento**:
   - Auto-detecção de FPS via metadados (`# FPS: XX`).
   - Filtro de Período Refratário (0.5s) para eliminar duplicatas.
   - Calcula EAR, detecta piscadas completas/incompletas.
