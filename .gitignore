@@ -55,3 +55,6 @@ env
 *.env
 /app/api/tmp-videos
 /public/uploads
+
+# Gráficos gerados
+/graficos/

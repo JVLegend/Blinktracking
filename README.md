@@ -8,6 +8,7 @@ Sistema web avançado para análise e visualização de dados de piscadas ocular
 - [📊 Status do Projeto](docs/status.md)
 - [🔧 Documentação Técnica](.claude.md)
 - [🗺️ Mapeamento de Pontos MediaPipe](public/docs/MEDIAPIPE_POINTS_MAPPING.md)
+- [📈 Análise Comparativa: Paralisia vs Controle](docs/analise_comparativa_paralisia.md)
 
 ## 📁 Estrutura do Projeto
 
@@ -164,6 +165,7 @@ O diagrama será salvo em: `public/docs/mediapipe-csv-points-diagram.png`
 |--------|---------|-------|-----------------|
 | `analisar_metricas_completas.py` | 1 CSV | Excel/JSON | ✅ Análise detalhada de um vídeo |
 | `analisar_pasta_metricas.py` | Pasta | Excel (individual + consolidado) | ✅ Análise em lote |
+| `gerar_graficos_comparativos.py` | 2 CSVs | PNG (10 gráficos) | ✅ Comparação entre grupos |
 | `analisar_pasta_piscadas.py` | Pasta | Excel consolidado | Análise simplificada (legacy) |
 
 ---
@@ -347,7 +349,41 @@ python scripts/analisar_pasta_metricas.py ./videos --saida ./resultados
 
 ---
 
-### 7. Análise Simplificada em Lote (Legacy)
+### 7. Geração de Gráficos Comparativos
+
+Gera 10 gráficos para comparação entre dois grupos (ex: Controle vs Paralisia):
+
+```bash
+# Uso básico
+python scripts/gerar_graficos_comparativos.py controle.csv paralisia.csv
+
+# Especificar pasta de saída
+python scripts/gerar_graficos_comparativos.py controle.csv paralisia.csv --saida ./graficos
+```
+
+**Gráficos gerados:**
+
+| # | Arquivo | Descrição |
+|---|---------|-----------|
+| 01 | `razao_velocidade.png` | Barras: Razão Vel. Fechamento/Abertura |
+| 02 | `boxplot_velocidades.png` | Boxplot: Distribuição das velocidades |
+| 03 | `scatter_simetria.png` | Dispersão: Piscadas Olho Dir vs Esq |
+| 04 | `taxa_piscadas.png` | Barras: Taxa média por grupo e olho |
+| 05 | `scatter_velocidades.png` | Dispersão: Vel. Fechamento vs Abertura |
+| 06 | `histograma_assimetria.png` | Histograma: Distribuição da assimetria |
+| 07 | `amplitude_media.png` | Barras: Amplitude média por grupo |
+| 08 | `baseline_ear.png` | Barras: Baseline EAR por grupo |
+| 09 | `radar_comparativo.png` | Radar: Comparação multidimensional |
+| 10 | `perfil_piscada.png` | Linha: Perfil temporal da piscada |
+
+**Requisitos:**
+- matplotlib
+- seaborn
+- Os CSVs devem ter as colunas geradas pelo `analisar_pasta_metricas.py`
+
+---
+
+### 8. Análise Simplificada em Lote (Legacy)
 
 Para processar uma pasta contendo vários arquivos CSV e gerar um relatório consolidado básico:
 
