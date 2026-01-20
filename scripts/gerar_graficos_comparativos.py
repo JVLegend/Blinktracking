@@ -570,6 +570,183 @@ def grafico_perfil_piscada(output_dir):
     print("   ✅ 10_perfil_piscada.png")
 
 
+def gerar_graficos_grupo_unico(df, grupo_nome, output_dir):
+    """
+    Gera gráficos para um único grupo (sem comparação).
+    """
+    print(f"\n🎨 Gerando gráficos para grupo único: {grupo_nome}...")
+
+    # 1. Histograma de Taxa de Piscadas
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        taxa_media = (df['Taxa Direito'] + df['Taxa Esquerdo']) / 2
+        ax.hist(taxa_media.dropna(), bins=15, color=CORES['paralisia'], edgecolor='black', alpha=0.7)
+        ax.axvline(taxa_media.mean(), color='red', linestyle='--', linewidth=2, label=f'Média: {taxa_media.mean():.1f}')
+        ax.set_xlabel('Taxa de Piscadas (piscadas/min)', fontsize=12)
+        ax.set_ylabel('Frequência', fontsize=12)
+        ax.set_title(f'Distribuição da Taxa de Piscadas - {grupo_nome}', fontsize=14)
+        ax.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '01_histograma_taxa.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 01_histograma_taxa.png")
+    except Exception as e:
+        print(f"   ❌ Erro em histograma_taxa: {e}")
+
+    # 2. Scatter Simetria
+    try:
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.scatter(df['Piscadas Direito'], df['Piscadas Esquerdo'],
+                   c=CORES['paralisia'], s=100, alpha=0.7, edgecolor='black')
+        max_val = max(df['Piscadas Direito'].max(), df['Piscadas Esquerdo'].max())
+        ax.plot([0, max_val], [0, max_val], 'k--', alpha=0.5, label='Simetria perfeita')
+        ax.set_xlabel('Piscadas Olho Direito', fontsize=12)
+        ax.set_ylabel('Piscadas Olho Esquerdo', fontsize=12)
+        ax.set_title(f'Simetria Bilateral - {grupo_nome}', fontsize=14)
+        ax.legend()
+        ax.set_aspect('equal')
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '02_scatter_simetria.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 02_scatter_simetria.png")
+    except Exception as e:
+        print(f"   ❌ Erro em scatter_simetria: {e}")
+
+    # 3. Boxplot Velocidades
+    try:
+        fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+        vel_fech = pd.concat([df['Vel Fech Media Direito'], df['Vel Fech Media Esquerdo']])
+        vel_abert = pd.concat([df['Vel Abert Media Direito'], df['Vel Abert Media Esquerdo']])
+
+        bp1 = axes[0].boxplot([vel_fech.dropna()], patch_artist=True)
+        bp1['boxes'][0].set_facecolor(CORES['paralisia'])
+        axes[0].set_ylabel('Velocidade (EAR/s)', fontsize=12)
+        axes[0].set_title('Velocidade de Fechamento', fontsize=14)
+        axes[0].set_xticklabels([grupo_nome])
+
+        bp2 = axes[1].boxplot([vel_abert.dropna()], patch_artist=True)
+        bp2['boxes'][0].set_facecolor(CORES['paralisia'])
+        axes[1].set_ylabel('Velocidade (EAR/s)', fontsize=12)
+        axes[1].set_title('Velocidade de Abertura', fontsize=14)
+        axes[1].set_xticklabels([grupo_nome])
+
+        plt.suptitle(f'Distribuição das Velocidades - {grupo_nome}', fontsize=16, y=1.02)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '03_boxplot_velocidades.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 03_boxplot_velocidades.png")
+    except Exception as e:
+        print(f"   ❌ Erro em boxplot_velocidades: {e}")
+
+    # 4. Histograma Assimetria
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        def calc_assimetria(row):
+            max_val = max(row['Piscadas Direito'], row['Piscadas Esquerdo'])
+            if max_val == 0:
+                return 0
+            return abs(row['Piscadas Direito'] - row['Piscadas Esquerdo']) / max_val * 100
+
+        assimetria = df.apply(calc_assimetria, axis=1)
+        ax.hist(assimetria, bins=10, color=CORES['paralisia'], edgecolor='black', alpha=0.7)
+        ax.axvline(assimetria.mean(), color='red', linestyle='--', linewidth=2,
+                   label=f'Média: {assimetria.mean():.1f}%')
+        ax.axvline(20, color='gray', linestyle=':', alpha=0.7, label='Limite tolerável (20%)')
+        ax.set_xlabel('Assimetria Bilateral (%)', fontsize=12)
+        ax.set_ylabel('Frequência', fontsize=12)
+        ax.set_title(f'Distribuição da Assimetria - {grupo_nome}', fontsize=14)
+        ax.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '04_histograma_assimetria.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 04_histograma_assimetria.png")
+    except Exception as e:
+        print(f"   ❌ Erro em histograma_assimetria: {e}")
+
+    # 5. Scatter Velocidades
+    try:
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        df['Vel_Fech_Media'] = (df['Vel Fech Media Direito'] + df['Vel Fech Media Esquerdo']) / 2
+        df['Vel_Abert_Media'] = (df['Vel Abert Media Direito'] + df['Vel Abert Media Esquerdo']) / 2
+
+        ax.scatter(df['Vel_Fech_Media'], df['Vel_Abert_Media'],
+                   c=CORES['paralisia'], s=100, alpha=0.7, edgecolor='black')
+        ax.set_xlabel('Velocidade de Fechamento (EAR/s)', fontsize=12)
+        ax.set_ylabel('Velocidade de Abertura (EAR/s)', fontsize=12)
+        ax.set_title(f'Vel. Fechamento vs Abertura - {grupo_nome}', fontsize=14)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '05_scatter_velocidades.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 05_scatter_velocidades.png")
+    except Exception as e:
+        print(f"   ❌ Erro em scatter_velocidades: {e}")
+
+    # 6. Barras por Olho
+    try:
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+        # Taxa
+        taxa = [df['Taxa Direito'].mean(), df['Taxa Esquerdo'].mean()]
+        axes[0].bar(['Direito', 'Esquerdo'], taxa, color=[CORES['direito'], CORES['esquerdo']], edgecolor='black')
+        axes[0].set_ylabel('Taxa (piscadas/min)')
+        axes[0].set_title('Taxa de Piscadas')
+        for i, v in enumerate(taxa):
+            axes[0].text(i, v + 0.5, f'{v:.1f}', ha='center')
+
+        # Amplitude
+        amp = [df['Amplitude Media Direito'].mean(), df['Amplitude Media Esquerdo'].mean()]
+        axes[1].bar(['Direito', 'Esquerdo'], amp, color=[CORES['direito'], CORES['esquerdo']], edgecolor='black')
+        axes[1].set_ylabel('Amplitude (EAR)')
+        axes[1].set_title('Amplitude Média')
+        for i, v in enumerate(amp):
+            axes[1].text(i, v + 0.002, f'{v:.4f}', ha='center')
+
+        # Baseline
+        baseline = [df['Baseline EAR Direito'].mean(), df['Baseline EAR Esquerdo'].mean()]
+        axes[2].bar(['Direito', 'Esquerdo'], baseline, color=[CORES['direito'], CORES['esquerdo']], edgecolor='black')
+        axes[2].set_ylabel('Baseline EAR')
+        axes[2].set_title('Baseline EAR')
+        for i, v in enumerate(baseline):
+            axes[2].text(i, v + 0.005, f'{v:.3f}', ha='center')
+
+        plt.suptitle(f'Métricas por Olho - {grupo_nome}', fontsize=14, y=1.02)
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '06_metricas_por_olho.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 06_metricas_por_olho.png")
+    except Exception as e:
+        print(f"   ❌ Erro em metricas_por_olho: {e}")
+
+    # 7. Histograma Razão de Velocidade
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        vel_fech = (df['Vel Fech Media Direito'] + df['Vel Fech Media Esquerdo']) / 2
+        vel_abert = (df['Vel Abert Media Direito'] + df['Vel Abert Media Esquerdo']) / 2
+        razao = vel_fech / vel_abert.replace(0, np.nan)
+        razao = razao.dropna()
+        razao = razao[razao < 100]  # Filtrar outliers extremos
+
+        ax.hist(razao, bins=15, color=CORES['paralisia'], edgecolor='black', alpha=0.7)
+        ax.axvline(razao.mean(), color='red', linestyle='--', linewidth=2,
+                   label=f'Média: {razao.mean():.1f}')
+        ax.set_xlabel('Razão Velocidade (Fechamento / Abertura)', fontsize=12)
+        ax.set_ylabel('Frequência', fontsize=12)
+        ax.set_title(f'Distribuição da Razão de Velocidade - {grupo_nome}', fontsize=14)
+        ax.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, '07_histograma_razao_velocidade.png'), dpi=150, bbox_inches='tight')
+        plt.close()
+        print("   ✅ 07_histograma_razao_velocidade.png")
+    except Exception as e:
+        print(f"   ❌ Erro em histograma_razao_velocidade: {e}")
+
+    print(f"\n✅ {7} gráficos gerados para grupo único")
+
+
 def gerar_todos_graficos(csv_controle, csv_paralisia, output_dir):
     """
     Gera todos os gráficos comparativos.
@@ -584,6 +761,16 @@ def gerar_todos_graficos(csv_controle, csv_paralisia, output_dir):
 
     # Carregar dados
     print("\n📊 Carregando dados...")
+
+    # Verificar se é modo grupo único ou comparativo
+    if csv_controle is None or csv_controle == '':
+        # Modo grupo único - só paralisia
+        df_paralisia = carregar_dados(csv_paralisia, 'Estudo')
+        print(f"   Grupo Estudo: {len(df_paralisia)} registros")
+        print("\n⚠️  Modo grupo único (sem controle)")
+        gerar_graficos_grupo_unico(df_paralisia, 'Estudo', output_dir)
+        return
+
     df_controle = carregar_dados(csv_controle, 'Controle')
     df_paralisia = carregar_dados(csv_paralisia, 'Paralisia')
     print(f"   Controle: {len(df_controle)} registros")
@@ -649,23 +836,29 @@ def gerar_todos_graficos(csv_controle, csv_paralisia, output_dir):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Gera gráficos comparativos entre grupos (Controle vs Paralisia).",
+        description="Gera gráficos comparativos entre grupos ou para grupo único.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
+  # Modo comparativo (dois grupos)
   python gerar_graficos_comparativos.py controle.csv paralisia.csv
   python gerar_graficos_comparativos.py controle.csv paralisia.csv --saida ./graficos
+
+  # Modo grupo único (apenas um CSV)
+  python gerar_graficos_comparativos.py estudo.csv --saida ./graficos
         """
     )
 
     parser.add_argument(
-        "csv_controle",
-        help="CSV consolidado do grupo controle"
+        "csv_principal",
+        help="CSV consolidado do grupo principal (ou único)"
     )
 
     parser.add_argument(
-        "csv_paralisia",
-        help="CSV consolidado do grupo paralisia"
+        "csv_secundario",
+        nargs='?',
+        default=None,
+        help="CSV consolidado do segundo grupo (opcional - se omitido, gera gráficos para grupo único)"
     )
 
     parser.add_argument(
@@ -676,17 +869,23 @@ Exemplos:
 
     args = parser.parse_args()
 
-    # Verificar arquivos
-    if not os.path.exists(args.csv_controle):
-        print(f"❌ Arquivo não encontrado: {args.csv_controle}")
+    # Verificar arquivo principal
+    if not os.path.exists(args.csv_principal):
+        print(f"❌ Arquivo não encontrado: {args.csv_principal}")
         sys.exit(1)
 
-    if not os.path.exists(args.csv_paralisia):
-        print(f"❌ Arquivo não encontrado: {args.csv_paralisia}")
-        sys.exit(1)
-
-    # Gerar gráficos
-    gerar_todos_graficos(args.csv_controle, args.csv_paralisia, args.saida)
+    # Modo grupo único ou comparativo?
+    if args.csv_secundario is None:
+        # Modo grupo único
+        print("\n📊 Modo: Grupo Único")
+        gerar_todos_graficos(None, args.csv_principal, args.saida)
+    else:
+        # Modo comparativo
+        if not os.path.exists(args.csv_secundario):
+            print(f"❌ Arquivo não encontrado: {args.csv_secundario}")
+            sys.exit(1)
+        print("\n📊 Modo: Comparativo (dois grupos)")
+        gerar_todos_graficos(args.csv_principal, args.csv_secundario, args.saida)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ Sistema web avançado para análise e visualização de dados de piscadas ocular
 - [🔧 Documentação Técnica](.claude.md)
 - [🗺️ Mapeamento de Pontos MediaPipe](public/docs/MEDIAPIPE_POINTS_MAPPING.md)
 - [📈 Análise Comparativa: Paralisia vs Controle](docs/analise_comparativa_paralisia.md)
+- [👁️ Análise: Oftalmopatia de Graves vs Controle](docs/analise_oftalmopatia_graves.md)
 
 ## 📁 Estrutura do Projeto
 
