@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Script de Análise Completa de Métricas de Piscadas
+Script de Anlise Completa de Mtricas de Piscadas
 ==================================================
-Lê CSVs gerados pelo Blinktracking e calcula todas as métricas disponíveis no site:
-- Detecção de piscadas completas e incompletas por olho
+L CSVs gerados pelo Blinktracking e calcula todas as mtricas disponveis no site:
+- Deteco de piscadas completas e incompletas por olho
 - Frame exato de cada evento
-- Amplitude média
-- Cinemática (velocidade de fechamento e abertura)
-- Distribuição de velocidade binocular
+- Amplitude mdia
+- Cinemtica (velocidade de fechamento e abertura)
+- Distribuio de velocidade binocular
 - Timeline de piscadas por olho
-- Métrica EAR (Eye Aspect Ratio)
+- Mtrica EAR (Eye Aspect Ratio)
 
 Uso:
     python analisar_metricas_completas.py <arquivo.csv> [--tipo all_points|eyes_only] [--saida output.xlsx]
 
-    O FPS é lido automaticamente da primeira linha do CSV (formato: # FPS: <valor>)
+    O FPS  lido automaticamente da primeira linha do CSV (formato: # FPS: <valor>)
 
-    --tipo: Força o tipo de CSV (auto-detectado se não especificado)
+    --tipo: Fora o tipo de CSV (auto-detectado se no especificado)
             all_points: CSV com 478 pontos faciais completos
             eyes_only: CSV com apenas 32 pontos dos olhos
     --fps:  Override manual do FPS (opcional)
@@ -42,15 +42,15 @@ def calculate_ear(eye_points):
                    [P1(canto_esq), P2(sup1), P3(sup2), P4(canto_dir), P5(inf2), P6(inf1)]
 
     Returns:
-        float: Valor EAR ou 0 se inválido
+        float: Valor EAR ou 0 se invlido
     """
     if eye_points is None or len(eye_points) != 6:
         return None
 
-    # Distâncias verticais
+    # Distncias verticais
     A = distance.euclidean(eye_points[1], eye_points[5])  # |p2-p6|
     B = distance.euclidean(eye_points[2], eye_points[4])  # |p3-p5|
-    # Distância horizontal
+    # Distncia horizontal
     C = distance.euclidean(eye_points[0], eye_points[3])  # |p1-p4|
 
     if C == 0:
@@ -62,7 +62,7 @@ def calculate_ear(eye_points):
 
 def get_eye_points_from_row(row, side, csv_type):
     """
-    Extrai coordenadas (x,y) dos 6 pontos chave do olho para cálculo do EAR.
+    Extrai coordenadas (x,y) dos 6 pontos chave do olho para clculo do EAR.
 
     Args:
         row: Linha do DataFrame
@@ -70,12 +70,12 @@ def get_eye_points_from_row(row, side, csv_type):
         csv_type: 'all_points' ou 'eyes_only'
 
     Returns:
-        Lista de 6 tuplas [(x,y), ...] ou None se dados inválidos
+        Lista de 6 tuplas [(x,y), ...] ou None se dados invlidos
     """
     points = []
 
     if csv_type == 'all_points':
-        # Índices oficiais MediaPipe (478 points) para EAR
+        # ndices oficiais MediaPipe (478 points) para EAR
         indices = {
             'right': [33, 160, 158, 133, 153, 144],
             'left':  [362, 385, 387, 263, 373, 380]
@@ -136,7 +136,7 @@ def detect_csv_type(df):
 
 def calculate_ear_series(df, csv_type):
     """
-    Calcula séries de EAR para olho direito, esquerdo e média.
+    Calcula sries de EAR para olho direito, esquerdo e mdia.
 
     Returns:
         Tuple de (ear_right, ear_left, ear_avg) como arrays numpy
@@ -163,7 +163,7 @@ def calculate_ear_series(df, csv_type):
 
 def smooth_ear_series(ear_series):
     """
-    Aplica interpolação e suavização à série EAR.
+    Aplica interpolao e suavizao  srie EAR.
 
     Args:
         ear_series: Array numpy com valores EAR (pode conter NaN)
@@ -171,13 +171,13 @@ def smooth_ear_series(ear_series):
     Returns:
         Array numpy suavizado
     """
-    # Converter para Series para usar métodos pandas
+    # Converter para Series para usar mtodos pandas
     s = pd.Series(ear_series)
 
-    # Interpolação linear para gaps curtos (max 3 frames)
+    # Interpolao linear para gaps curtos (max 3 frames)
     s = s.interpolate(method='linear', limit=3)
 
-    # Suavização com média móvel (janela de 3)
+    # Suavizao com mdia mvel (janela de 3)
     s_smooth = s.rolling(window=3, center=True).mean()
 
     # Preencher bordas com valores originais
@@ -188,19 +188,19 @@ def smooth_ear_series(ear_series):
 
 def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
     """
-    Detecta piscadas em uma série EAR de um único olho.
+    Detecta piscadas em uma srie EAR de um nico olho.
 
     Args:
         ear_smooth: Array de valores EAR suavizados
         fps: Frames por segundo
-        baseline_ear: Valor de referência EAR (olho aberto)
-        eye_name: 'Direito' ou 'Esquerdo' para identificação
+        baseline_ear: Valor de referncia EAR (olho aberto)
+        eye_name: 'Direito' ou 'Esquerdo' para identificao
 
     Returns:
-        Lista de dicionários com dados de cada piscada
+        Lista de dicionrios com dados de cada piscada
     """
-    # Thresholds dinâmicos baseados no baseline
-    EAR_THRESHOLD = baseline_ear * 0.75      # 75% = início do fechamento
+    # Thresholds dinmicos baseados no baseline
+    EAR_THRESHOLD = baseline_ear * 0.75      # 75% = incio do fechamento
     EAR_COMPLETE_LIMIT = baseline_ear * 0.50  # 50% = fechamento completo
     MIN_FRAMES = 2
     MIN_INTER_BLINK_TIME_SEC = 0.5
@@ -240,19 +240,19 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
                         # Classificar
                         category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
 
-                        # Calcular tempos e cinemática
+                        # Calcular tempos e cinemtica
                         start_time = start_frame / fps
                         end_time = end_frame / fps
                         duration_sec = (end_frame - start_frame) / fps
 
-                        # Amplitude = diferença entre baseline e mínimo
+                        # Amplitude = diferena entre baseline e mnimo
                         amplitude = baseline_ear - min_ear_in_blink
 
-                        # Fase de fechamento: do início até o mínimo
+                        # Fase de fechamento: do incio at o mnimo
                         closing_frames = min_ear_frame_idx - start_frame
                         closing_duration = closing_frames / fps if closing_frames > 0 else 0.001
 
-                        # Fase de abertura: do mínimo até o fim
+                        # Fase de abertura: do mnimo at o fim
                         opening_frames = end_frame - min_ear_frame_idx
                         opening_duration = opening_frames / fps if opening_frames > 0 else 0.001
 
@@ -301,7 +301,7 @@ def find_synchronized_blinks(blinks_right, blinks_left, fps, tolerance_frames=5)
         blinks_right: Lista de piscadas do olho direito
         blinks_left: Lista de piscadas do olho esquerdo
         fps: Frames por segundo
-        tolerance_frames: Tolerância em frames para considerar sincronizado
+        tolerance_frames: Tolerncia em frames para considerar sincronizado
 
     Returns:
         Lista de tuplas (blink_right, blink_left) sincronizadas
@@ -314,7 +314,7 @@ def find_synchronized_blinks(blinks_right, blinks_left, fps, tolerance_frames=5)
             if i in used_left:
                 continue
 
-            # Verifica sobreposição temporal
+            # Verifica sobreposio temporal
             start_diff = abs(br['Frame Inicio'] - bl['Frame Inicio'])
 
             if start_diff <= tolerance_frames:
@@ -327,12 +327,12 @@ def find_synchronized_blinks(blinks_right, blinks_left, fps, tolerance_frames=5)
 
 def generate_timeline_data(blinks_right, blinks_left, total_frames, fps):
     """
-    Gera dados de timeline para visualização de piscadas por olho.
+    Gera dados de timeline para visualizao de piscadas por olho.
 
     Returns:
         DataFrame com colunas: Tempo, Direito, Esquerdo, Ambos
     """
-    # Criar array binário para cada olho
+    # Criar array binrio para cada olho
     right_timeline = np.zeros(total_frames)
     left_timeline = np.zeros(total_frames)
 
@@ -346,10 +346,10 @@ def generate_timeline_data(blinks_right, blinks_left, total_frames, fps):
         end = min(b['Frame Fim'], total_frames - 1)
         left_timeline[start:end+1] = 1
 
-    # Ambos = onde os dois estão piscando simultaneamente
+    # Ambos = onde os dois esto piscando simultaneamente
     both_timeline = (right_timeline == 1) & (left_timeline == 1)
 
-    # Criar DataFrame amostrado (a cada 0.1s para não ficar muito grande)
+    # Criar DataFrame amostrado (a cada 0.1s para no ficar muito grande)
     sample_interval = max(1, int(fps / 10))  # ~10 amostras por segundo
     indices = list(range(0, total_frames, sample_interval))
 
@@ -366,7 +366,7 @@ def generate_timeline_data(blinks_right, blinks_left, total_frames, fps):
 
 def generate_velocity_distribution(blinks_right, blinks_left):
     """
-    Gera dados de distribuição de velocidade binocular.
+    Gera dados de distribuio de velocidade binocular.
 
     Returns:
         DataFrame com velocidades de fechamento e abertura por olho
@@ -398,10 +398,10 @@ def generate_velocity_distribution(blinks_right, blinks_left):
 
 def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
     """
-    Calcula estatísticas resumidas para um olho.
+    Calcula estatsticas resumidas para um olho.
 
     Returns:
-        Dicionário com métricas resumidas
+        Dicionrio com mtricas resumidas
     """
     if not blinks:
         return {
@@ -410,12 +410,12 @@ def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
             'Completas': 0,
             'Incompletas': 0,
             '% Completas': 0,
-            'Duração Média (s)': 0,
+            'Durao Mdia (s)': 0,
             'Taxa (piscadas/min)': 0,
-            'Amplitude Média': 0,
-            'RBA Médio (%)': 0,
-            'Vel. Fechamento Média': 0,
-            'Vel. Abertura Média': 0,
+            'Amplitude Mdia': 0,
+            'RBA Mdio (%)': 0,
+            'Vel. Fechamento Mdia': 0,
+            'Vel. Abertura Mdia': 0,
             'Baseline EAR': round(baseline_ear, 4)
         }
 
@@ -433,19 +433,19 @@ def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
         'Completas': completas,
         'Incompletas': incompletas,
         '% Completas': round((completas / total) * 100, 1) if total > 0 else 0,
-        'Duração Média (s)': round(df['Duracao (s)'].mean(), 3),
+        'Durao Mdia (s)': round(df['Duracao (s)'].mean(), 3),
         'Taxa (piscadas/min)': round(taxa, 1),
-        'Amplitude Média': round(df['Amplitude'].mean(), 4),
-        'RBA Médio (%)': round(df['RBA (%)'].mean(), 1),
-        'Vel. Fechamento Média': round(df['Vel. Fechamento (EAR/s)'].mean(), 4),
-        'Vel. Abertura Média': round(df['Vel. Abertura (EAR/s)'].mean(), 4),
+        'Amplitude Mdia': round(df['Amplitude'].mean(), 4),
+        'RBA Mdio (%)': round(df['RBA (%)'].mean(), 1),
+        'Vel. Fechamento Mdia': round(df['Vel. Fechamento (EAR/s)'].mean(), 4),
+        'Vel. Abertura Mdia': round(df['Vel. Abertura (EAR/s)'].mean(), 4),
         'Baseline EAR': round(baseline_ear, 4)
     }
 
 
 def generate_per_minute_report(blinks_right, blinks_left):
     """
-    Gera relatório de distribuição por minuto para cada olho.
+    Gera relatrio de distribuio por minuto para cada olho.
 
     Returns:
         DataFrame com contagem por minuto e olho
@@ -490,7 +490,7 @@ def generate_per_minute_report(blinks_right, blinks_left):
 
 def generate_ear_timeseries(ear_right, ear_left, fps):
     """
-    Gera série temporal de EAR para exportação.
+    Gera srie temporal de EAR para exportao.
 
     Returns:
         DataFrame com EAR por frame/tempo
@@ -498,7 +498,7 @@ def generate_ear_timeseries(ear_right, ear_left, fps):
     frames = list(range(len(ear_right)))
     times = [f / fps for f in frames]
 
-    # Amostrar para não ficar muito grande (a cada 0.05s)
+    # Amostrar para no ficar muito grande (a cada 0.05s)
     sample_interval = max(1, int(fps / 20))
     indices = list(range(0, len(frames), sample_interval))
 
@@ -512,11 +512,11 @@ def generate_ear_timeseries(ear_right, ear_left, fps):
 
 def read_fps_from_csv(csv_path):
     """
-    Lê o FPS da primeira linha do CSV.
+    L o FPS da primeira linha do CSV.
     Formato esperado: # FPS: <valor>
 
     Returns:
-        float: Valor do FPS ou None se não encontrado
+        float: Valor do FPS ou None se no encontrado
     """
     try:
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -532,52 +532,52 @@ def read_fps_from_csv(csv_path):
 
 def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override=None):
     """
-    Função principal de análise completa.
+    Funo principal de anlise completa.
 
     Args:
         csv_path: Caminho do arquivo CSV
-        output_path: Caminho do arquivo de saída (Excel ou JSON)
-        fps_override: FPS manual (se None, lê automaticamente do CSV)
-        csv_type_override: Forçar tipo de CSV ('all_points' ou 'eyes_only')
+        output_path: Caminho do arquivo de sada (Excel ou JSON)
+        fps_override: FPS manual (se None, l automaticamente do CSV)
+        csv_type_override: Forar tipo de CSV ('all_points' ou 'eyes_only')
     """
     print(f"{'='*60}")
-    print(f"ANÁLISE COMPLETA DE MÉTRICAS DE PISCADAS")
+    print(f"ANLISE COMPLETA DE MTRICAS DE PISCADAS")
     print(f"{'='*60}")
-    print(f"\n📂 Arquivo: {csv_path}")
+    print(f"\n Arquivo: {csv_path}")
 
     # 1. Detectar FPS automaticamente do CSV ou usar override
     fps = read_fps_from_csv(csv_path)
 
     if fps_override is not None:
         fps = fps_override
-        print(f"ℹ️  FPS manual: {fps}")
+        print(f"  FPS manual: {fps}")
     elif fps is not None:
-        print(f"ℹ️  FPS detectado do CSV: {fps}")
+        print(f"  FPS detectado do CSV: {fps}")
     else:
         fps = 30.0
-        print(f"⚠️  FPS não encontrado no CSV, usando padrão: {fps}")
+        print(f"  FPS no encontrado no CSV, usando padro: {fps}")
 
     # 2. Ler CSV
     try:
         df = pd.read_csv(csv_path, comment='#')
-        print(f"ℹ️  Total de frames: {len(df)}")
+        print(f"  Total de frames: {len(df)}")
     except Exception as e:
-        print(f"❌ Erro ao ler CSV: {e}")
+        print(f" Erro ao ler CSV: {e}")
         return
 
     # 3. Detectar tipo de CSV
     if csv_type_override:
         csv_type = csv_type_override
-        print(f"ℹ️  Tipo forçado: {csv_type}")
+        print(f"  Tipo forado: {csv_type}")
     else:
         csv_type = detect_csv_type(df)
         if csv_type is None:
-            print("❌ Tipo de CSV desconhecido. Use --tipo para especificar.")
+            print(" Tipo de CSV desconhecido. Use --tipo para especificar.")
             return
-        print(f"ℹ️  Tipo detectado: {'Full Mesh (478 pontos)' if csv_type == 'all_points' else 'Eyes Only (32 pontos)'}")
+        print(f"  Tipo detectado: {'Full Mesh (478 pontos)' if csv_type == 'all_points' else 'Eyes Only (32 pontos)'}")
 
     # 4. Calcular EAR para cada olho
-    print("\n🧮 Calculando EAR frame a frame...")
+    print("\n Calculando EAR frame a frame...")
     ear_right_raw, ear_left_raw = calculate_ear_series(df, csv_type)
 
     # Suavizar
@@ -589,18 +589,18 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     valid_left = ear_left[~np.isnan(ear_left)]
 
     if len(valid_right) == 0 or len(valid_left) == 0:
-        print("❌ Dados insuficientes para análise.")
+        print(" Dados insuficientes para anlise.")
         return
 
     baseline_right = np.percentile(valid_right, 90)
     baseline_left = np.percentile(valid_left, 90)
 
-    print(f"\n📊 Baselines calculados:")
+    print(f"\n Baselines calculados:")
     print(f"   Olho Direito: {baseline_right:.4f}")
     print(f"   Olho Esquerdo: {baseline_left:.4f}")
 
     # 6. Detectar piscadas por olho
-    print("\n🔎 Detectando piscadas...")
+    print("\n Detectando piscadas...")
     blinks_right = detect_blinks_single_eye(ear_right, fps, baseline_right, 'Direito')
     blinks_left = detect_blinks_single_eye(ear_left, fps, baseline_left, 'Esquerdo')
 
@@ -611,26 +611,26 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     synchronized = find_synchronized_blinks(blinks_right, blinks_left, fps)
     print(f"   Sincronizadas (binoculares): {len(synchronized)}")
 
-    # 8. Gerar estatísticas resumidas
+    # 8. Gerar estatsticas resumidas
     total_frames = len(df)
     stats_right = calculate_summary_stats(blinks_right, fps, total_frames, 'Direito', baseline_right)
     stats_left = calculate_summary_stats(blinks_left, fps, total_frames, 'Esquerdo', baseline_left)
 
-    # Estatísticas combinadas
+    # Estatsticas combinadas
     video_duration_min = (total_frames / fps) / 60
     total_blinks = len(blinks_right) + len(blinks_left)
 
     stats_combined = {
-        'Duração do Vídeo (s)': round(total_frames / fps, 2),
-        'Duração do Vídeo (min)': round(video_duration_min, 2),
+        'Durao do Vdeo (s)': round(total_frames / fps, 2),
+        'Durao do Vdeo (min)': round(video_duration_min, 2),
         'FPS': fps,
         'Total de Frames': total_frames,
         'Tipo CSV': csv_type,
         'Piscadas Sincronizadas': len(synchronized)
     }
 
-    # 9. Gerar relatórios
-    print("\n📝 Gerando relatórios...")
+    # 9. Gerar relatrios
+    print("\n Gerando relatrios...")
 
     # Combinar todas as piscadas para detalhamento
     all_blinks = blinks_right + blinks_left
@@ -643,19 +643,19 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     # Resumo por olho
     summary_df = pd.DataFrame([stats_right, stats_left])
 
-    # Informações gerais
+    # Informaes gerais
     info_df = pd.DataFrame([stats_combined])
 
     # Timeline
     timeline_df = generate_timeline_data(blinks_right, blinks_left, total_frames, fps)
 
-    # Distribuição de velocidade
+    # Distribuio de velocidade
     velocity_df = generate_velocity_distribution(blinks_right, blinks_left)
 
     # Por minuto
     per_minute_df = generate_per_minute_report(blinks_right, blinks_left)
 
-    # Série temporal EAR
+    # Srie temporal EAR
     ear_series_df = generate_ear_timeseries(ear_right, ear_left, fps)
 
     # 10. Salvar resultados
@@ -687,13 +687,13 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
-        print(f"\n✅ Resultados salvos em JSON: {output_path}")
+        print(f"\n Resultados salvos em JSON: {output_path}")
 
     else:
         # Exportar como Excel
         try:
             with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-                # Informações gerais
+                # Informaes gerais
                 info_df.to_excel(writer, sheet_name='Info', index=False)
 
                 # Resumo por olho
@@ -715,58 +715,58 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
                 if not per_minute_df.empty:
                     per_minute_df.to_excel(writer, sheet_name='Por Minuto', index=False)
 
-                # Distribuição de velocidade
+                # Distribuio de velocidade
                 if not velocity_df.empty:
                     velocity_df.to_excel(writer, sheet_name='Velocidades', index=False)
 
-                # Timeline (limitado para não ficar muito grande)
+                # Timeline (limitado para no ficar muito grande)
                 timeline_df.to_excel(writer, sheet_name='Timeline', index=False)
 
-                # Série EAR
+                # Srie EAR
                 ear_series_df.to_excel(writer, sheet_name='Serie EAR', index=False)
 
-            print(f"\n✅ Relatório Excel salvo: {output_path}")
+            print(f"\n Relatrio Excel salvo: {output_path}")
 
         except Exception as e:
-            print(f"❌ Erro ao salvar Excel: {e}")
+            print(f" Erro ao salvar Excel: {e}")
             return
 
     # 11. Imprimir resumo no console
     print(f"\n{'='*60}")
-    print("RESUMO DA ANÁLISE")
+    print("RESUMO DA ANLISE")
     print(f"{'='*60}")
-    print(f"\n📊 Olho Direito:")
+    print(f"\n Olho Direito:")
     print(f"   Total: {stats_right['Total Piscadas']} piscadas")
     print(f"   Completas: {stats_right['Completas']} ({stats_right['% Completas']}%)")
     print(f"   Incompletas: {stats_right['Incompletas']}")
     print(f"   Taxa: {stats_right['Taxa (piscadas/min)']} piscadas/min")
-    print(f"   Amplitude Média: {stats_right['Amplitude Média']}")
-    print(f"   Vel. Fechamento Média: {stats_right['Vel. Fechamento Média']} EAR/s")
-    print(f"   Vel. Abertura Média: {stats_right['Vel. Abertura Média']} EAR/s")
+    print(f"   Amplitude Mdia: {stats_right['Amplitude Mdia']}")
+    print(f"   Vel. Fechamento Mdia: {stats_right['Vel. Fechamento Mdia']} EAR/s")
+    print(f"   Vel. Abertura Mdia: {stats_right['Vel. Abertura Mdia']} EAR/s")
 
-    print(f"\n📊 Olho Esquerdo:")
+    print(f"\n Olho Esquerdo:")
     print(f"   Total: {stats_left['Total Piscadas']} piscadas")
     print(f"   Completas: {stats_left['Completas']} ({stats_left['% Completas']}%)")
     print(f"   Incompletas: {stats_left['Incompletas']}")
     print(f"   Taxa: {stats_left['Taxa (piscadas/min)']} piscadas/min")
-    print(f"   Amplitude Média: {stats_left['Amplitude Média']}")
-    print(f"   Vel. Fechamento Média: {stats_left['Vel. Fechamento Média']} EAR/s")
-    print(f"   Vel. Abertura Média: {stats_left['Vel. Abertura Média']} EAR/s")
+    print(f"   Amplitude Mdia: {stats_left['Amplitude Mdia']}")
+    print(f"   Vel. Fechamento Mdia: {stats_left['Vel. Fechamento Mdia']} EAR/s")
+    print(f"   Vel. Abertura Mdia: {stats_left['Vel. Abertura Mdia']} EAR/s")
 
-    print(f"\n🔗 Piscadas Sincronizadas: {len(synchronized)}")
+    print(f"\n Piscadas Sincronizadas: {len(synchronized)}")
     print(f"\n{'='*60}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Análise completa de métricas de piscadas a partir de CSV.",
+        description="Anlise completa de mtricas de piscadas a partir de CSV.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
-  # Básico (FPS lido automaticamente do CSV)
+  # Bsico (FPS lido automaticamente do CSV)
   python analisar_metricas_completas.py video.csv
 
-  # Forçar tipo all_points
+  # Forar tipo all_points
   python analisar_metricas_completas.py video_all_points.csv --tipo all_points
 
   # Override manual do FPS
@@ -786,30 +786,30 @@ Exemplos:
         "--tipo",
         choices=['all_points', 'eyes_only'],
         default=None,
-        help="Tipo de CSV (auto-detectado se não especificado)"
+        help="Tipo de CSV (auto-detectado se no especificado)"
     )
 
     parser.add_argument(
         "--fps",
         type=float,
         default=None,
-        help="FPS do vídeo (opcional - lido automaticamente da primeira linha do CSV)"
+        help="FPS do vdeo (opcional - lido automaticamente da primeira linha do CSV)"
     )
 
     parser.add_argument(
         "--saida",
         default=None,
-        help="Caminho do arquivo de saída (.xlsx ou .json). Padrão: <entrada>_metricas.xlsx"
+        help="Caminho do arquivo de sada (.xlsx ou .json). Padro: <entrada>_metricas.xlsx"
     )
 
     args = parser.parse_args()
 
     # Verificar se arquivo existe
     if not os.path.exists(args.csv_entrada):
-        print(f"❌ Arquivo não encontrado: {args.csv_entrada}")
+        print(f" Arquivo no encontrado: {args.csv_entrada}")
         sys.exit(1)
 
-    # Definir saída padrão
+    # Definir sada padro
     if args.saida is None:
         base = os.path.splitext(args.csv_entrada)[0]
         # Remover sufixo _all_points se existir para nome mais limpo
@@ -817,7 +817,7 @@ Exemplos:
             base = base[:-11]
         args.saida = f"{base}_metricas.xlsx"
 
-    # Executar análise
+    # Executar anlise
     analyze_complete(
         csv_path=args.csv_entrada,
         output_path=args.saida,
