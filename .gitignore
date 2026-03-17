@@ -58,3 +58,4 @@ env
 
 # Gráficos gerados
 /graficos/
+*.png
