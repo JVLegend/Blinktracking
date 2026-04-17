@@ -1,0 +1,5 @@
+Method,AUC_Mean,AUC_Std
+Original,0.8399,
+SMOTE,0.9462,
+Noise,0.8741,
+Bootstrap,0.8996,

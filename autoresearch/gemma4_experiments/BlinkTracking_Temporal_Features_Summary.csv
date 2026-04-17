@@ -1,0 +1,15 @@
+Feature,Description,Source_Sheet
+IBI_mean,Inter-blink interval mean (s),Todas Piscadas
+IBI_std,Inter-blink interval std (s),Todas Piscadas
+IBI_cv,Coefficient of variation IBI,Todas Piscadas
+Fatigue_index,Ratio of blinks per minute (last/first minute),Por Minuto
+Blink_rate_slope,Linear regression slope of blink rate over time,Por Minuto
+EAR_fft_peak_freq,Dominant frequency in EAR series (Hz),Serie EAR
+EAR_fft_peak_power,Power at dominant frequency,Serie EAR
+EAR_peak_count,Number of peaks in EAR series,Serie EAR
+Duration_mean,Mean blink duration (s),Todas Piscadas
+Duration_cv,CV of blink duration,Todas Piscadas
+Velocity_asymmetry,abs(vel_closing - vel_opening) / mean,Velocidades
+Amplitude_asymmetry,abs(amp_left - amp_right) / mean,Resumo por Olho
+RBA_mean,Relative Blink Amplitude mean (%),Todas Piscadas
+Completeness_ratio,Completas / Total,Resumo por Olho

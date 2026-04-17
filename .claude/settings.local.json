@@ -12,7 +12,10 @@
       "Bash(dir /s /b \"e:\\GitHub\\Blinktracking\\*.csv\")",
       "Bash(findstr:*)",
       "Bash(powershell -Command \"Get-Content | Select-Object -First 1\")",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ps aux:*)",
+      "Bash(sort:*)",
+      "Bash(vm_stat:*)"
     ],
     "deny": [],
     "ask": []

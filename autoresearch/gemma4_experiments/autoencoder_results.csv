@@ -1,0 +1,2 @@
+Method,AUC,Control_Error_Mean,Paralysis_Error_Mean,Error_Ratio
+Autoencoder,0.9214,0.2418,8.1935,33.88

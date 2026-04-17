@@ -1,0 +1,8 @@
+Model,AUC_CV,Features,Normalization,Notes
+Autoencoder,0.9214,8,zscore,Anomaly detection (treino em controles)
+SMOTE+SVM,0.9462,8,zscore,SMOTE antes do CV split (possivel leakage)
+Bootstrap+SVM,0.8996,8,zscore,Data augmentation via bootstrap
+Noise+SVM,0.8741,8,zscore,Data augmentation via Gaussian noise
+SVM_RBF_baseline,0.8399,8,zscore,8 features Resumo por Olho (n=136)
+SVM_legacy,0.8067,9,zscore,full_summary features (Gemma3)
+SVM_core,0.7617,3,minmax,core features basicas

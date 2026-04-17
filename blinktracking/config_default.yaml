@@ -1,0 +1,47 @@
+# Configuração Padrão do BlinkTracking
+# Copie este arquivo e ajuste conforme necessário
+
+version: "2.0.0"
+
+# Configuração dos landmarks dos olhos
+right_eye:
+  upper: [246, 161, 160, 159, 158, 157, 173]
+  lower: [33, 7, 163, 144, 145, 153, 154, 155, 133]
+  iris: [469, 470, 471, 472]
+  contour: [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
+  caruncula: 39  # Ponto de referência para normalização
+
+left_eye:
+  upper: [466, 388, 387, 386, 385, 384, 398]
+  lower: [263, 249, 390, 373, 374, 380, 381, 382, 362]
+  iris: [474, 475, 476, 477]
+  contour: [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
+  caruncula: 42  # Ponto de referência para normalização
+
+# Parâmetros de detecção
+detection:
+  static_image_mode: false
+  max_num_faces: 1
+  refine_landmarks: true
+  min_detection_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+# Parâmetros de filtragem
+filters:
+  enable_kalman: true
+  enable_moving_average: true
+  moving_average_window: 5
+  kalman_process_noise: 0.0001
+  kalman_measurement_noise: 0.01
+
+# Limites para detecção de piscadas
+thresholds:
+  blink_threshold_percent: 30.0    # Abaixo disso = piscada
+  complete_blink_threshold: 90.0   # Fechamento > 90% = piscada completa
+  min_blink_duration_ms: 100       # Duração mínima válida
+  max_blink_duration_ms: 400       # Duração máxima válida
+
+# Configurações de saída
+output_format: "csv"
+save_debug_video: false
+save_landmarks: true

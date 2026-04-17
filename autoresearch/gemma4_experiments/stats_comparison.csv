@@ -1,0 +1,7 @@
+Feature,U_statistic,p_value,Cohens_d,Effect_Size,Direction
+Total Piscadas,,0.00015,-0.82,large,Paralisia pisca MENOS
+Incompletas,,0.00009,-0.67,medium,Menos incompletas
+Completas,,0.002,-0.57,medium,Menos completas
+Vel. Abertura Mdia,,0.005,0.60,medium,Abertura MAIS RAPIDA
+Amplitude Mdia,,0.99,-0.17,negligible,Sem diferenca
+Baseline EAR,,0.15,0.29,small,Tendencia

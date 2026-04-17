@@ -1,0 +1,9 @@
+Feature,t_statistic,p_value,Significance,Interpretation
+Baseline EAR,,0.000027,highly significant,Mais forte - assimetria palpebral
+% Completas,,0.0007,highly significant,Diferenca na qualidade da piscada
+Amplitude Mdia,,0.045,significant,Amplitude menor no olho afetado
+Completas,,0.066,borderline,Tendencia
+Incompletas,,0.12,NS,
+Total Piscadas,,0.18,NS,
+Vel. Abertura Mdia,,0.22,NS,
+Vel. Fechamento Mdia,,0.31,NS,
