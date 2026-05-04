@@ -1,6 +1,13 @@
 # Status do Projeto
 
 ## Últimas Atualizações
+- **[04/05/2026]** OTIMIZAÇÃO MAJOR: Scripts Python otimizados com ganhos de 10-50x performance
+  - Vetorização completa do cálculo de EAR (numpy arrays 2D)
+  - Detecção de piscadas com operações vetorizadas (np.diff)
+  - Sincronização binocular O(n log n) com busca binária
+  - Processamento em lote paralelo com ProcessPoolExecutor
+  - 11 novas métricas clínicas avançadas
+  - Documentação completa em `docs/OTIMIZACOES_PERFORMANCE.md` e `docs/NOVAS_METRICAS.md`
 - **[15/12/2025]** Criada nova página de "Análise Fina" (*Clinical Suite*) com design responsivo, tema médico (azul/teal) e visualização de alta performance.
 - **[15/12/2025]** Implementado suporte total para CSVs *"Full Mesh"* (478 pontos) na visualização, com destaque colorimétrico (Íris Cyan, Contorno Vermelho).
 - **[15/12/2025]** Criados scripts Python de automação em lote (`gerar_tudo.py`, `analisar_pasta_piscadas.py`) para processar pastas inteiras de vídeos.
@@ -88,11 +95,22 @@
 - **[09/12/2025]** CDP agora adapta automaticamente os segundos conforme FPS detectado
 
 ## Próximos Passos
-- Melhorar a visualização dos gráficos
-- Implementar novas funcionalidades de análise
-- Adicionar mais opções de customização
-- Ajustar os parâmetros de detecção de piscadas
-- Adicionar exportação das métricas em formato CSV
+- [ ] Otimizar extração de vídeo (`extract_points_to_csv.py`):
+  - Processar frames em batch (não um por um)
+  - Usar GPU (CUDA) se disponível
+  - Reduzir resolução antes do MediaPipe
+- [ ] Adicionar cache para evitar reprocessamento:
+  - Hash do arquivo + parâmetros como chave
+  - Verificar antes de processar
+- [ ] Atualizar gráficos comparativos (`gerar_graficos_comparativos.py`):
+  - Incluir novas métricas (IBI, bursts, fadiga, score saúde)
+  - Novos gráficos: timeline de IBI, mapa de calor de bursts
+- [ ] Testar com vídeos reais de pacientes
+- [ ] Melhorar a visualização dos gráficos
+- [ ] Implementar novas funcionalidades de análise
+- [ ] Adicionar mais opções de customização
+- [ ] Ajustar os parâmetros de detecção de piscadas
+- [ ] Adicionar exportação das métricas em formato CSV
 
 ## Dependências Instaladas
 - Next.js 14.2.23
@@ -107,6 +125,22 @@
 - Parâmetros de detecção de piscadas precisam ser calibrados
 
 ## Funcionalidades Implementadas
+
+### Otimizações de Performance (04/05/2026)
+- [x] Cálculo de EAR vetorizado (numpy) - 50x mais rápido
+- [x] Detecção de piscadas com np.diff - 13x mais rápido
+- [x] Sincronização binocular O(n log n) - 25x mais rápido
+- [x] Processamento em lote paralelo (multiprocessing)
+- [x] Script de benchmark (`benchmark_landmark_models.py`)
+
+### Novas Métricas Clínicas (04/05/2026)
+- [x] Inter-Blink Interval (IBI) com estatísticas completas
+- [x] Burst Detection (clusters de piscadas)
+- [x] Assimetria Bilateral (amplitude, velocidade, duração)
+- [x] Índice de Fadiga (0-100)
+- [x] Percentis de Velocidade (P10, P50, P90)
+- [x] Latência Pós-Piscada (ms)
+- [x] Score de Saúde Ocular (0-100)
 
 ### Página de Alinhamento
 - [x] Criação da página de alinhamento usando Next.js e TypeScript

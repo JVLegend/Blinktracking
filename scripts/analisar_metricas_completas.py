@@ -136,29 +136,74 @@ def detect_csv_type(df):
 
 def calculate_ear_series(df, csv_type):
     """
-    Calcula sries de EAR para olho direito, esquerdo e mdia.
+    Calcula series de EAR para olho direito, esquerdo e media.
+    VETORIZADO - usa operacoes numpy em vez de iterrows (10-50x mais rapido).
 
     Returns:
         Tuple de (ear_right, ear_left, ear_avg) como arrays numpy
     """
-    ear_right = []
-    ear_left = []
+    n_frames = len(df)
+    ear_right = np.full(n_frames, np.nan, dtype=float)
+    ear_left = np.full(n_frames, np.nan, dtype=float)
 
-    for _, row in df.iterrows():
-        right_pts = get_eye_points_from_row(row, 'right', csv_type)
-        left_pts = get_eye_points_from_row(row, 'left', csv_type)
+    if csv_type == 'all_points':
+        # Indices oficiais MediaPipe (478 points) para EAR
+        right_indices = [33, 160, 158, 133, 153, 144]
+        left_indices = [362, 385, 387, 263, 373, 380]
 
-        if right_pts:
-            ear_right.append(calculate_ear(right_pts))
-        else:
-            ear_right.append(None)
+        # Extrair coordenadas como arrays numpy (n_frames, 6, 2)
+        right_x = np.array([df[f'point_{idx}_x'].values for idx in right_indices]).T
+        right_y = np.array([df[f'point_{idx}_y'].values for idx in right_indices]).T
+        left_x = np.array([df[f'point_{idx}_x'].values for idx in left_indices]).T
+        left_y = np.array([df[f'point_{idx}_y'].values for idx in left_indices]).T
 
-        if left_pts:
-            ear_left.append(calculate_ear(left_pts))
-        else:
-            ear_left.append(None)
+    elif csv_type == 'eyes_only':
+        # Mapeamento para formato simplificado (32 pontos)
+        right_cols = [
+            ('right_lower_1_x', 'right_lower_1_y'),
+            ('right_upper_3_x', 'right_upper_3_y'),
+            ('right_upper_5_x', 'right_upper_5_y'),
+            ('right_lower_9_x', 'right_lower_9_y'),
+            ('right_lower_6_x', 'right_lower_6_y'),
+            ('right_lower_4_x', 'right_lower_4_y'),
+        ]
+        left_cols = [
+            ('left_lower_1_x', 'left_lower_1_y'),
+            ('left_upper_3_x', 'left_upper_3_y'),
+            ('left_upper_5_x', 'left_upper_5_y'),
+            ('left_lower_9_x', 'left_lower_9_y'),
+            ('left_lower_6_x', 'left_lower_6_y'),
+            ('left_lower_4_x', 'left_lower_4_y'),
+        ]
 
-    return np.array(ear_right, dtype=float), np.array(ear_left, dtype=float)
+        right_x = np.array([df[cx].values for cx, cy in right_cols]).T
+        right_y = np.array([df[cy].values for cx, cy in right_cols]).T
+        left_x = np.array([df[cx].values for cx, cy in left_cols]).T
+        left_y = np.array([df[cy].values for cx, cy in left_cols]).T
+
+    else:
+        return ear_right, ear_left
+
+    # Calcular EAR vetorizado para ambos os olhos
+    # EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
+
+    # Distancias verticais
+    A_right = np.sqrt((right_x[:, 1] - right_x[:, 5])**2 + (right_y[:, 1] - right_y[:, 5])**2)
+    B_right = np.sqrt((right_x[:, 2] - right_x[:, 4])**2 + (right_y[:, 2] - right_y[:, 4])**2)
+    C_right = np.sqrt((right_x[:, 0] - right_x[:, 3])**2 + (right_y[:, 0] - right_y[:, 3])**2)
+
+    A_left = np.sqrt((left_x[:, 1] - left_x[:, 5])**2 + (left_y[:, 1] - left_y[:, 5])**2)
+    B_left = np.sqrt((left_x[:, 2] - left_x[:, 4])**2 + (left_y[:, 2] - left_y[:, 4])**2)
+    C_left = np.sqrt((left_x[:, 0] - left_x[:, 3])**2 + (left_y[:, 0] - left_y[:, 3])**2)
+
+    # Evitar divisao por zero
+    valid_right = C_right > 0
+    valid_left = C_left > 0
+
+    ear_right[valid_right] = (A_right[valid_right] + B_right[valid_right]) / (2.0 * C_right[valid_right])
+    ear_left[valid_left] = (A_left[valid_left] + B_left[valid_left]) / (2.0 * C_left[valid_left])
+
+    return ear_right, ear_left
 
 
 def smooth_ear_series(ear_series):
@@ -188,107 +233,114 @@ def smooth_ear_series(ear_series):
 
 def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
     """
-    Detecta piscadas em uma srie EAR de um nico olho.
+    Detecta piscadas em uma serie EAR de um unico olho.
+    OTIMIZADO: Usa operacoes vetorizadas numpy para deteccao rapida.
 
     Args:
         ear_smooth: Array de valores EAR suavizados
         fps: Frames por segundo
-        baseline_ear: Valor de referncia EAR (olho aberto)
-        eye_name: 'Direito' ou 'Esquerdo' para identificao
+        baseline_ear: Valor de referencia EAR (olho aberto)
+        eye_name: 'Direito' ou 'Esquerdo' para identificacao
 
     Returns:
-        Lista de dicionrios com dados de cada piscada
+        Lista de dicionarios com dados de cada piscada
     """
-    # Thresholds dinmicos baseados no baseline
-    EAR_THRESHOLD = baseline_ear * 0.75      # 75% = incio do fechamento
-    EAR_COMPLETE_LIMIT = baseline_ear * 0.50  # 50% = fechamento completo
+    # Thresholds dinamicos baseados no baseline
+    EAR_THRESHOLD = baseline_ear * 0.75
+    EAR_COMPLETE_LIMIT = baseline_ear * 0.50
     MIN_FRAMES = 2
     MIN_INTER_BLINK_TIME_SEC = 0.5
 
+    # Criar mascara de piscada (EAR abaixo do threshold)
+    valid_mask = ~np.isnan(ear_smooth)
+    below_threshold = (ear_smooth < EAR_THRESHOLD) & valid_mask
+
+    if not np.any(below_threshold):
+        return []
+
+    # Encontrar segmentos continuos abaixo do threshold
+    # diff encontra as transicoes: inicio=1, fim=-1
+    diff = np.diff(below_threshold.astype(int))
+    start_indices = np.where(diff == 1)[0] + 1
+    end_indices = np.where(diff == -1)[0] + 1
+
+    # Ajustar bordas
+    if below_threshold[0]:
+        start_indices = np.concatenate([[0], start_indices])
+    if below_threshold[-1]:
+        end_indices = np.concatenate([end_indices, [len(ear_smooth)]])
+
     blinks = []
-    in_blink = False
-    start_frame = 0
-    min_ear_in_blink = 1.0
-    min_ear_frame_idx = 0
     last_blink_end_frame = -9999
 
-    for i in range(len(ear_smooth)):
-        ear = ear_smooth[i]
-        if np.isnan(ear):
+    for start_frame, end_frame in zip(start_indices, end_indices):
+        duration_frames = end_frame - start_frame
+
+        if duration_frames < MIN_FRAMES:
             continue
 
-        if not in_blink:
-            if ear < EAR_THRESHOLD:
-                in_blink = True
-                start_frame = i
-                min_ear_in_blink = ear
-                min_ear_frame_idx = i
-        else:
-            if ear < min_ear_in_blink:
-                min_ear_in_blink = ear
-                min_ear_frame_idx = i
+        # Periodo refratario
+        time_since_last = (start_frame - last_blink_end_frame) / fps
+        if time_since_last < MIN_INTER_BLINK_TIME_SEC:
+            continue
 
-            if ear >= EAR_THRESHOLD:
-                # Fim da piscada
-                end_frame = i
-                duration_frames = end_frame - start_frame
+        # Encontrar minimo EAR no segmento
+        segment = ear_smooth[start_frame:end_frame]
+        valid_segment = segment[~np.isnan(segment)]
+        if len(valid_segment) == 0:
+            continue
 
-                if duration_frames >= MIN_FRAMES:
-                    time_since_last = (start_frame - last_blink_end_frame) / fps
+        min_ear_in_blink = np.min(valid_segment)
+        min_ear_frame_idx = start_frame + np.argmin(segment)
 
-                    if time_since_last >= MIN_INTER_BLINK_TIME_SEC:
-                        # Classificar
-                        category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
+        # Classificar
+        category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
 
-                        # Calcular tempos e cinemtica
-                        start_time = start_frame / fps
-                        end_time = end_frame / fps
-                        duration_sec = (end_frame - start_frame) / fps
+        # Tempos
+        start_time = start_frame / fps
+        end_time = end_frame / fps
+        duration_sec = duration_frames / fps
 
-                        # Amplitude = diferena entre baseline e mnimo
-                        amplitude = baseline_ear - min_ear_in_blink
+        # Amplitude
+        amplitude = baseline_ear - min_ear_in_blink
 
-                        # Fase de fechamento: do incio at o mnimo
-                        closing_frames = min_ear_frame_idx - start_frame
-                        closing_duration = closing_frames / fps if closing_frames > 0 else 0.001
+        # Fases
+        closing_frames = min_ear_frame_idx - start_frame
+        closing_duration = closing_frames / fps if closing_frames > 0 else 0.001
 
-                        # Fase de abertura: do mnimo at o fim
-                        opening_frames = end_frame - min_ear_frame_idx
-                        opening_duration = opening_frames / fps if opening_frames > 0 else 0.001
+        opening_frames = end_frame - min_ear_frame_idx
+        opening_duration = opening_frames / fps if opening_frames > 0 else 0.001
 
-                        # Velocidades (EAR/segundo)
-                        closing_speed = amplitude / closing_duration if closing_duration > 0 else 0
-                        opening_speed = amplitude / opening_duration if opening_duration > 0 else 0
+        # Velocidades
+        closing_speed = amplitude / closing_duration if closing_duration > 0 else 0
+        opening_speed = amplitude / opening_duration if opening_duration > 0 else 0
 
-                        # RBA - Relative Blink Amplitude (%)
-                        rba = (amplitude / baseline_ear) * 100 if baseline_ear > 0 else 0
+        # RBA
+        rba = (amplitude / baseline_ear) * 100 if baseline_ear > 0 else 0
 
-                        blink_data = {
-                            'ID': len(blinks) + 1,
-                            'Olho': eye_name,
-                            'Frame Inicio': start_frame,
-                            'Frame Minimo': min_ear_frame_idx,
-                            'Frame Fim': end_frame,
-                            'Tempo Inicio (s)': round(start_time, 3),
-                            'Tempo Fim (s)': round(end_time, 3),
-                            'Duracao (s)': round(duration_sec, 3),
-                            'Duracao (frames)': duration_frames,
-                            'EAR Minimo': round(min_ear_in_blink, 4),
-                            'EAR Baseline': round(baseline_ear, 4),
-                            'Amplitude': round(amplitude, 4),
-                            'RBA (%)': round(rba, 1),
-                            'Vel. Fechamento (EAR/s)': round(closing_speed, 4),
-                            'Vel. Abertura (EAR/s)': round(opening_speed, 4),
-                            'Tempo Fechamento (s)': round(closing_duration, 3),
-                            'Tempo Abertura (s)': round(opening_duration, 3),
-                            'Classificacao': category,
-                            'Minuto': int(start_time // 60) + 1
-                        }
-                        blinks.append(blink_data)
-                        last_blink_end_frame = end_frame
+        blinks.append({
+            'ID': len(blinks) + 1,
+            'Olho': eye_name,
+            'Frame Inicio': int(start_frame),
+            'Frame Minimo': int(min_ear_frame_idx),
+            'Frame Fim': int(end_frame),
+            'Tempo Inicio (s)': round(start_time, 3),
+            'Tempo Fim (s)': round(end_time, 3),
+            'Duracao (s)': round(duration_sec, 3),
+            'Duracao (frames)': int(duration_frames),
+            'EAR Minimo': round(min_ear_in_blink, 4),
+            'EAR Baseline': round(baseline_ear, 4),
+            'Amplitude': round(amplitude, 4),
+            'RBA (%)': round(rba, 1),
+            'Vel. Fechamento (EAR/s)': round(closing_speed, 4),
+            'Vel. Abertura (EAR/s)': round(opening_speed, 4),
+            'Tempo Fechamento (s)': round(closing_duration, 3),
+            'Tempo Abertura (s)': round(opening_duration, 3),
+            'Classificacao': category,
+            'Minuto': int(start_time // 60) + 1
+        })
 
-                in_blink = False
-                min_ear_in_blink = 1.0
+        last_blink_end_frame = end_frame
 
     return blinks
 
@@ -296,31 +348,49 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
 def find_synchronized_blinks(blinks_right, blinks_left, fps, tolerance_frames=5):
     """
     Identifica piscadas sincronizadas (binoculares) entre os dois olhos.
+    OTIMIZADO: O(n log n) com busca binaria em vez de O(n^2).
 
     Args:
         blinks_right: Lista de piscadas do olho direito
         blinks_left: Lista de piscadas do olho esquerdo
         fps: Frames por segundo
-        tolerance_frames: Tolerncia em frames para considerar sincronizado
+        tolerance_frames: Tolerancia em frames para considerar sincronizado
 
     Returns:
         Lista de tuplas (blink_right, blink_left) sincronizadas
     """
+    if not blinks_right or not blinks_left:
+        return []
+
+    # Ordenar piscadas pelo frame de inicio
+    left_sorted = sorted(enumerate(blinks_left), key=lambda x: x[1]['Frame Inicio'])
+    left_starts = np.array([bl['Frame Inicio'] for _, bl in left_sorted])
+
     synchronized = []
     used_left = set()
 
     for br in blinks_right:
-        for i, bl in enumerate(blinks_left):
-            if i in used_left:
-                continue
+        br_start = br['Frame Inicio']
 
-            # Verifica sobreposio temporal
-            start_diff = abs(br['Frame Inicio'] - bl['Frame Inicio'])
+        # Buscar piscadas do olho esquerdo dentro da tolerancia usando busca binaria
+        idx = np.searchsorted(left_starts, br_start)
 
-            if start_diff <= tolerance_frames:
-                synchronized.append((br, bl))
-                used_left.add(i)
-                break
+        # Verificar vizinhos proximos
+        candidates = []
+        for offset in [-1, 0, 1]:
+            check_idx = idx + offset
+            if 0 <= check_idx < len(left_sorted) and check_idx not in used_left:
+                actual_idx, bl = left_sorted[check_idx]
+                start_diff = abs(br_start - bl['Frame Inicio'])
+                if start_diff <= tolerance_frames:
+                    candidates.append((start_diff, actual_idx, bl))
+
+        if candidates:
+            # Escolher a piscada mais proxima
+            candidates.sort(key=lambda x: x[0])
+            _, best_idx, best_bl = candidates[0]
+            synchronized.append((br, best_bl))
+            used_left.add(best_idx)
 
     return synchronized
 
@@ -394,6 +464,364 @@ def generate_velocity_distribution(blinks_right, blinks_left):
         })
 
     return pd.DataFrame(data)
+
+
+def calculate_ibi_stats(blinks, fps):
+    """
+    Calcula estatisticas do Inter-Blink Interval (IBI).
+    IBI eh o tempo entre piscadas consecutivas.
+
+    Returns:
+        Dicionario com metricas de IBI
+    """
+    if not blinks or len(blinks) < 2:
+        return {
+            'IBI Medio (s)': 0,
+            'IBI Mediana (s)': 0,
+            'IBI Desvio Padrao (s)': 0,
+            'IBI Minimo (s)': 0,
+            'IBI Maximo (s)': 0,
+            'IBI CV (%)': 0,
+            'IBI P10 (s)': 0,
+            'IBI P90 (s)': 0
+        }
+
+    # Extrair frames de inicio e calcular intervalos
+    start_frames = sorted([b['Frame Inicio'] for b in blinks])
+    ibi_frames = np.diff(start_frames)
+    ibi_seconds = ibi_frames / fps
+
+    return {
+        'IBI Medio (s)': round(np.mean(ibi_seconds), 3),
+        'IBI Mediana (s)': round(np.median(ibi_seconds), 3),
+        'IBI Desvio Padrao (s)': round(np.std(ibi_seconds), 3),
+        'IBI Minimo (s)': round(np.min(ibi_seconds), 3),
+        'IBI Maximo (s)': round(np.max(ibi_seconds), 3),
+        'IBI CV (%)': round((np.std(ibi_seconds) / np.mean(ibi_seconds)) * 100, 1) if np.mean(ibi_seconds) > 0 else 0,
+        'IBI P10 (s)': round(np.percentile(ibi_seconds, 10), 3),
+        'IBI P90 (s)': round(np.percentile(ibi_seconds, 90), 3)
+    }
+
+
+def detect_blink_bursts(blinks, fps, max_interval_sec=2.0, min_blinks=3):
+    """
+    Detecta clusters/bursts de piscadas (piscadas rapidas em sequencia).
+
+    Args:
+        blinks: Lista de piscadas
+        fps: Frames por segundo
+        max_interval_sec: Intervalo maximo entre piscadas no burst
+        min_blinks: Minimo de piscadas para considerar burst
+
+    Returns:
+        Lista de dicionarios com dados de cada burst
+    """
+    if not blinks or len(blinks) < min_blinks:
+        return []
+
+    # Ordenar piscadas por tempo
+    sorted_blinks = sorted(blinks, key=lambda b: b['Tempo Inicio (s)'])
+
+    bursts = []
+    current_burst = [sorted_blinks[0]]
+
+    for i in range(1, len(sorted_blinks)):
+        interval = sorted_blinks[i]['Tempo Inicio (s)'] - sorted_blinks[i-1]['Tempo Inicio (s)']
+
+        if interval <= max_interval_sec:
+            current_burst.append(sorted_blinks[i])
+        else:
+            if len(current_burst) >= min_blinks:
+                burst_data = {
+                    'Inicio (s)': round(current_burst[0]['Tempo Inicio (s)'], 3),
+                    'Fim (s)': round(current_burst[-1]['Tempo Fim (s)'], 3),
+                    'Duracao (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
+                    'Numero Piscadas': len(current_burst),
+                    'Taxa no Burst (piscadas/min)': round(len(current_burst) / ((current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) / 60), 1) if (current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) > 0 else 0,
+                    'Amplitude Media': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
+                    '% Completas': round(sum(1 for b in current_burst if b['Classificacao'] == 'Completa') / len(current_burst) * 100, 1)
+                }
+                bursts.append(burst_data)
+            current_burst = [sorted_blinks[i]]
+
+    # Verificar ultimo burst
+    if len(current_burst) >= min_blinks:
+        burst_data = {
+            'Inicio (s)': round(current_burst[0]['Tempo Inicio (s)'], 3),
+            'Fim (s)': round(current_burst[-1]['Tempo Fim (s)'], 3),
+            'Duracao (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
+            'Numero Piscadas': len(current_burst),
+            'Taxa no Burst (piscadas/min)': round(len(current_burst) / ((current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) / 60), 1) if (current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) > 0 else 0,
+            'Amplitude Media': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
+            '% Completas': round(sum(1 for b in current_burst if b['Classificacao'] == 'Completa') / len(current_burst) * 100, 1)
+        }
+        bursts.append(burst_data)
+
+    return bursts
+
+
+def calculate_amplitude_asymmetry(blinks_right, blinks_left):
+    """
+    Calcula assimetria de amplitude entre olhos.
+
+    Returns:
+        Dicionario com metricas de assimetria
+    """
+    if not blinks_right or not blinks_left:
+        return {
+            'Assimetria Amplitude (%)': 0,
+            'Assimetria Velocidade Fechamento (%)': 0,
+            'Assimetria Velocidade Abertura (%)': 0,
+            'Assimetria Duracao (%)': 0,
+            'Correlacao Amplitude': 0
+        }
+
+    # Amplitudes medias
+    amp_right = np.mean([b['Amplitude'] for b in blinks_right])
+    amp_left = np.mean([b['Amplitude'] for b in blinks_left])
+    max_amp = max(amp_right, amp_left)
+
+    # Velocidades medias
+    vel_fech_right = np.mean([b['Vel. Fechamento (EAR/s)'] for b in blinks_right])
+    vel_fech_left = np.mean([b['Vel. Fechamento (EAR/s)'] for b in blinks_left])
+    max_vel_fech = max(vel_fech_right, vel_fech_left)
+
+    vel_abert_right = np.mean([b['Vel. Abertura (EAR/s)'] for b in blinks_right])
+    vel_abert_left = np.mean([b['Vel. Abertura (EAR/s)'] for b in blinks_left])
+    max_vel_abert = max(vel_abert_right, vel_abert_left)
+
+    # Durações médias
+    dur_right = np.mean([b['Duracao (s)'] for b in blinks_right])
+    dur_left = np.mean([b['Duracao (s)'] for b in blinks_left])
+    max_dur = max(dur_right, dur_left)
+
+    # Correlacao de amplitude (se houver piscadas sincronizadas suficientes)
+    corr_amp = 0
+    if len(blinks_right) > 2 and len(blinks_left) > 2:
+        try:
+            # Usar as primeiras N piscadas de cada olho (ate o minimo)
+            n = min(len(blinks_right), len(blinks_left), 20)
+            amps_r = [blinks_right[i]['Amplitude'] for i in range(n)]
+            amps_l = [blinks_left[i]['Amplitude'] for i in range(n)]
+            corr_amp = round(float(np.corrcoef(amps_r, amps_l)[0, 1]), 3)
+        except:
+            corr_amp = 0
+
+    return {
+        'Assimetria Amplitude (%)': round(abs(amp_right - amp_left) / max_amp * 100, 1) if max_amp > 0 else 0,
+        'Assimetria Velocidade Fechamento (%)': round(abs(vel_fech_right - vel_fech_left) / max_vel_fech * 100, 1) if max_vel_fech > 0 else 0,
+        'Assimetria Velocidade Abertura (%)': round(abs(vel_abert_right - vel_abert_left) / max_vel_abert * 100, 1) if max_vel_abert > 0 else 0,
+        'Assimetria Duracao (%)': round(abs(dur_right - dur_left) / max_dur * 100, 1) if max_dur > 0 else 0,
+        'Correlacao Amplitude': corr_amp
+    }
+
+
+def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
+    """
+    Calcula indice de fadiga baseado na tendencia temporal das piscadas.
+    Fadiga tipica: aumento da taxa de piscadas incompletas, aumento da duracao,
+    diminuicao da amplitude ao longo do tempo.
+
+    Returns:
+        Dicionario com metricas de fadiga
+    """
+    if not blinks or len(blinks) < 5:
+        return {
+            'Indice Fadiga': 0,
+            'Tendencia Taxa (piscadas/min/min)': 0,
+            'Tendencia Amplitude': 0,
+            'Tendencia Duracao': 0,
+            'Razao Incompletas Final/Inicial': 0
+        }
+
+    df = pd.DataFrame(blinks)
+
+    # Dividir em duas metades
+    mid_time = df['Tempo Inicio (s)'].median()
+    first_half = df[df['Tempo Inicio (s)'] <= mid_time]
+    second_half = df[df['Tempo Inicio (s)'] > mid_time]
+
+    if len(first_half) == 0 or len(second_half) == 0:
+        return {
+            'Indice Fadiga': 0,
+            'Tendencia Taxa (piscadas/min/min)': 0,
+            'Tendencia Amplitude': 0,
+            'Tendencia Duracao': 0,
+            'Razao Incompletas Final/Inicial': 0
+        }
+
+    # Metricas por metade
+    taxa_first = len(first_half) / (mid_time / 60) if mid_time > 0 else 0
+    taxa_second = len(second_half) / ((total_frames / fps - mid_time) / 60) if (total_frames / fps - mid_time) > 0 else 0
+
+    amp_first = first_half['Amplitude'].mean()
+    amp_second = second_half['Amplitude'].mean()
+
+    dur_first = first_half['Duracao (s)'].mean()
+    dur_second = second_half['Duracao (s)'].mean()
+
+    incompleta_first = len(first_half[first_half['Classificacao'] == 'Incompleta']) / len(first_half) if len(first_half) > 0 else 0
+    incompleta_second = len(second_half[second_half['Classificacao'] == 'Incompleta']) / len(second_half) if len(second_half) > 0 else 0
+
+    # Tendencias (coeficiente angular simples)
+    # Para taxa: dividir em quartos
+    df_sorted = df.sort_values('Tempo Inicio (s)')
+    n = len(df_sorted)
+    if n >= 4:
+        chunk_size = n // 4
+        taxas_quartis = []
+        for i in range(4):
+            start_idx = i * chunk_size
+            end_idx = (i + 1) * chunk_size if i < 3 else n
+            chunk = df_sorted.iloc[start_idx:end_idx]
+            if len(chunk) > 0:
+                duracao_min = (chunk['Tempo Fim (s)'].max() - chunk['Tempo Inicio (s)'].min()) / 60
+                if duracao_min > 0:
+                    taxas_quartis.append(len(chunk) / duracao_min)
+                else:
+                    taxas_quartis.append(0)
+            else:
+                taxas_quartis.append(0)
+        tendencia_taxa = np.polyfit(range(4), taxas_quartis, 1)[0] if len([t for t in taxas_quartis if t > 0]) >= 2 else 0
+    else:
+        tendencia_taxa = 0
+
+    # Indice composto de fadiga (0-100)
+    # Aumento de incompletas = +40, diminuicao de amplitude = +30, aumento duracao = +20, aumento taxa = +10
+    fatores = []
+    if incompleta_first > 0:
+        fatores.append(min(40, (incompleta_second / incompleta_first - 1) * 40))
+    if amp_first > 0:
+        fatores.append(min(30, (1 - amp_second / amp_first) * 30))
+    if dur_first > 0:
+        fatores.append(min(20, (dur_second / dur_first - 1) * 20))
+    if taxa_first > 0:
+        fatores.append(min(10, (taxa_second / taxa_first - 1) * 10))
+
+    fatigue_index = sum(fatores)
+
+    return {
+        'Indice Fadiga': round(fatigue_index, 1),
+        'Tendencia Taxa (piscadas/min/min)': round(tendencia_taxa, 3),
+        'Tendencia Amplitude': round(amp_second - amp_first, 4),
+        'Tendencia Duracao': round(dur_second - dur_first, 3),
+        'Razao Incompletas Final/Inicial': round(incompleta_second / incompleta_first, 2) if incompleta_first > 0 else 0
+    }
+
+
+def calculate_velocity_percentiles(blinks):
+    """
+    Calcula percentis das velocidades de fechamento e abertura.
+
+    Returns:
+        Dicionario com percentis P10, P50, P90
+    """
+    if not blinks:
+        return {
+            'Vel Fech P10': 0, 'Vel Fech P50': 0, 'Vel Fech P90': 0,
+            'Vel Abert P10': 0, 'Vel Abert P50': 0, 'Vel Abert P90': 0
+        }
+
+    vel_fech = [b['Vel. Fechamento (EAR/s)'] for b in blinks]
+    vel_abert = [b['Vel. Abertura (EAR/s)'] for b in blinks]
+
+    return {
+        'Vel Fech P10': round(np.percentile(vel_fech, 10), 4),
+        'Vel Fech P50': round(np.percentile(vel_fech, 50), 4),
+        'Vel Fech P90': round(np.percentile(vel_fech, 90), 4),
+        'Vel Abert P10': round(np.percentile(vel_abert, 10), 4),
+        'Vel Abert P50': round(np.percentile(vel_abert, 50), 4),
+        'Vel Abert P90': round(np.percentile(vel_abert, 90), 4)
+    }
+
+
+def calculate_post_blink_latency(ear_series, blinks, fps, baseline_ear):
+    """
+    Calcula latencia para estabilizacao do EAR apos cada piscada.
+    Tempo ate o EAR retornar a 95% do baseline.
+
+    Returns:
+        Lista de latencias e estatisticas
+    """
+    if not blinks or len(ear_series) == 0:
+        return {'Latencia Media (ms)': 0, 'Latencia Mediana (ms)': 0}
+
+    latencies = []
+    target_ear = baseline_ear * 0.95
+
+    for blink in blinks:
+        end_frame = blink['Frame Fim']
+        # Procurar ate 30 frames (1s a 30fps) apos o fim
+        for offset in range(1, min(31, len(ear_series) - end_frame)):
+            if ear_series[end_frame + offset] >= target_ear:
+                latencies.append(offset / fps * 1000)  # ms
+                break
+        else:
+            # Nao estabilizou no periodo
+            latencies.append(30 / fps * 1000)
+
+    return {
+        'Latencia Media (ms)': round(np.mean(latencies), 1) if latencies else 0,
+        'Latencia Mediana (ms)': round(np.median(latencies), 1) if latencies else 0,
+        'Latencia Max (ms)': round(np.max(latencies), 1) if latencies else 0
+    }
+
+
+def calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue):
+    """
+    Calcula score composto de saude ocular (0-100).
+    Baseado em: taxa normal, simetria, baixa fadiga, amplitude adequada.
+
+    Returns:
+        Score (0-100) e componentes
+    """
+    score = 100
+
+    # Taxa ideal: 10-20 piscadas/min
+    taxa_media = (stats_right['Taxa (piscadas/min)'] + stats_left['Taxa (piscadas/min)']) / 2
+    if taxa_media < 5:
+        score -= 20
+    elif taxa_media < 10:
+        score -= 10
+    elif taxa_media > 25:
+        score -= 15
+
+    # Simetria: ideal < 20%
+    assimetria_amp = asymmetry.get('Assimetria Amplitude (%)', 0)
+    if assimetria_amp > 30:
+        score -= 20
+    elif assimetria_amp > 20:
+        score -= 10
+
+    # Fadiga: ideal < 30
+    indice_fadiga = fatigue.get('Indice Fadiga', 0)
+    if indice_fadiga > 50:
+        score -= 20
+    elif indice_fadiga > 30:
+        score -= 10
+
+    # Amplitude: ideal > 0.1
+    amp_media = (stats_right['Amplitude Mdia'] + stats_left['Amplitude Mdia']) / 2
+    if amp_media < 0.05:
+        score -= 15
+    elif amp_media < 0.08:
+        score -= 5
+
+    # Completude: ideal > 80%
+    comp_media = (stats_right['% Completas'] + stats_left['% Completas']) / 2
+    if comp_media < 50:
+        score -= 15
+    elif comp_media < 70:
+        score -= 5
+
+    return {
+        'Score Saude Ocular': round(max(0, score), 1),
+        'Componente Taxa': round(max(0, 100 - abs(taxa_media - 15) * 2), 1),
+        'Componente Simetria': round(max(0, 100 - assimetria_amp * 2), 1),
+        'Componente Fadiga': round(max(0, 100 - indice_fadiga * 1.5), 1),
+        'Componente Amplitude': round(min(100, amp_media * 1000), 1),
+        'Componente Completude': round(comp_media, 1)
+    }
 
 
 def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
@@ -616,6 +1044,40 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     stats_right = calculate_summary_stats(blinks_right, fps, total_frames, 'Direito', baseline_right)
     stats_left = calculate_summary_stats(blinks_left, fps, total_frames, 'Esquerdo', baseline_left)
 
+    # NOVAS METRICAS AVANCADAS
+    print("\n Calculando metricas avancadas...")
+
+    # IBI (Inter-Blink Interval)
+    ibi_right = calculate_ibi_stats(blinks_right, fps)
+    ibi_left = calculate_ibi_stats(blinks_left, fps)
+    print(f"   IBI medio - Direito: {ibi_right['IBI Medio (s)']}s | Esquerdo: {ibi_left['IBI Medio (s)']}s")
+
+    # Bursts (clusters de piscadas)
+    bursts_right = detect_blink_bursts(blinks_right, fps)
+    bursts_left = detect_blink_bursts(blinks_left, fps)
+    print(f"   Bursts detectados - Direito: {len(bursts_right)} | Esquerdo: {len(bursts_left)}")
+
+    # Assimetria entre olhos
+    asymmetry = calculate_amplitude_asymmetry(blinks_right, blinks_left)
+    print(f"   Assimetria amplitude: {asymmetry['Assimetria Amplitude (%)']}%")
+
+    # Fadiga
+    all_blinks_sorted = sorted(blinks_right + blinks_left, key=lambda b: b['Tempo Inicio (s)'])
+    fatigue = calculate_fatigue_index(all_blinks_sorted, ear_right, fps, total_frames)
+    print(f"   Indice de fadiga: {fatigue['Indice Fadiga']}/100")
+
+    # Percentis de velocidade
+    vel_percentiles_right = calculate_velocity_percentiles(blinks_right)
+    vel_percentiles_left = calculate_velocity_percentiles(blinks_left)
+
+    # Latencia pos-piscada
+    latency_right = calculate_post_blink_latency(ear_right, blinks_right, fps, baseline_right)
+    latency_left = calculate_post_blink_latency(ear_left, blinks_left, fps, baseline_left)
+
+    # Score de saude ocular
+    health_score = calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue)
+    print(f"   Score de saude ocular: {health_score['Score Saude Ocular']}/100")
+
     # Estatsticas combinadas
     video_duration_min = (total_frames / fps) / 60
     total_blinks = len(blinks_right) + len(blinks_left)
@@ -626,7 +1088,9 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
         'FPS': fps,
         'Total de Frames': total_frames,
         'Tipo CSV': csv_type,
-        'Piscadas Sincronizadas': len(synchronized)
+        'Piscadas Sincronizadas': len(synchronized),
+        'Score Saude Ocular': health_score['Score Saude Ocular'],
+        'Indice Fadiga': fatigue['Indice Fadiga']
     }
 
     # 9. Gerar relatrios
@@ -658,6 +1122,39 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     # Srie temporal EAR
     ear_series_df = generate_ear_timeseries(ear_right, ear_left, fps)
 
+    # NOVOS DATAFRAMES
+    # IBI
+    ibi_data = {'Mtrica': list(ibi_right.keys())}
+    ibi_data['Direito'] = list(ibi_right.values())
+    ibi_data['Esquerdo'] = [ibi_left[k] for k in ibi_right.keys()]
+    ibi_df = pd.DataFrame(ibi_data)
+
+    # Bursts
+    bursts_df = pd.DataFrame(bursts_right + bursts_left) if (bursts_right or bursts_left) else pd.DataFrame()
+    if not bursts_df.empty:
+        bursts_df['Olho'] = ['Direito'] * len(bursts_right) + ['Esquerdo'] * len(bursts_left)
+
+    # Assimetria
+    asymmetry_df = pd.DataFrame([asymmetry])
+
+    # Fadiga
+    fatigue_df = pd.DataFrame([fatigue])
+
+    # Percentis de velocidade
+    vel_pct_data = {'Mtrica': list(vel_percentiles_right.keys())}
+    vel_pct_data['Direito'] = list(vel_percentiles_right.values())
+    vel_pct_data['Esquerdo'] = [vel_percentiles_left[k] for k in vel_percentiles_right.keys()]
+    vel_pct_df = pd.DataFrame(vel_pct_data)
+
+    # Latencia
+    latency_data = {'Mtrica': list(latency_right.keys())}
+    latency_data['Direito'] = list(latency_right.values())
+    latency_data['Esquerdo'] = [latency_left[k] for k in latency_right.keys()]
+    latency_df = pd.DataFrame(latency_data)
+
+    # Score saude
+    health_df = pd.DataFrame([health_score])
+
     # 10. Salvar resultados
     output_ext = os.path.splitext(output_path)[1].lower()
 
@@ -673,12 +1170,16 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
                 'tipo_csv': csv_type
             },
             'resumo': {
-                'direito': stats_right,
-                'esquerdo': stats_left,
-                'piscadas_sincronizadas': len(synchronized)
+                'direito': {**stats_right, **ibi_right, **vel_percentiles_right, **latency_right},
+                'esquerdo': {**stats_left, **ibi_left, **vel_percentiles_left, **latency_left},
+                'piscadas_sincronizadas': len(synchronized),
+                'assimetria': asymmetry,
+                'fadiga': fatigue,
+                'score_saude_ocular': health_score
             },
             'piscadas_direito': blinks_right,
             'piscadas_esquerdo': blinks_left,
+            'bursts': bursts_df.to_dict('records') if not bursts_df.empty else [],
             'por_minuto': per_minute_df.to_dict('records') if not per_minute_df.empty else [],
             'timeline': timeline_df.to_dict('records'),
             'distribuicao_velocidade': velocity_df.to_dict('records') if not velocity_df.empty else []
@@ -696,8 +1197,30 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
                 # Informaes gerais
                 info_df.to_excel(writer, sheet_name='Info', index=False)
 
+                # Score de Saude Ocular
+                health_df.to_excel(writer, sheet_name='Score Saude Ocular', index=False)
+
                 # Resumo por olho
                 summary_df.to_excel(writer, sheet_name='Resumo por Olho', index=False)
+
+                # IBI
+                ibi_df.to_excel(writer, sheet_name='IBI', index=False)
+
+                # Percentis Velocidade
+                vel_pct_df.to_excel(writer, sheet_name='Percentis Velocidade', index=False)
+
+                # Latencia Pos-Piscada
+                latency_df.to_excel(writer, sheet_name='Latencia', index=False)
+
+                # Assimetria
+                asymmetry_df.to_excel(writer, sheet_name='Assimetria', index=False)
+
+                # Fadiga
+                fatigue_df.to_excel(writer, sheet_name='Fadiga', index=False)
+
+                # Bursts
+                if not bursts_df.empty:
+                    bursts_df.to_excel(writer, sheet_name='Bursts', index=False)
 
                 # Detalhamento - Direito
                 if not blinks_right_df.empty:
@@ -743,6 +1266,7 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     print(f"   Amplitude Mdia: {stats_right['Amplitude Mdia']}")
     print(f"   Vel. Fechamento Mdia: {stats_right['Vel. Fechamento Mdia']} EAR/s")
     print(f"   Vel. Abertura Mdia: {stats_right['Vel. Abertura Mdia']} EAR/s")
+    print(f"   IBI Mdio: {ibi_right['IBI Medio (s)']}s")
 
     print(f"\n Olho Esquerdo:")
     print(f"   Total: {stats_left['Total Piscadas']} piscadas")
@@ -752,8 +1276,13 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     print(f"   Amplitude Mdia: {stats_left['Amplitude Mdia']}")
     print(f"   Vel. Fechamento Mdia: {stats_left['Vel. Fechamento Mdia']} EAR/s")
     print(f"   Vel. Abertura Mdia: {stats_left['Vel. Abertura Mdia']} EAR/s")
+    print(f"   IBI Mdio: {ibi_left['IBI Medio (s)']}s")
 
-    print(f"\n Piscadas Sincronizadas: {len(synchronized)}")
+    print(f"\n Metricas Avancadas:")
+    print(f"   Piscadas Sincronizadas: {len(synchronized)}")
+    print(f"   Assimetria Amplitude: {asymmetry['Assimetria Amplitude (%)']}%")
+    print(f"   Indice de Fadiga: {fatigue['Indice Fadiga']}/100")
+    print(f"   Score Saude Ocular: {health_score['Score Saude Ocular']}/100")
     print(f"\n{'='*60}")
 
 
