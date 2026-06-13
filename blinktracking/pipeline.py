@@ -264,7 +264,7 @@ class BatchProcessor:
             with open(checkpoint_file, 'r') as f:
                 data = json.load(f)
             return set(data.get('processed', []))
-        except:
+        except (json.JSONDecodeError, OSError, TypeError, ValueError):
             return set()
     
     def _save_checkpoint(self, checkpoint_file: Path, video_path: str):

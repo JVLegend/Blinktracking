@@ -2,90 +2,16 @@ import pandas as pd
 import numpy as np
 import sys
 import os
-from scipy.spatial import distance
 import argparse
 from datetime import datetime
-
-def calculate_ear(eye_points):
-    """
-    Calcula o Eye Aspect Ratio (EAR) dado os marcos do olho.
-    EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
-    """
-    # Pontos verticais
-    A = distance.euclidean(eye_points[1], eye_points[5])
-    B = distance.euclidean(eye_points[2], eye_points[4])
-    # Ponto horizontal
-    C = distance.euclidean(eye_points[0], eye_points[3])
-    
-    if C == 0: return 0
-    ear = (A + B) / (2.0 * C)
-    return ear
-
-def get_eye_points_from_row(row, side, csv_type):
-    """
-    Extrai coordenadas (x,y) dos 6 pontos chave do olho para cálculo do EAR.
-    Retorna lista de tuplas [(x,y), ...]
-    """
-    points = []
-    
-    # Índices dos pontos chave no MediaPipe (padrão EAR de 6 pontos)
-    # Ordem: Canto Esq, Sup1, Sup2, Canto Dir, Inf2, Inf1
-    
-    if csv_type == 'all_points':
-        # Índices oficiais MediaPipe (468/478 points) para EAR
-        # Right Eye: [33, 160, 158, 133, 153, 144]
-        # Left Eye:  [362, 385, 387, 263, 373, 380]
-        indices = {
-            'right': [33, 160, 158, 133, 153, 144], 
-            'left':  [362, 385, 387, 263, 373, 380]
-        }
-        
-        current_indices = indices[side]
-        for idx in current_indices:
-            x = row.get(f'point_{idx}_x')
-            y = row.get(f'point_{idx}_y')
-            if pd.isna(x) or pd.isna(y): return None
-            points.append((x, y))
-            
-    elif csv_type == 'eyes_only':
-        # Mapeamento para o formato simplificado antigo (baseado na ordem salva)
-        # O script antigo salva: upper (canto->meio->canto) e lower.
-        # Precisamos adaptar. Vamos usar índices aproximados dos arrays salvos.
-        # Right Upper: 1..7 (4 é o centro). Right Lower: 1..9 (5 é o centro)
-        # Vamos pegar pontos que correspondem geometricamente ao EAR.
-        
-        if side == 'right':
-            # P1(CantoEsq=33/Lower1/Upper?): Vamos usar right_lower_1 (33)
-            # P4(CantoDir=133/Lower9): right_lower_9 (133)
-            # P2(Sup1): right_upper_3 
-            # P3(Sup2): right_upper_5
-            # P5(Inf2): right_lower_6
-            # P6(Inf1): right_lower_4
-            cols = [
-                ('right_lower_1_x', 'right_lower_1_y'), # P1
-                ('right_upper_3_x', 'right_upper_3_y'), # P2
-                ('right_upper_5_x', 'right_upper_5_y'), # P3
-                ('right_lower_9_x', 'right_lower_9_y'), # P4
-                ('right_lower_6_x', 'right_lower_6_y'), # P5
-                ('right_lower_4_x', 'right_lower_4_y'), # P6
-            ]
-        else: # Left
-            cols = [
-                ('left_lower_1_x', 'left_lower_1_y'),
-                ('left_upper_3_x', 'left_upper_3_y'),
-                ('left_upper_5_x', 'left_upper_5_y'),
-                ('left_lower_9_x', 'left_lower_9_y'),
-                ('left_lower_6_x', 'left_lower_6_y'),
-                ('left_lower_4_x', 'left_lower_4_y'),
-            ]
-
-        for cx, cy in cols:
-            val_x = row.get(cx)
-            val_y = row.get(cy)
-            if pd.isna(val_x): return None
-            points.append((val_x, val_y))
-    
-    return points
+from blinktracking.eye_metrics import (
+    calculate_ear,
+    calculate_ear_series,
+    detect_blinks_single_eye,
+    detect_csv_type,
+    get_eye_points_from_row,
+    smooth_ear_series,
+)
 
 def analyze_blinks(csv_path, output_xlsx_path, fps=30):
     print(f"📊 Lendo arquivo: {csv_path}")
@@ -109,54 +35,25 @@ def analyze_blinks(csv_path, output_xlsx_path, fps=30):
         return
 
     # 1. Detectar tipo de CSV
-    if 'point_0_x' in df.columns:
-        csv_type = 'all_points'
-        print("ℹ️ Tipo detectado: Full Mesh (478 pontos)")
-    elif 'right_upper_1_x' in df.columns:
-        csv_type = 'eyes_only'
-        print("ℹ️ Tipo detectado: Eyes Only")
-    else:
+    csv_type = detect_csv_type(df)
+    if not csv_type:
         print("❌ Tipo de CSV desconhecido.")
         return
+    print(f"ℹ️ Tipo detectado: {'Full Mesh (478 pontos)' if csv_type == 'all_points' else 'Eyes Only'}")
 
     # 2. Calcular EAR para cada frame
-    print("🧮 Calculando EAR frame a frame...")
-    ear_values = []
-    
-    for _, row in df.iterrows():
-        right_pts = get_eye_points_from_row(row, 'right', csv_type)
-        left_pts = get_eye_points_from_row(row, 'left', csv_type)
-        
-        if right_pts and left_pts:
-            ear_right = calculate_ear(right_pts)
-            ear_left = calculate_ear(left_pts)
-            avg_ear = (ear_right + ear_left) / 2.0
-            ear_values.append(avg_ear)
-        else:
-            ear_values.append(None) # Frame perdido/sem face
-
-    df['EAR'] = ear_values
+    print("🧮 Calculando EAR vetorizado...")
+    ear_right, ear_left = calculate_ear_series(df, csv_type)
+    df['EAR'] = np.nanmean(np.vstack([ear_right, ear_left]), axis=0)
     
     # Preencher falhas (interpolação simples para frames perdidos curtos)
-    df['EAR'] = df['EAR'].interpolate(method='linear', limit=3)
-    
-    # Suavização (opcional, ajuda a reduzir ruído)
-    df['EAR_Smooth'] = df['EAR'].rolling(window=3, center=True).mean().fillna(df['EAR'])
+    df['EAR_Smooth'] = smooth_ear_series(df['EAR'].values)
 
     # 3. Detectar Eventos de Piscada
     # Parâmetros (podem precisar de ajuste fino dependendo da câmera)
     EAR_THRESHOLD = 0.22      # Abaixo disso, considera que começou a fechar
     EAR_COMPLETE_LIMIT = 0.16 # Abaixo disso, considera fechamento total (piscada completa)
     MIN_FRAMES = 2            # Duração mínima (filtra ruído rápido)
-    
-    blinks = []
-    in_blink = False
-    start_frame = 0
-    min_ear_in_blink = 1.0
-    
-    # Filtro Fisiológico
-    MIN_INTER_BLINK_TIME_SEC = 0.5
-    last_blink_end_frame = -9999
     
     print("🔎 Detectando eventos...")
     
@@ -171,54 +68,7 @@ def analyze_blinks(csv_path, output_xlsx_path, fps=30):
         print(f"ℹ️ Threshold Fechamento: {EAR_THRESHOLD:.3f}")
         print(f"ℹ️ Threshold Completa: {EAR_COMPLETE_LIMIT:.3f}")
 
-    for i in range(len(df)):
-        ear = df.loc[i, 'EAR_Smooth']
-        if pd.isna(ear): continue
-        
-        if not in_blink:
-            if ear < EAR_THRESHOLD:
-                in_blink = True
-                start_frame = i
-                min_ear_in_blink = ear
-        else:
-            if ear < min_ear_in_blink:
-                min_ear_in_blink = ear
-                
-            if ear >= EAR_THRESHOLD:
-                # Fim da piscada
-                end_frame = i
-                duration_frames = end_frame - start_frame
-                
-                if duration_frames >= MIN_FRAMES:
-                    
-                    # Filtro de Período Refratário
-                    time_since_last = (start_frame - last_blink_end_frame) / fps
-                    
-                    if time_since_last >= MIN_INTER_BLINK_TIME_SEC:
-                        # Classificar
-                        category = "Completa" if min_ear_in_blink <= EAR_COMPLETE_LIMIT else "Incompleta"
-                        
-                        # Calcular tempos
-                        start_time = start_frame / fps
-                        end_time = end_frame / fps
-                        
-                        blink_data = {
-                            'ID': len(blinks) + 1,
-                            'Frame Inicio': start_frame,
-                            'Frame Fim': end_frame,
-                            'Tempo Inicio (s)': round(start_time, 3),
-                            'Tempo Fim (s)': round(end_time, 3),
-                            'Duracao (s)': round((end_frame - start_frame) / fps, 3),
-                            'Duracao (frames)': duration_frames,
-                            'EAR Minimo': round(min_ear_in_blink, 4),
-                            'Classificacao': category,
-                            'Minuto': int(start_time // 60) + 1
-                        }
-                        blinks.append(blink_data)
-                        last_blink_end_frame = end_frame
-                
-                in_blink = False
-                min_ear_in_blink = 1.0
+    blinks = detect_blinks_single_eye(df['EAR_Smooth'].values, fps, baseline_ear, 'Ambos')
 
     # 4. Agregar Dados
     df_blinks = pd.DataFrame(blinks)

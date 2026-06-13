@@ -25,10 +25,16 @@ detection:
   refine_landmarks: true
   min_detection_confidence: 0.5
   min_tracking_confidence: 0.5
+  max_inference_res: 480
+  use_roi: false
+  extract_only_eye_landmarks: true
+  frame_skip: 1
+  interpolate_skipped_frames: true
 
 # Parâmetros de filtragem
 filters:
   enable_kalman: true
+  vectorized_kalman: true
   enable_moving_average: true
   moving_average_window: 5
   kalman_process_noise: 0.0001

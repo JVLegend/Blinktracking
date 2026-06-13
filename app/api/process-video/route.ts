@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { spawn } from "child_process"
-import { writeFile, mkdir } from "fs/promises"
+import { writeFile, mkdir, unlink } from "fs/promises"
 import path from "path"
 import { existsSync } from "fs"
 import fetch from "node-fetch"
@@ -78,6 +78,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.log("Predictor:", PREDICTOR_PATH)
     console.log("Output:", outputPath)
 
+    let writerClosed = false
+    const closeWriter = async () => {
+      if (!writerClosed) {
+        writerClosed = true
+        await writer.close()
+      }
+    }
+
     pythonProcess.stdout.on("data", (data) => {
       const message = data.toString()
       console.log("Python stdout:", message)
@@ -95,28 +103,40 @@ export async function POST(request: NextRequest): Promise<Response> {
       console.error(`Python Error: ${data.toString()}`)
     })
 
+    pythonProcess.on("error", async (error) => {
+      console.error("Erro ao iniciar processo Python:", error)
+      await writer.write(
+        new TextEncoder().encode(
+          JSON.stringify({ error: "Erro ao iniciar processamento do vídeo" })
+        )
+      )
+      await closeWriter()
+    })
+
     pythonProcess.on("close", async (code) => {
       console.log("Python process closed with code:", code)
-      if (code === 0) {
-        writer.write(
-          new TextEncoder().encode(
-            JSON.stringify({ outputVideo: `/temp/${path.basename(outputPath)}` })
+      if (!writerClosed) {
+        if (code === 0) {
+          writer.write(
+            new TextEncoder().encode(
+              JSON.stringify({ outputVideo: `/temp/${path.basename(outputPath)}` })
+            )
           )
-        )
-      } else {
-        writer.write(
-          new TextEncoder().encode(
-            JSON.stringify({ error: "Erro ao processar o vídeo" })
+        } else {
+          writer.write(
+            new TextEncoder().encode(
+              JSON.stringify({ error: "Erro ao processar o vídeo" })
+            )
           )
-        )
+        }
+        await closeWriter()
       }
-      writer.close()
 
       // Limpa os arquivos temporários
       try {
         await Promise.all([
-          writeFile(videoPath, ""),
-          writeFile(outputPath, ""),
+          unlink(videoPath),
+          unlink(outputPath),
         ])
       } catch (error) {
         console.error("Erro ao limpar arquivos temporários:", error)

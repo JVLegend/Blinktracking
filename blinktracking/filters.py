@@ -159,18 +159,37 @@ class LandmarkStabilizer:
         use_moving_avg: bool = True,
         moving_avg_window: int = 5,
         kalman_process_noise: float = 1e-4,
-        kalman_measurement_noise: float = 1e-2
+        kalman_measurement_noise: float = 1e-2,
+        vectorized_kalman: bool = True
     ):
         self.num_landmarks = num_landmarks
         self.use_kalman = use_kalman
         self.use_moving_avg = use_moving_avg
+        self.vectorized_kalman = vectorized_kalman
+        self.kalman_process_noise = kalman_process_noise
+        self.kalman_measurement_noise = kalman_measurement_noise
         
         # Inicializar filtros para cada landmark
         self.kalman_filters: List[KalmanFilter] = []
         self.ma_filters: List[MovingAverageFilter] = []
+        self.kalman_states = np.zeros((num_landmarks, 4), dtype=float)
+        self.kalman_error_cov = np.eye(4, dtype=float)
+        self.kalman_transition = np.array([
+            [1, 0, 1, 0],
+            [0, 1, 0, 1],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+        ], dtype=float)
+        self.kalman_observation = np.array([
+            [1, 0, 0, 0],
+            [0, 1, 0, 0]
+        ], dtype=float)
+        self.kalman_q = np.eye(4, dtype=float) * kalman_process_noise
+        self.kalman_r = np.eye(2, dtype=float) * kalman_measurement_noise
+        self.kalman_initialized = False
         
         for _ in range(num_landmarks):
-            if use_kalman:
+            if use_kalman and not vectorized_kalman:
                 self.kalman_filters.append(
                     KalmanFilter(kalman_process_noise, kalman_measurement_noise)
                 )
@@ -178,6 +197,54 @@ class LandmarkStabilizer:
                 self.ma_filters.append(
                     MovingAverageFilter(moving_avg_window)
                 )
+
+    def _ensure_size(self, num_landmarks: int):
+        """Redimensiona buffers quando a quantidade de landmarks muda."""
+        if num_landmarks == self.num_landmarks:
+            return
+
+        self.num_landmarks = num_landmarks
+        self.kalman_states = np.zeros((num_landmarks, 4), dtype=float)
+        self.kalman_error_cov = np.eye(4, dtype=float)
+        self.kalman_initialized = False
+
+        if self.use_kalman and not self.vectorized_kalman:
+            self.kalman_filters = [
+                KalmanFilter(self.kalman_process_noise, self.kalman_measurement_noise)
+                for _ in range(num_landmarks)
+            ]
+
+        if self.use_moving_avg:
+            window_size = self.ma_filters[0].window_size if self.ma_filters else 5
+            self.ma_filters = [MovingAverageFilter(window_size) for _ in range(num_landmarks)]
+
+    def _apply_vectorized_kalman(self, measurements: np.ndarray) -> np.ndarray:
+        """Aplica um banco vetorizado de Kalman com covariância compartilhada."""
+        if measurements.size == 0:
+            return measurements
+
+        if not self.kalman_initialized:
+            self.kalman_states[:, :2] = measurements
+            self.kalman_states[:, 2:] = 0.0
+            self.kalman_error_cov = np.eye(4, dtype=float)
+            self.kalman_initialized = True
+            return measurements
+
+        t = self.kalman_transition
+        h = self.kalman_observation
+
+        self.kalman_states = self.kalman_states @ t.T
+        self.kalman_error_cov = t @ self.kalman_error_cov @ t.T + self.kalman_q
+
+        s = h @ self.kalman_error_cov @ h.T + self.kalman_r
+        k = self.kalman_error_cov @ h.T @ np.linalg.inv(s)
+
+        predicted_measurements = self.kalman_states @ h.T
+        innovations = measurements - predicted_measurements
+        self.kalman_states += innovations @ k.T
+        self.kalman_error_cov = (np.eye(4) - k @ h) @ self.kalman_error_cov
+
+        return self.kalman_states[:, :2]
     
     def stabilize(
         self,
@@ -192,13 +259,20 @@ class LandmarkStabilizer:
         Returns:
             Lista estabilizada de (x, y)
         """
+        if self.vectorized_kalman:
+            self._ensure_size(len(landmarks))
+        points_array = np.asarray(landmarks, dtype=float)
+
+        if self.use_kalman and self.vectorized_kalman:
+            points_array = self._apply_vectorized_kalman(points_array)
+
         stabilized = []
         
-        for i, (x, y) in enumerate(landmarks):
+        for i, (x, y) in enumerate(points_array):
             point = Point2D(x, y)
             
             # Aplicar Kalman primeiro
-            if self.use_kalman and i < len(self.kalman_filters):
+            if self.use_kalman and not self.vectorized_kalman and i < len(self.kalman_filters):
                 point = self.kalman_filters[i].update(point)
             
             # Aplicar média móvel depois
@@ -215,6 +289,9 @@ class LandmarkStabilizer:
             kf.reset()
         for maf in self.ma_filters:
             maf.reset()
+        self.kalman_states = np.zeros((self.num_landmarks, 4), dtype=float)
+        self.kalman_error_cov = np.eye(4, dtype=float)
+        self.kalman_initialized = False
 
 
 class RotationNormalizer:
@@ -243,7 +320,7 @@ class RotationNormalizer:
         Returns:
             Landmarks normalizados
         """
-        if len(landmarks) <= self.caruncula_idx:
+        if len(landmarks) <= self.caruncula_idx or np.isnan(landmarks[self.caruncula_idx]).any():
             return landmarks
         
         # Obter posição atual da carúncula
@@ -253,7 +330,11 @@ class RotationNormalizer:
         )
         
         # Se temos referência, calcular offset
-        if reference_landmarks and len(reference_landmarks) > self.caruncula_idx:
+        if (
+            reference_landmarks is not None
+            and len(reference_landmarks) > self.caruncula_idx
+            and not np.isnan(reference_landmarks[self.caruncula_idx]).any()
+        ):
             ref_caruncula = Point2D(
                 reference_landmarks[self.caruncula_idx][0],
                 reference_landmarks[self.caruncula_idx][1]

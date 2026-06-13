@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from collections import deque
 from enum import Enum
+import warnings
 
 
 class BlinkState(Enum):
@@ -124,8 +125,7 @@ class BlinkDetector:
         self.complete_blink_threshold = complete_blink_threshold
         self.min_duration_ms = min_duration_ms
         self.max_duration_ms = max_duration_ms
-        self.fps = fps
-        self.ms_per_frame = 1000.0 / fps
+        self.set_fps(fps)
         
         # Estado atual
         self.state = BlinkState.OPEN
@@ -137,6 +137,14 @@ class BlinkDetector:
         
         # Contadores
         self.frame_count = 0
+
+    def set_fps(self, fps: float):
+        """Atualiza FPS e protege contra valores inválidos."""
+        if fps is None or fps <= 0:
+            warnings.warn("FPS inválido; usando fallback de 30 FPS.", RuntimeWarning)
+            fps = 30.0
+        self.fps = fps
+        self.ms_per_frame = 1000.0 / fps
     
     def update(self, opening_percent: float, eye: str = 'left') -> Optional[BlinkEvent]:
         """
@@ -295,8 +303,8 @@ class MetricsCalculator:
         fps: float = 30.0
     ) -> Tuple[Optional[BlinkEvent], Optional[BlinkEvent]]:
         """Processa um frame e detecta piscadas"""
-        self.left_detector.fps = fps
-        self.right_detector.fps = fps
+        self.left_detector.set_fps(fps)
+        self.right_detector.set_fps(fps)
         
         left_blink = self.left_detector.update(left_opening, 'left')
         right_blink = self.right_detector.update(right_opening, 'right')

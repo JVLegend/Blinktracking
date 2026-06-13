@@ -27,12 +27,18 @@ class DetectionParams:
     refine_landmarks: bool = True
     min_detection_confidence: float = 0.5
     min_tracking_confidence: float = 0.5
+    max_inference_res: int = 480
+    use_roi: bool = False
+    extract_only_eye_landmarks: bool = True
+    frame_skip: int = 1
+    interpolate_skipped_frames: bool = True
 
 
 @dataclass
 class FilterParams:
     """Parâmetros de filtragem e estabilização"""
     enable_kalman: bool = True
+    vectorized_kalman: bool = True
     enable_moving_average: bool = True
     moving_average_window: int = 5
     kalman_process_noise: float = 1e-4
@@ -127,6 +133,12 @@ class Config:
         # Validar janela de média móvel
         if self.filters.moving_average_window < 1:
             errors.append("moving_average_window deve ser >= 1")
+
+        if self.detection.max_inference_res < 0:
+            errors.append("max_inference_res deve ser >= 0")
+
+        if self.detection.frame_skip < 1:
+            errors.append("frame_skip deve ser >= 1")
         
         return len(errors) == 0, errors
 

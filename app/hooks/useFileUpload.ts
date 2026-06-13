@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface UploadState {
   isUploading: boolean;
@@ -13,6 +13,9 @@ interface UploadState {
 }
 
 export function useFileUpload() {
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cleanupXhrRef = useRef<(() => void) | null>(null);
   const [state, setState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
@@ -34,17 +37,30 @@ export function useFileUpload() {
 
       // Criar XMLHttpRequest para ter controle do progresso
       const xhr = new XMLHttpRequest();
+      xhrRef.current = xhr;
 
       return new Promise((resolve, reject) => {
-        xhr.upload.addEventListener('progress', (event) => {
+        const handleProgress = (event: ProgressEvent) => {
           if (event.lengthComputable) {
             const progress = Math.round((event.loaded / event.total) * 100);
             console.log('Progress:', progress);
             setState(prev => ({ ...prev, progress }));
           }
-        });
+        };
 
-        xhr.addEventListener('load', () => {
+        const cleanupCurrentXhr = () => {
+          xhr.upload.removeEventListener('progress', handleProgress);
+          xhr.removeEventListener('load', handleLoad);
+          xhr.removeEventListener('error', handleError);
+          xhr.removeEventListener('abort', handleAbort);
+          if (xhrRef.current === xhr) {
+            xhrRef.current = null;
+            cleanupXhrRef.current = null;
+          }
+        };
+
+        const handleLoad = () => {
+          cleanupCurrentXhr();
           console.log('XHR Load - Status:', xhr.status);
           console.log('XHR Response:', xhr.responseText);
           
@@ -56,7 +72,7 @@ export function useFileUpload() {
               if (response.success) {
                 console.log('Upload bem-sucedido, atualizando estado...');
                 // Forçar atualização com pequeno delay
-                setTimeout(() => {
+                timeoutRef.current = setTimeout(() => {
                   setState({
                     isUploading: false,
                     progress: 100,
@@ -96,16 +112,28 @@ export function useFileUpload() {
             }));
             reject(new Error('Erro na conexão'));
           }
-        });
+        };
 
-        xhr.addEventListener('error', () => {
+        const handleError = () => {
+          cleanupCurrentXhr();
           setState(prev => ({
             ...prev,
             isUploading: false,
             error: 'Erro na conexão com o servidor',
           }));
           reject(new Error('Erro na conexão'));
-        });
+        };
+
+        const handleAbort = () => {
+          cleanupCurrentXhr();
+          reject(new Error('Upload cancelado'));
+        };
+
+        xhr.upload.addEventListener('progress', handleProgress);
+        xhr.addEventListener('load', handleLoad);
+        xhr.addEventListener('error', handleError);
+        xhr.addEventListener('abort', handleAbort);
+        cleanupXhrRef.current = cleanupCurrentXhr;
 
         xhr.open('POST', '/api/upload');
         xhr.send(formData);
@@ -129,9 +157,22 @@ export function useFileUpload() {
     });
   };
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (xhrRef.current && xhrRef.current.readyState !== XMLHttpRequest.DONE) {
+        xhrRef.current.abort();
+      }
+      cleanupXhrRef.current?.();
+      xhrRef.current = null;
+    };
+  }, []);
+
   return {
     ...state,
     uploadFile,
     reset,
   };
-} 
+}

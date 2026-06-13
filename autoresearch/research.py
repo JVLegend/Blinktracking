@@ -29,7 +29,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.model_selection import StratifiedKFold, cross_val_score
+from sklearn.model_selection import StratifiedKFold, cross_val_score, cross_val_predict
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.base import clone
 from sklearn.metrics import (
     roc_auc_score, f1_score, confusion_matrix,
     classification_report, roc_curve
@@ -334,23 +337,19 @@ def run_experiment(
     y_bin = y_bin[mask]
     y_hb  = y_hb[mask]
 
-    # Impute remaining NaN with median
-    for col in X.columns:
-        X[col] = X[col].fillna(X[col].median())
-
     X_arr = X.values
 
-    # ── Normalize ──────────────────────────────────────────────────────────
+    steps = [("imputer", SimpleImputer(strategy="median"))]
     if normalization != "none" and NORMALIZERS[normalization] is not None:
-        scaler = NORMALIZERS[normalization]
-        X_arr = scaler.fit_transform(X_arr)
+        steps.append(("scaler", clone(NORMALIZERS[normalization])))
+    steps.append(("model", clone(MODELS[model_name])))
+    estimator = Pipeline(steps)
 
     # ── Binary classification (palsy vs control) ───────────────────────────
-    model = MODELS[model_name]
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-    auc_scores = cross_val_score(model, X_arr, y_bin, cv=cv, scoring="roc_auc")
-    f1_scores  = cross_val_score(model, X_arr, y_bin, cv=cv, scoring="f1_macro")
+    auc_scores = cross_val_score(estimator, X_arr, y_bin, cv=cv, scoring="roc_auc")
+    f1_scores  = cross_val_score(estimator, X_arr, y_bin, cv=cv, scoring="f1_macro")
 
     auc_mean = float(np.mean(auc_scores))
     f1_mean  = float(np.mean(f1_scores))
@@ -364,7 +363,7 @@ def run_experiment(
     X_train, X_test, y_train, y_test = train_test_split(
         X_arr, y_bin, test_size=0.2, stratify=y_bin, random_state=42)
 
-    m = MODELS[model_name].__class__(**MODELS[model_name].get_params())
+    m = clone(estimator)
     m.fit(X_train, y_train)
     y_pred      = m.predict(X_test)
     y_pred_prob = m.predict_proba(X_test)[:, 1]
@@ -386,11 +385,15 @@ def run_experiment(
     palsy_mask = y_hb > 0
     spearman_rho = np.nan
     if palsy_mask.sum() >= 5:
-        X_palsy = X_arr[palsy_mask]
         y_hb_palsy = y_hb[palsy_mask]
-        m_ord = MODELS[model_name].__class__(**MODELS[model_name].get_params())
-        m_ord.fit(X_arr, y_bin)  # train on all
-        scores_palsy = m_ord.predict_proba(X_palsy)[:, 1]
+        oof_prob = cross_val_predict(
+            clone(estimator),
+            X_arr,
+            y_bin,
+            cv=cv,
+            method="predict_proba",
+        )[:, 1]
+        scores_palsy = oof_prob[palsy_mask]
         rho, pval = spearmanr(scores_palsy, y_hb_palsy)
         spearman_rho = float(rho)
         print(f"\n  Ordinal (Spearman rho vs HB grade, palsy only):")
@@ -398,9 +401,10 @@ def run_experiment(
 
     # ── Feature importances (RF/GBM only) ─────────────────────────────────
     fi = {}
-    if hasattr(m, "feature_importances_"):
+    fitted_model = m.named_steps["model"] if isinstance(m, Pipeline) else m
+    if hasattr(fitted_model, "feature_importances_"):
         fi = dict(sorted(
-            zip(feature_cols, m.feature_importances_.tolist()),
+            zip(feature_cols, fitted_model.feature_importances_.tolist()),
             key=lambda x: -x[1]
         ))
         print(f"\n  Top-5 feature importances:")

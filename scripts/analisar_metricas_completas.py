@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Script de Anlise Completa de Mtricas de Piscadas
+Script de Análise Completa de Métricas de Piscadas
 ==================================================
-L CSVs gerados pelo Blinktracking e calcula todas as mtricas disponveis no site:
-- Deteco de piscadas completas e incompletas por olho
+Lê CSVs gerados pelo Blinktracking e calcula todas as métricas disponíveis no site:
+- Detecção de piscadas completas e incompletas por olho
 - Frame exato de cada evento
-- Amplitude mdia
-- Cinemtica (velocidade de fechamento e abertura)
-- Distribuio de velocidade binocular
+- Amplitude média
+- Cinemática (velocidade de fechamento e abertura)
+- Distribuição de velocidade binocular
 - Timeline de piscadas por olho
-- Mtrica EAR (Eye Aspect Ratio)
+- Métrica EAR (Eye Aspect Ratio)
 
 Uso:
     python analisar_metricas_completas.py <arquivo.csv> [--tipo all_points|eyes_only] [--saida output.xlsx]
 
     O FPS  lido automaticamente da primeira linha do CSV (formato: # FPS: <valor>)
 
-    --tipo: Fora o tipo de CSV (auto-detectado se no especificado)
+    --tipo: Força o tipo de CSV (auto-detectado se não especificado)
             all_points: CSV com 478 pontos faciais completos
             eyes_only: CSV com apenas 32 pontos dos olhos
     --fps:  Override manual do FPS (opcional)
@@ -28,11 +28,18 @@ import sys
 import os
 import json
 import argparse
-from scipy.spatial import distance
 from datetime import datetime
+from blinktracking.eye_metrics import (
+    calculate_ear,
+    calculate_ear_series,
+    detect_blinks_single_eye,
+    detect_csv_type,
+    get_eye_points_from_row,
+    smooth_ear_series,
+)
 
 
-def calculate_ear(eye_points):
+def _legacy_calculate_ear(eye_points):
     """
     Calcula o Eye Aspect Ratio (EAR) dado os marcos do olho.
     EAR = (|p2-p6| + |p3-p5|) / (2 * |p1-p4|)
@@ -42,15 +49,15 @@ def calculate_ear(eye_points):
                    [P1(canto_esq), P2(sup1), P3(sup2), P4(canto_dir), P5(inf2), P6(inf1)]
 
     Returns:
-        float: Valor EAR ou 0 se invlido
+        float: Valor EAR ou 0 se inválido
     """
     if eye_points is None or len(eye_points) != 6:
         return None
 
-    # Distncias verticais
+    # Distâncias verticais
     A = distance.euclidean(eye_points[1], eye_points[5])  # |p2-p6|
     B = distance.euclidean(eye_points[2], eye_points[4])  # |p3-p5|
-    # Distncia horizontal
+    # Distância horizontal
     C = distance.euclidean(eye_points[0], eye_points[3])  # |p1-p4|
 
     if C == 0:
@@ -60,9 +67,9 @@ def calculate_ear(eye_points):
     return ear
 
 
-def get_eye_points_from_row(row, side, csv_type):
+def _legacy_get_eye_points_from_row(row, side, csv_type):
     """
-    Extrai coordenadas (x,y) dos 6 pontos chave do olho para clculo do EAR.
+    Extrai coordenadas (x,y) dos 6 pontos chave do olho para cálculo do EAR.
 
     Args:
         row: Linha do DataFrame
@@ -70,12 +77,12 @@ def get_eye_points_from_row(row, side, csv_type):
         csv_type: 'all_points' ou 'eyes_only'
 
     Returns:
-        Lista de 6 tuplas [(x,y), ...] ou None se dados invlidos
+        Lista de 6 tuplas [(x,y), ...] ou None se dados inválidos
     """
     points = []
 
     if csv_type == 'all_points':
-        # ndices oficiais MediaPipe (478 points) para EAR
+        # Índices oficiais MediaPipe (478 points) para EAR
         indices = {
             'right': [33, 160, 158, 133, 153, 144],
             'left':  [362, 385, 387, 263, 373, 380]
@@ -120,7 +127,7 @@ def get_eye_points_from_row(row, side, csv_type):
     return points
 
 
-def detect_csv_type(df):
+def _legacy_detect_csv_type(df):
     """
     Detecta automaticamente o tipo de CSV baseado nas colunas.
 
@@ -134,10 +141,10 @@ def detect_csv_type(df):
     return None
 
 
-def calculate_ear_series(df, csv_type):
+def _legacy_calculate_ear_series(df, csv_type):
     """
-    Calcula series de EAR para olho direito, esquerdo e media.
-    VETORIZADO - usa operacoes numpy em vez de iterrows (10-50x mais rapido).
+    Calcula séries de EAR para olho direito, esquerdo e média.
+    VETORIZADO - usa operações numpy em vez de iterrows (10-50x mais rápido).
 
     Returns:
         Tuple de (ear_right, ear_left, ear_avg) como arrays numpy
@@ -147,7 +154,7 @@ def calculate_ear_series(df, csv_type):
     ear_left = np.full(n_frames, np.nan, dtype=float)
 
     if csv_type == 'all_points':
-        # Indices oficiais MediaPipe (478 points) para EAR
+        # Índices oficiais MediaPipe (478 points) para EAR
         right_indices = [33, 160, 158, 133, 153, 144]
         left_indices = [362, 385, 387, 263, 373, 380]
 
@@ -206,9 +213,9 @@ def calculate_ear_series(df, csv_type):
     return ear_right, ear_left
 
 
-def smooth_ear_series(ear_series):
+def _legacy_smooth_ear_series(ear_series):
     """
-    Aplica interpolao e suavizao  srie EAR.
+    Aplica interpolação e suavização  série EAR.
 
     Args:
         ear_series: Array numpy com valores EAR (pode conter NaN)
@@ -231,16 +238,16 @@ def smooth_ear_series(ear_series):
     return s_smooth.values
 
 
-def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
+def _legacy_detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
     """
-    Detecta piscadas em uma serie EAR de um unico olho.
-    OTIMIZADO: Usa operacoes vetorizadas numpy para deteccao rapida.
+    Detecta piscadas em uma série EAR de um único olho.
+    OTIMIZADO: Usa operações vetorizadas numpy para detecção rapida.
 
     Args:
         ear_smooth: Array de valores EAR suavizados
         fps: Frames por segundo
-        baseline_ear: Valor de referencia EAR (olho aberto)
-        eye_name: 'Direito' ou 'Esquerdo' para identificacao
+        baseline_ear: Valor de referência EAR (olho aberto)
+        eye_name: 'Direito' ou 'Esquerdo' para identificação
 
     Returns:
         Lista de dicionarios com dados de cada piscada
@@ -258,8 +265,8 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
     if not np.any(below_threshold):
         return []
 
-    # Encontrar segmentos continuos abaixo do threshold
-    # diff encontra as transicoes: inicio=1, fim=-1
+    # Encontrar segmentos contínuos abaixo do threshold
+    # diff encontra as transições: inicio=1, fim=-1
     diff = np.diff(below_threshold.astype(int))
     start_indices = np.where(diff == 1)[0] + 1
     end_indices = np.where(diff == -1)[0] + 1
@@ -279,7 +286,7 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
         if duration_frames < MIN_FRAMES:
             continue
 
-        # Periodo refratario
+        # Período refratario
         time_since_last = (start_frame - last_blink_end_frame) / fps
         if time_since_last < MIN_INTER_BLINK_TIME_SEC:
             continue
@@ -322,13 +329,13 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
             'ID': len(blinks) + 1,
             'Olho': eye_name,
             'Frame Inicio': int(start_frame),
-            'Frame Minimo': int(min_ear_frame_idx),
+            'Frame Mínimo': int(min_ear_frame_idx),
             'Frame Fim': int(end_frame),
             'Tempo Inicio (s)': round(start_time, 3),
             'Tempo Fim (s)': round(end_time, 3),
-            'Duracao (s)': round(duration_sec, 3),
-            'Duracao (frames)': int(duration_frames),
-            'EAR Minimo': round(min_ear_in_blink, 4),
+            'Duração (s)': round(duration_sec, 3),
+            'Duração (frames)': int(duration_frames),
+            'EAR Mínimo': round(min_ear_in_blink, 4),
             'EAR Baseline': round(baseline_ear, 4),
             'Amplitude': round(amplitude, 4),
             'RBA (%)': round(rba, 1),
@@ -336,7 +343,7 @@ def detect_blinks_single_eye(ear_smooth, fps, baseline_ear, eye_name):
             'Vel. Abertura (EAR/s)': round(opening_speed, 4),
             'Tempo Fechamento (s)': round(closing_duration, 3),
             'Tempo Abertura (s)': round(opening_duration, 3),
-            'Classificacao': category,
+            'Classificação': category,
             'Minuto': int(start_time // 60) + 1
         })
 
@@ -402,7 +409,7 @@ def generate_timeline_data(blinks_right, blinks_left, total_frames, fps):
     Returns:
         DataFrame com colunas: Tempo, Direito, Esquerdo, Ambos
     """
-    # Criar array binrio para cada olho
+    # Criar array binário para cada olho
     right_timeline = np.zeros(total_frames)
     left_timeline = np.zeros(total_frames)
 
@@ -416,10 +423,10 @@ def generate_timeline_data(blinks_right, blinks_left, total_frames, fps):
         end = min(b['Frame Fim'], total_frames - 1)
         left_timeline[start:end+1] = 1
 
-    # Ambos = onde os dois esto piscando simultaneamente
+    # Ambos = onde os dois estão piscando simultaneamente
     both_timeline = (right_timeline == 1) & (left_timeline == 1)
 
-    # Criar DataFrame amostrado (a cada 0.1s para no ficar muito grande)
+    # Criar DataFrame amostrado (a cada 0.1s para não ficar muito grande)
     sample_interval = max(1, int(fps / 10))  # ~10 amostras por segundo
     indices = list(range(0, total_frames, sample_interval))
 
@@ -476,10 +483,10 @@ def calculate_ibi_stats(blinks, fps):
     """
     if not blinks or len(blinks) < 2:
         return {
-            'IBI Medio (s)': 0,
+            'IBI Médio (s)': 0,
             'IBI Mediana (s)': 0,
             'IBI Desvio Padrao (s)': 0,
-            'IBI Minimo (s)': 0,
+            'IBI Mínimo (s)': 0,
             'IBI Maximo (s)': 0,
             'IBI CV (%)': 0,
             'IBI P10 (s)': 0,
@@ -492,10 +499,10 @@ def calculate_ibi_stats(blinks, fps):
     ibi_seconds = ibi_frames / fps
 
     return {
-        'IBI Medio (s)': round(np.mean(ibi_seconds), 3),
+        'IBI Médio (s)': round(np.mean(ibi_seconds), 3),
         'IBI Mediana (s)': round(np.median(ibi_seconds), 3),
         'IBI Desvio Padrao (s)': round(np.std(ibi_seconds), 3),
-        'IBI Minimo (s)': round(np.min(ibi_seconds), 3),
+        'IBI Mínimo (s)': round(np.min(ibi_seconds), 3),
         'IBI Maximo (s)': round(np.max(ibi_seconds), 3),
         'IBI CV (%)': round((np.std(ibi_seconds) / np.mean(ibi_seconds)) * 100, 1) if np.mean(ibi_seconds) > 0 else 0,
         'IBI P10 (s)': round(np.percentile(ibi_seconds, 10), 3),
@@ -505,13 +512,13 @@ def calculate_ibi_stats(blinks, fps):
 
 def detect_blink_bursts(blinks, fps, max_interval_sec=2.0, min_blinks=3):
     """
-    Detecta clusters/bursts de piscadas (piscadas rapidas em sequencia).
+    Detecta clusters/bursts de piscadas (piscadas rápidas em sequência).
 
     Args:
         blinks: Lista de piscadas
         fps: Frames por segundo
         max_interval_sec: Intervalo maximo entre piscadas no burst
-        min_blinks: Minimo de piscadas para considerar burst
+        min_blinks: Mínimo de piscadas para considerar burst
 
     Returns:
         Lista de dicionarios com dados de cada burst
@@ -535,11 +542,11 @@ def detect_blink_bursts(blinks, fps, max_interval_sec=2.0, min_blinks=3):
                 burst_data = {
                     'Inicio (s)': round(current_burst[0]['Tempo Inicio (s)'], 3),
                     'Fim (s)': round(current_burst[-1]['Tempo Fim (s)'], 3),
-                    'Duracao (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
+                    'Duração (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
                     'Numero Piscadas': len(current_burst),
                     'Taxa no Burst (piscadas/min)': round(len(current_burst) / ((current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) / 60), 1) if (current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) > 0 else 0,
-                    'Amplitude Media': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
-                    '% Completas': round(sum(1 for b in current_burst if b['Classificacao'] == 'Completa') / len(current_burst) * 100, 1)
+                    'Amplitude Média': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
+                    '% Completas': round(sum(1 for b in current_burst if b['Classificação'] == 'Completa') / len(current_burst) * 100, 1)
                 }
                 bursts.append(burst_data)
             current_burst = [sorted_blinks[i]]
@@ -549,11 +556,11 @@ def detect_blink_bursts(blinks, fps, max_interval_sec=2.0, min_blinks=3):
         burst_data = {
             'Inicio (s)': round(current_burst[0]['Tempo Inicio (s)'], 3),
             'Fim (s)': round(current_burst[-1]['Tempo Fim (s)'], 3),
-            'Duracao (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
+            'Duração (s)': round(current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)'], 3),
             'Numero Piscadas': len(current_burst),
             'Taxa no Burst (piscadas/min)': round(len(current_burst) / ((current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) / 60), 1) if (current_burst[-1]['Tempo Fim (s)'] - current_burst[0]['Tempo Inicio (s)']) > 0 else 0,
-            'Amplitude Media': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
-            '% Completas': round(sum(1 for b in current_burst if b['Classificacao'] == 'Completa') / len(current_burst) * 100, 1)
+            'Amplitude Média': round(np.mean([b['Amplitude'] for b in current_burst]), 4),
+            '% Completas': round(sum(1 for b in current_burst if b['Classificação'] == 'Completa') / len(current_burst) * 100, 1)
         }
         bursts.append(burst_data)
 
@@ -572,7 +579,7 @@ def calculate_amplitude_asymmetry(blinks_right, blinks_left):
             'Assimetria Amplitude (%)': 0,
             'Assimetria Velocidade Fechamento (%)': 0,
             'Assimetria Velocidade Abertura (%)': 0,
-            'Assimetria Duracao (%)': 0,
+            'Assimetria Duração (%)': 0,
             'Correlacao Amplitude': 0
         }
 
@@ -591,8 +598,8 @@ def calculate_amplitude_asymmetry(blinks_right, blinks_left):
     max_vel_abert = max(vel_abert_right, vel_abert_left)
 
     # Durações médias
-    dur_right = np.mean([b['Duracao (s)'] for b in blinks_right])
-    dur_left = np.mean([b['Duracao (s)'] for b in blinks_left])
+    dur_right = np.mean([b['Duração (s)'] for b in blinks_right])
+    dur_left = np.mean([b['Duração (s)'] for b in blinks_left])
     max_dur = max(dur_right, dur_left)
 
     # Correlacao de amplitude (se houver piscadas sincronizadas suficientes)
@@ -611,14 +618,14 @@ def calculate_amplitude_asymmetry(blinks_right, blinks_left):
         'Assimetria Amplitude (%)': round(abs(amp_right - amp_left) / max_amp * 100, 1) if max_amp > 0 else 0,
         'Assimetria Velocidade Fechamento (%)': round(abs(vel_fech_right - vel_fech_left) / max_vel_fech * 100, 1) if max_vel_fech > 0 else 0,
         'Assimetria Velocidade Abertura (%)': round(abs(vel_abert_right - vel_abert_left) / max_vel_abert * 100, 1) if max_vel_abert > 0 else 0,
-        'Assimetria Duracao (%)': round(abs(dur_right - dur_left) / max_dur * 100, 1) if max_dur > 0 else 0,
+        'Assimetria Duração (%)': round(abs(dur_right - dur_left) / max_dur * 100, 1) if max_dur > 0 else 0,
         'Correlacao Amplitude': corr_amp
     }
 
 
 def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
     """
-    Calcula indice de fadiga baseado na tendencia temporal das piscadas.
+    Calcula índice de fadiga baseado na tendência temporal das piscadas.
     Fadiga tipica: aumento da taxa de piscadas incompletas, aumento da duracao,
     diminuicao da amplitude ao longo do tempo.
 
@@ -627,10 +634,10 @@ def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
     """
     if not blinks or len(blinks) < 5:
         return {
-            'Indice Fadiga': 0,
-            'Tendencia Taxa (piscadas/min/min)': 0,
-            'Tendencia Amplitude': 0,
-            'Tendencia Duracao': 0,
+            'Índice Fadiga': 0,
+            'Tendência Taxa (piscadas/min/min)': 0,
+            'Tendência Amplitude': 0,
+            'Tendência Duração': 0,
             'Razao Incompletas Final/Inicial': 0
         }
 
@@ -643,10 +650,10 @@ def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
 
     if len(first_half) == 0 or len(second_half) == 0:
         return {
-            'Indice Fadiga': 0,
-            'Tendencia Taxa (piscadas/min/min)': 0,
-            'Tendencia Amplitude': 0,
-            'Tendencia Duracao': 0,
+            'Índice Fadiga': 0,
+            'Tendência Taxa (piscadas/min/min)': 0,
+            'Tendência Amplitude': 0,
+            'Tendência Duração': 0,
             'Razao Incompletas Final/Inicial': 0
         }
 
@@ -657,13 +664,13 @@ def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
     amp_first = first_half['Amplitude'].mean()
     amp_second = second_half['Amplitude'].mean()
 
-    dur_first = first_half['Duracao (s)'].mean()
-    dur_second = second_half['Duracao (s)'].mean()
+    dur_first = first_half['Duração (s)'].mean()
+    dur_second = second_half['Duração (s)'].mean()
 
-    incompleta_first = len(first_half[first_half['Classificacao'] == 'Incompleta']) / len(first_half) if len(first_half) > 0 else 0
-    incompleta_second = len(second_half[second_half['Classificacao'] == 'Incompleta']) / len(second_half) if len(second_half) > 0 else 0
+    incompleta_first = len(first_half[first_half['Classificação'] == 'Incompleta']) / len(first_half) if len(first_half) > 0 else 0
+    incompleta_second = len(second_half[second_half['Classificação'] == 'Incompleta']) / len(second_half) if len(second_half) > 0 else 0
 
-    # Tendencias (coeficiente angular simples)
+    # Tendências (coeficiente angular simples)
     # Para taxa: dividir em quartos
     df_sorted = df.sort_values('Tempo Inicio (s)')
     n = len(df_sorted)
@@ -682,11 +689,11 @@ def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
                     taxas_quartis.append(0)
             else:
                 taxas_quartis.append(0)
-        tendencia_taxa = np.polyfit(range(4), taxas_quartis, 1)[0] if len([t for t in taxas_quartis if t > 0]) >= 2 else 0
+        tendência_taxa = np.polyfit(range(4), taxas_quartis, 1)[0] if len([t for t in taxas_quartis if t > 0]) >= 2 else 0
     else:
-        tendencia_taxa = 0
+        tendência_taxa = 0
 
-    # Indice composto de fadiga (0-100)
+    # Índice composto de fadiga (0-100)
     # Aumento de incompletas = +40, diminuicao de amplitude = +30, aumento duracao = +20, aumento taxa = +10
     fatores = []
     if incompleta_first > 0:
@@ -701,10 +708,10 @@ def calculate_fatigue_index(blinks, ear_series, fps, total_frames):
     fatigue_index = sum(fatores)
 
     return {
-        'Indice Fadiga': round(fatigue_index, 1),
-        'Tendencia Taxa (piscadas/min/min)': round(tendencia_taxa, 3),
-        'Tendencia Amplitude': round(amp_second - amp_first, 4),
-        'Tendencia Duracao': round(dur_second - dur_first, 3),
+        'Índice Fadiga': round(fatigue_index, 1),
+        'Tendência Taxa (piscadas/min/min)': round(tendência_taxa, 3),
+        'Tendência Amplitude': round(amp_second - amp_first, 4),
+        'Tendência Duração': round(dur_second - dur_first, 3),
         'Razao Incompletas Final/Inicial': round(incompleta_second / incompleta_first, 2) if incompleta_first > 0 else 0
     }
 
@@ -744,7 +751,7 @@ def calculate_post_blink_latency(ear_series, blinks, fps, baseline_ear):
         Lista de latencias e estatisticas
     """
     if not blinks or len(ear_series) == 0:
-        return {'Latencia Media (ms)': 0, 'Latencia Mediana (ms)': 0}
+        return {'Latência Média (ms)': 0, 'Latência Mediana (ms)': 0}
 
     latencies = []
     target_ear = baseline_ear * 0.95
@@ -761,15 +768,15 @@ def calculate_post_blink_latency(ear_series, blinks, fps, baseline_ear):
             latencies.append(30 / fps * 1000)
 
     return {
-        'Latencia Media (ms)': round(np.mean(latencies), 1) if latencies else 0,
-        'Latencia Mediana (ms)': round(np.median(latencies), 1) if latencies else 0,
-        'Latencia Max (ms)': round(np.max(latencies), 1) if latencies else 0
+        'Latência Média (ms)': round(np.mean(latencies), 1) if latencies else 0,
+        'Latência Mediana (ms)': round(np.median(latencies), 1) if latencies else 0,
+        'Latência Max (ms)': round(np.max(latencies), 1) if latencies else 0
     }
 
 
 def calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue):
     """
-    Calcula score composto de saude ocular (0-100).
+    Calcula score composto de saúde ocular (0-100).
     Baseado em: taxa normal, simetria, baixa fadiga, amplitude adequada.
 
     Returns:
@@ -794,14 +801,14 @@ def calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue):
         score -= 10
 
     # Fadiga: ideal < 30
-    indice_fadiga = fatigue.get('Indice Fadiga', 0)
+    indice_fadiga = fatigue.get('Índice Fadiga', 0)
     if indice_fadiga > 50:
         score -= 20
     elif indice_fadiga > 30:
         score -= 10
 
     # Amplitude: ideal > 0.1
-    amp_media = (stats_right['Amplitude Mdia'] + stats_left['Amplitude Mdia']) / 2
+    amp_media = (stats_right['Amplitude Média'] + stats_left['Amplitude Média']) / 2
     if amp_media < 0.05:
         score -= 15
     elif amp_media < 0.08:
@@ -815,7 +822,7 @@ def calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue):
         score -= 5
 
     return {
-        'Score Saude Ocular': round(max(0, score), 1),
+        'Score Saúde Ocular': round(max(0, score), 1),
         'Componente Taxa': round(max(0, 100 - abs(taxa_media - 15) * 2), 1),
         'Componente Simetria': round(max(0, 100 - assimetria_amp * 2), 1),
         'Componente Fadiga': round(max(0, 100 - indice_fadiga * 1.5), 1),
@@ -829,7 +836,7 @@ def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
     Calcula estatsticas resumidas para um olho.
 
     Returns:
-        Dicionrio com mtricas resumidas
+        Dicionário com métricas resumidas
     """
     if not blinks:
         return {
@@ -838,18 +845,18 @@ def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
             'Completas': 0,
             'Incompletas': 0,
             '% Completas': 0,
-            'Durao Mdia (s)': 0,
+            'Duração Média (s)': 0,
             'Taxa (piscadas/min)': 0,
-            'Amplitude Mdia': 0,
-            'RBA Mdio (%)': 0,
-            'Vel. Fechamento Mdia': 0,
-            'Vel. Abertura Mdia': 0,
+            'Amplitude Média': 0,
+            'RBA Médio (%)': 0,
+            'Vel. Fechamento Média': 0,
+            'Vel. Abertura Média': 0,
             'Baseline EAR': round(baseline_ear, 4)
         }
 
     df = pd.DataFrame(blinks)
     total = len(df)
-    completas = len(df[df['Classificacao'] == 'Completa'])
+    completas = len(df[df['Classificação'] == 'Completa'])
     incompletas = total - completas
 
     video_duration_min = (total_frames / fps) / 60
@@ -861,12 +868,12 @@ def calculate_summary_stats(blinks, fps, total_frames, eye_name, baseline_ear):
         'Completas': completas,
         'Incompletas': incompletas,
         '% Completas': round((completas / total) * 100, 1) if total > 0 else 0,
-        'Durao Mdia (s)': round(df['Duracao (s)'].mean(), 3),
+        'Duração Média (s)': round(df['Duração (s)'].mean(), 3),
         'Taxa (piscadas/min)': round(taxa, 1),
-        'Amplitude Mdia': round(df['Amplitude'].mean(), 4),
-        'RBA Mdio (%)': round(df['RBA (%)'].mean(), 1),
-        'Vel. Fechamento Mdia': round(df['Vel. Fechamento (EAR/s)'].mean(), 4),
-        'Vel. Abertura Mdia': round(df['Vel. Abertura (EAR/s)'].mean(), 4),
+        'Amplitude Média': round(df['Amplitude'].mean(), 4),
+        'RBA Médio (%)': round(df['RBA (%)'].mean(), 1),
+        'Vel. Fechamento Média': round(df['Vel. Fechamento (EAR/s)'].mean(), 4),
+        'Vel. Abertura Média': round(df['Vel. Abertura (EAR/s)'].mean(), 4),
         'Baseline EAR': round(baseline_ear, 4)
     }
 
@@ -884,8 +891,8 @@ def generate_per_minute_report(blinks_right, blinks_left):
     if blinks_right:
         df_r = pd.DataFrame(blinks_right)
         for minuto, group in df_r.groupby('Minuto'):
-            completas = len(group[group['Classificacao'] == 'Completa'])
-            incompletas = len(group[group['Classificacao'] == 'Incompleta'])
+            completas = len(group[group['Classificação'] == 'Completa'])
+            incompletas = len(group[group['Classificação'] == 'Incompleta'])
             data.append({
                 'Minuto': minuto,
                 'Olho': 'Direito',
@@ -898,8 +905,8 @@ def generate_per_minute_report(blinks_right, blinks_left):
     if blinks_left:
         df_l = pd.DataFrame(blinks_left)
         for minuto, group in df_l.groupby('Minuto'):
-            completas = len(group[group['Classificacao'] == 'Completa'])
-            incompletas = len(group[group['Classificacao'] == 'Incompleta'])
+            completas = len(group[group['Classificação'] == 'Completa'])
+            incompletas = len(group[group['Classificação'] == 'Incompleta'])
             data.append({
                 'Minuto': minuto,
                 'Olho': 'Esquerdo',
@@ -918,7 +925,7 @@ def generate_per_minute_report(blinks_right, blinks_left):
 
 def generate_ear_timeseries(ear_right, ear_left, fps):
     """
-    Gera srie temporal de EAR para exportao.
+    Gera série temporal de EAR para exportao.
 
     Returns:
         DataFrame com EAR por frame/tempo
@@ -926,7 +933,7 @@ def generate_ear_timeseries(ear_right, ear_left, fps):
     frames = list(range(len(ear_right)))
     times = [f / fps for f in frames]
 
-    # Amostrar para no ficar muito grande (a cada 0.05s)
+    # Amostrar para não ficar muito grande (a cada 0.05s)
     sample_interval = max(1, int(fps / 20))
     indices = list(range(0, len(frames), sample_interval))
 
@@ -960,13 +967,13 @@ def read_fps_from_csv(csv_path):
 
 def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override=None):
     """
-    Funo principal de anlise completa.
+    Funo principal de análise completa.
 
     Args:
         csv_path: Caminho do arquivo CSV
         output_path: Caminho do arquivo de sada (Excel ou JSON)
         fps_override: FPS manual (se None, l automaticamente do CSV)
-        csv_type_override: Forar tipo de CSV ('all_points' ou 'eyes_only')
+        csv_type_override: Forçar tipo de CSV ('all_points' ou 'eyes_only')
     """
     print(f"{'='*60}")
     print(f"ANLISE COMPLETA DE MTRICAS DE PISCADAS")
@@ -1017,7 +1024,7 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     valid_left = ear_left[~np.isnan(ear_left)]
 
     if len(valid_right) == 0 or len(valid_left) == 0:
-        print(" Dados insuficientes para anlise.")
+        print(" Dados insuficientes para análise.")
         return
 
     baseline_right = np.percentile(valid_right, 90)
@@ -1050,7 +1057,7 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     # IBI (Inter-Blink Interval)
     ibi_right = calculate_ibi_stats(blinks_right, fps)
     ibi_left = calculate_ibi_stats(blinks_left, fps)
-    print(f"   IBI medio - Direito: {ibi_right['IBI Medio (s)']}s | Esquerdo: {ibi_left['IBI Medio (s)']}s")
+    print(f"   IBI medio - Direito: {ibi_right['IBI Médio (s)']}s | Esquerdo: {ibi_left['IBI Médio (s)']}s")
 
     # Bursts (clusters de piscadas)
     bursts_right = detect_blink_bursts(blinks_right, fps)
@@ -1064,37 +1071,37 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     # Fadiga
     all_blinks_sorted = sorted(blinks_right + blinks_left, key=lambda b: b['Tempo Inicio (s)'])
     fatigue = calculate_fatigue_index(all_blinks_sorted, ear_right, fps, total_frames)
-    print(f"   Indice de fadiga: {fatigue['Indice Fadiga']}/100")
+    print(f"   Índice de fadiga: {fatigue['Índice Fadiga']}/100")
 
     # Percentis de velocidade
     vel_percentiles_right = calculate_velocity_percentiles(blinks_right)
     vel_percentiles_left = calculate_velocity_percentiles(blinks_left)
 
-    # Latencia pos-piscada
+    # Latência pós-piscada
     latency_right = calculate_post_blink_latency(ear_right, blinks_right, fps, baseline_right)
     latency_left = calculate_post_blink_latency(ear_left, blinks_left, fps, baseline_left)
 
-    # Score de saude ocular
+    # Score de saúde ocular
     health_score = calculate_eye_health_score(stats_right, stats_left, asymmetry, fatigue)
-    print(f"   Score de saude ocular: {health_score['Score Saude Ocular']}/100")
+    print(f"   Score de saúde ocular: {health_score['Score Saúde Ocular']}/100")
 
-    # Estatsticas combinadas
+    # Estatísticas combinadas
     video_duration_min = (total_frames / fps) / 60
     total_blinks = len(blinks_right) + len(blinks_left)
 
     stats_combined = {
-        'Durao do Vdeo (s)': round(total_frames / fps, 2),
-        'Durao do Vdeo (min)': round(video_duration_min, 2),
+        'Duração do Vídeo (s)': round(total_frames / fps, 2),
+        'Duração do Vídeo (min)': round(video_duration_min, 2),
         'FPS': fps,
         'Total de Frames': total_frames,
         'Tipo CSV': csv_type,
         'Piscadas Sincronizadas': len(synchronized),
-        'Score Saude Ocular': health_score['Score Saude Ocular'],
-        'Indice Fadiga': fatigue['Indice Fadiga']
+        'Score Saúde Ocular': health_score['Score Saúde Ocular'],
+        'Índice Fadiga': fatigue['Índice Fadiga']
     }
 
-    # 9. Gerar relatrios
-    print("\n Gerando relatrios...")
+    # 9. Gerar relatórios
+    print("\n Gerando relatórios...")
 
     # Combinar todas as piscadas para detalhamento
     all_blinks = blinks_right + blinks_left
@@ -1107,24 +1114,24 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     # Resumo por olho
     summary_df = pd.DataFrame([stats_right, stats_left])
 
-    # Informaes gerais
+    # Informações gerais
     info_df = pd.DataFrame([stats_combined])
 
     # Timeline
     timeline_df = generate_timeline_data(blinks_right, blinks_left, total_frames, fps)
 
-    # Distribuio de velocidade
+    # Distribuição de velocidade
     velocity_df = generate_velocity_distribution(blinks_right, blinks_left)
 
     # Por minuto
     per_minute_df = generate_per_minute_report(blinks_right, blinks_left)
 
-    # Srie temporal EAR
+    # Série temporal EAR
     ear_series_df = generate_ear_timeseries(ear_right, ear_left, fps)
 
     # NOVOS DATAFRAMES
     # IBI
-    ibi_data = {'Mtrica': list(ibi_right.keys())}
+    ibi_data = {'Métrica': list(ibi_right.keys())}
     ibi_data['Direito'] = list(ibi_right.values())
     ibi_data['Esquerdo'] = [ibi_left[k] for k in ibi_right.keys()]
     ibi_df = pd.DataFrame(ibi_data)
@@ -1141,13 +1148,13 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     fatigue_df = pd.DataFrame([fatigue])
 
     # Percentis de velocidade
-    vel_pct_data = {'Mtrica': list(vel_percentiles_right.keys())}
+    vel_pct_data = {'Métrica': list(vel_percentiles_right.keys())}
     vel_pct_data['Direito'] = list(vel_percentiles_right.values())
     vel_pct_data['Esquerdo'] = [vel_percentiles_left[k] for k in vel_percentiles_right.keys()]
     vel_pct_df = pd.DataFrame(vel_pct_data)
 
-    # Latencia
-    latency_data = {'Mtrica': list(latency_right.keys())}
+    # Latência
+    latency_data = {'Métrica': list(latency_right.keys())}
     latency_data['Direito'] = list(latency_right.values())
     latency_data['Esquerdo'] = [latency_left[k] for k in latency_right.keys()]
     latency_df = pd.DataFrame(latency_data)
@@ -1194,11 +1201,11 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
         # Exportar como Excel
         try:
             with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-                # Informaes gerais
+                # Informações gerais
                 info_df.to_excel(writer, sheet_name='Info', index=False)
 
-                # Score de Saude Ocular
-                health_df.to_excel(writer, sheet_name='Score Saude Ocular', index=False)
+                # Score de Saúde Ocular
+                health_df.to_excel(writer, sheet_name='Score Saúde Ocular', index=False)
 
                 # Resumo por olho
                 summary_df.to_excel(writer, sheet_name='Resumo por Olho', index=False)
@@ -1209,8 +1216,8 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
                 # Percentis Velocidade
                 vel_pct_df.to_excel(writer, sheet_name='Percentis Velocidade', index=False)
 
-                # Latencia Pos-Piscada
-                latency_df.to_excel(writer, sheet_name='Latencia', index=False)
+                # Latência Pós-Piscada
+                latency_df.to_excel(writer, sheet_name='Latência', index=False)
 
                 # Assimetria
                 asymmetry_df.to_excel(writer, sheet_name='Assimetria', index=False)
@@ -1238,17 +1245,17 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
                 if not per_minute_df.empty:
                     per_minute_df.to_excel(writer, sheet_name='Por Minuto', index=False)
 
-                # Distribuio de velocidade
+                # Distribuição de velocidade
                 if not velocity_df.empty:
                     velocity_df.to_excel(writer, sheet_name='Velocidades', index=False)
 
-                # Timeline (limitado para no ficar muito grande)
+                # Timeline (limitado para não ficar muito grande)
                 timeline_df.to_excel(writer, sheet_name='Timeline', index=False)
 
-                # Srie EAR
+                # Série EAR
                 ear_series_df.to_excel(writer, sheet_name='Serie EAR', index=False)
 
-            print(f"\n Relatrio Excel salvo: {output_path}")
+            print(f"\n Relatório Excel salvo: {output_path}")
 
         except Exception as e:
             print(f" Erro ao salvar Excel: {e}")
@@ -1263,39 +1270,39 @@ def analyze_complete(csv_path, output_path, fps_override=None, csv_type_override
     print(f"   Completas: {stats_right['Completas']} ({stats_right['% Completas']}%)")
     print(f"   Incompletas: {stats_right['Incompletas']}")
     print(f"   Taxa: {stats_right['Taxa (piscadas/min)']} piscadas/min")
-    print(f"   Amplitude Mdia: {stats_right['Amplitude Mdia']}")
-    print(f"   Vel. Fechamento Mdia: {stats_right['Vel. Fechamento Mdia']} EAR/s")
-    print(f"   Vel. Abertura Mdia: {stats_right['Vel. Abertura Mdia']} EAR/s")
-    print(f"   IBI Mdio: {ibi_right['IBI Medio (s)']}s")
+    print(f"   Amplitude Média: {stats_right['Amplitude Média']}")
+    print(f"   Vel. Fechamento Média: {stats_right['Vel. Fechamento Média']} EAR/s")
+    print(f"   Vel. Abertura Média: {stats_right['Vel. Abertura Média']} EAR/s")
+    print(f"   IBI Médio: {ibi_right['IBI Médio (s)']}s")
 
     print(f"\n Olho Esquerdo:")
     print(f"   Total: {stats_left['Total Piscadas']} piscadas")
     print(f"   Completas: {stats_left['Completas']} ({stats_left['% Completas']}%)")
     print(f"   Incompletas: {stats_left['Incompletas']}")
     print(f"   Taxa: {stats_left['Taxa (piscadas/min)']} piscadas/min")
-    print(f"   Amplitude Mdia: {stats_left['Amplitude Mdia']}")
-    print(f"   Vel. Fechamento Mdia: {stats_left['Vel. Fechamento Mdia']} EAR/s")
-    print(f"   Vel. Abertura Mdia: {stats_left['Vel. Abertura Mdia']} EAR/s")
-    print(f"   IBI Mdio: {ibi_left['IBI Medio (s)']}s")
+    print(f"   Amplitude Média: {stats_left['Amplitude Média']}")
+    print(f"   Vel. Fechamento Média: {stats_left['Vel. Fechamento Média']} EAR/s")
+    print(f"   Vel. Abertura Média: {stats_left['Vel. Abertura Média']} EAR/s")
+    print(f"   IBI Médio: {ibi_left['IBI Médio (s)']}s")
 
     print(f"\n Metricas Avancadas:")
     print(f"   Piscadas Sincronizadas: {len(synchronized)}")
     print(f"   Assimetria Amplitude: {asymmetry['Assimetria Amplitude (%)']}%")
-    print(f"   Indice de Fadiga: {fatigue['Indice Fadiga']}/100")
-    print(f"   Score Saude Ocular: {health_score['Score Saude Ocular']}/100")
+    print(f"   Índice de Fadiga: {fatigue['Índice Fadiga']}/100")
+    print(f"   Score Saúde Ocular: {health_score['Score Saúde Ocular']}/100")
     print(f"\n{'='*60}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Anlise completa de mtricas de piscadas a partir de CSV.",
+        description="Análise completa de métricas de piscadas a partir de CSV.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
-  # Bsico (FPS lido automaticamente do CSV)
+  # Básico (FPS lido automaticamente do CSV)
   python analisar_metricas_completas.py video.csv
 
-  # Forar tipo all_points
+  # Forçar tipo all_points
   python analisar_metricas_completas.py video_all_points.csv --tipo all_points
 
   # Override manual do FPS
@@ -1315,14 +1322,14 @@ Exemplos:
         "--tipo",
         choices=['all_points', 'eyes_only'],
         default=None,
-        help="Tipo de CSV (auto-detectado se no especificado)"
+        help="Tipo de CSV (auto-detectado se não especificado)"
     )
 
     parser.add_argument(
         "--fps",
         type=float,
         default=None,
-        help="FPS do vdeo (opcional - lido automaticamente da primeira linha do CSV)"
+        help="FPS do vídeo (opcional - lido automaticamente da primeira linha do CSV)"
     )
 
     parser.add_argument(
@@ -1346,7 +1353,7 @@ Exemplos:
             base = base[:-11]
         args.saida = f"{base}_metricas.xlsx"
 
-    # Executar anlise
+    # Executar análise
     analyze_complete(
         csv_path=args.csv_entrada,
         output_path=args.saida,

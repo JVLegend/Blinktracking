@@ -7,7 +7,16 @@ export async function GET(
     { params }: { params: { path: string[] } }
 ) {
     try {
-        const filePath = path.join(process.cwd(), 'tmp', ...params.path);
+        const tmpDir = path.resolve(process.cwd(), 'tmp');
+        const filePath = path.resolve(tmpDir, ...params.path);
+
+        if (!filePath.startsWith(`${tmpDir}${path.sep}`)) {
+            return NextResponse.json(
+                { error: "Caminho inválido" },
+                { status: 400 }
+            );
+        }
+
         const file = await readFile(filePath);
         
         return new NextResponse(file, {
@@ -21,4 +30,4 @@ export async function GET(
             { status: 404 }
         );
     }
-} 
+}

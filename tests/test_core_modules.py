@@ -5,6 +5,9 @@ Testes dos módulos core do BlinkTracking V2.0
 
 import sys
 import os
+import csv
+import io
+import warnings
 import numpy as np
 from pathlib import Path
 
@@ -17,6 +20,7 @@ from blinktracking.filters import (
     LandmarkStabilizer, RotationNormalizer, Point2D
 )
 from blinktracking.metrics import BlinkDetector, MetricsCalculator
+from blinktracking.tracker import BlinkTracker
 
 
 def test_kalman_filter():
@@ -191,6 +195,32 @@ def test_landmark_stabilizer():
     return True
 
 
+def test_vectorized_kalman_matches_legacy_landmark_stabilizer():
+    """O banco vetorizado deve manter a mesma API e saída do Kalman legado."""
+    np.random.seed(789)
+    frames = [
+        [(float(i * 10 + np.random.normal()), float(i * 5 + np.random.normal())) for i in range(8)]
+        for _ in range(12)
+    ]
+    legacy = LandmarkStabilizer(
+        num_landmarks=8,
+        use_kalman=True,
+        use_moving_avg=False,
+        vectorized_kalman=False,
+    )
+    vectorized = LandmarkStabilizer(
+        num_landmarks=8,
+        use_kalman=True,
+        use_moving_avg=False,
+        vectorized_kalman=True,
+    )
+
+    for frame in frames:
+        legacy_out = np.array(legacy.stabilize(frame))
+        vectorized_out = np.array(vectorized.stabilize(frame))
+        np.testing.assert_allclose(vectorized_out, legacy_out, atol=1e-9)
+
+
 def test_rotation_normalizer():
     """Testa normalizador de rotação"""
     print("\n" + "="*60)
@@ -298,6 +328,57 @@ def test_blink_detector():
     assert 250 <= metrics.mean_duration_ms <= 350, "Duração deve ser entre 250-350ms"
     print("✅ Blink Detector funcionando!")
     return True
+
+
+def test_tracker_csv_left_lower_columns_and_fps_timestamp():
+    """Garante que landmarks inferiores esquerdos não sobrescrevem left_upper_*."""
+    tracker = object.__new__(BlinkTracker)
+    tracker.config = Config()
+
+    output = io.StringIO()
+    writer = tracker._create_csv_writer(output, fps=60.0)
+    landmarks = [(float(i), float(i) + 0.5) for i in range(478)]
+    results = {
+        "landmarks": landmarks,
+        "openings": {"left": 75.0, "right": 80.0},
+    }
+
+    tracker._write_csv_row(writer, frame_num=3, results=results, fps=60.0)
+
+    lines = output.getvalue().splitlines()
+    reader = csv.DictReader(lines[1:])
+    row = next(reader)
+
+    left_upper_idx = tracker.config.left_eye.upper[0]
+    left_lower_idx = tracker.config.left_eye.lower[0]
+    assert row["left_upper_0_x"] == str(float(left_upper_idx))
+    assert row["left_upper_0_y"] == str(float(left_upper_idx) + 0.5)
+    assert row["left_lower_0_x"] == str(float(left_lower_idx))
+    assert row["left_lower_0_y"] == str(float(left_lower_idx) + 0.5)
+    assert float(row["timestamp_ms"]) == 50.0
+
+
+def test_blink_detector_invalid_fps_falls_back_to_30():
+    """Protege cálculo de ms_per_frame contra FPS inválido."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        detector = BlinkDetector(fps=0)
+
+    assert detector.fps == 30.0
+    assert detector.ms_per_frame == 1000.0 / 30.0
+    assert any("FPS inválido" in str(item.message) for item in caught)
+
+
+def test_tracker_interpolates_skipped_openings():
+    """Valida interpolação linear usada quando frame_skip > 1."""
+    tracker = object.__new__(BlinkTracker)
+    interpolated = tracker._interpolate_openings(
+        {"left": 10.0, "right": 20.0},
+        {"left": 30.0, "right": 60.0},
+        0.25,
+    )
+
+    assert interpolated == {"left": 15.0, "right": 30.0}
 
 
 def test_metrics_calculator():
