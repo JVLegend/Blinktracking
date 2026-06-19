@@ -45,7 +45,10 @@ thresholds:
   blink_threshold_percent: 30.0    # Abaixo disso = piscada
   complete_blink_threshold: 90.0   # Fechamento > 90% = piscada completa
   min_blink_duration_ms: 100       # Duração mínima válida
-  max_blink_duration_ms: 400       # Duração máxima válida
+  max_blink_duration_ms: 800       # Duração máxima válida
+  adaptive_threshold_ratio: 0.75   # Fração da abertura basal usada como limiar
+  baseline_window_frames: 300      # Janela recente para estimar abertura basal
+  ear_open_reference: 0.25         # EAR aproximado de olho aberto para escala 100
 
 # Configurações de saída
 output_format: "csv"

@@ -3,6 +3,53 @@
 **Data:** 2026-05-04
 **Status:** Testes concluidos com sucesso
 
+## Validacao clinica manual em videos reais (18/06/2026)
+
+### Contexto
+
+Foram usados videos reais do lote Drive para comparar a percepcao manual com o algoritmo. Como alguns arquivos de iPhone aparecem em camera lenta no player, os tempos informados pelo observador podem estar em uma escala diferente do tempo tecnico do CSV/video. A comparacao deve considerar essa escala.
+
+### Paciente 7 - IMG_3616
+
+**Anotacao manual:** o observador marcou piscadas em 00:10, 00:20 e 00:31 no player, com fechamento completo/dominante do olho esquerdo e quase ausencia de fechamento no direito.
+
+**Linha temporal tecnica:** o video tem 10,77 s tecnicos. O algoritmo encontrou 3 eventos em:
+
+- 3,998 s
+- 6,612 s
+- 9,447 s
+
+**Interpretacao:** a contagem de eventos esta correta, mas a lateralidade clinica precisa ser destacada. Foi adicionada classificacao de dominancia lateral em eventos bilaterais sincronizados.
+
+### Paciente 16 - IMG_4220
+
+**Anotacao manual:** o observador marcou piscadas em 00:08 e 00:31 no player, com olho direito fechando completamente e olho esquerdo parcialmente.
+
+**Detector principal:** 0 piscadas confirmadas.
+
+**Passada relaxada:** encontrou 2 candidatos tecnicos:
+
+- 3,392 s
+- 10,265 s
+
+**Interpretacao:** o desfecho primario deve permanecer conservador, mas os candidatos relaxados sao clinicamente relevantes para revisao manual. A passada relaxada agora registra lateralidade/dominancia do candidato.
+
+### Mudancas decorrentes
+
+- `combined` passa a representar piscadas clinicas unicas, sincronizando esquerdo/direito.
+- `clinical_counts` inclui `raw_eye_blinks`, bilaterais, unilaterais e dominancia lateral.
+- Relatorios distinguem piscadas confirmadas de candidatos relaxados.
+- Os candidatos relaxados nao entram automaticamente no total principal.
+
+### Rodada seguinte de anotacao manual
+
+Dois videos adicionais foram separados em `/Users/iaparamedicos/Documents/Blinktracking_Manual_Annotation/videos`:
+
+- Paciente 30 / `Paciente30_IMG_6086_curto_nao_zero.MOV`: 10,65 s tecnicos, 2 eventos confirmados no detector principal.
+- Paciente 15 / `Paciente15_IMG_3976_zero_candidatos.MOV`: 7,09 s tecnicos, 0 eventos no detector principal, mas com candidatos na passada relaxada.
+
+Objetivo: comparar um caso curto com poucos eventos confirmados contra um caso curto dificil/zerado, refinando se a passada relaxada deve virar apenas triagem visual ou se algum criterio pode ser promovido com seguranca.
+
 ## Ambiente de Teste
 
 - **OS:** macOS (Darwin)

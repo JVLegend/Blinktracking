@@ -560,32 +560,42 @@ class BlinkTracker:
         self,
         landmarks: List[Tuple[float, float]],
         eye_config
-    ) -> float:
-        """Calcula percentual de abertura do olho"""
+    ) -> Optional[float]:
+        """Calcula abertura do olho por EAR, escalada para uma referência clínica."""
         if len(landmarks) <= max(eye_config.upper + eye_config.lower):
-            return 0.0
-        
-        # Ponto central superior (meio da lista upper)
-        upper_idx = eye_config.upper[len(eye_config.upper) // 2]
-        # Ponto central inferior (meio da lista lower)
-        lower_idx = eye_config.lower[len(eye_config.lower) // 2]
-        
-        if upper_idx >= len(landmarks) or lower_idx >= len(landmarks):
-            return 0.0
-        
-        upper_point = landmarks[upper_idx]
-        lower_point = landmarks[lower_idx]
-        if np.isnan(upper_point).any() or np.isnan(lower_point).any():
-            return 0.0
-        
-        # Distância vertical em pixels
-        distance = abs(upper_point[1] - lower_point[1])
-        
-        # Normalizar (assumindo que 50 pixels = 100% aberto)
-        # Isso pode ser calibrado por paciente
-        opening_percent = min(100.0, (distance / 50.0) * 100.0)
-        
-        return opening_percent
+            return None
+
+        if len(eye_config.upper) >= 5 and len(eye_config.lower) >= 6:
+            vertical_pairs = [
+                (eye_config.upper[2], eye_config.lower[3]),
+                (eye_config.upper[4], eye_config.lower[5]),
+            ]
+            corner_indices = (eye_config.lower[0], eye_config.lower[-1])
+        else:
+            n_pairs = min(len(eye_config.upper), len(eye_config.lower))
+            vertical_pairs = list(zip(eye_config.upper[:n_pairs], eye_config.lower[:n_pairs]))
+            corner_indices = (eye_config.lower[0], eye_config.lower[-1])
+
+        required = [corner_indices[0], corner_indices[1]]
+        required.extend(idx for pair in vertical_pairs for idx in pair)
+        if any(idx >= len(landmarks) for idx in required):
+            return None
+
+        points = {idx: np.asarray(landmarks[idx], dtype=float) for idx in required}
+        if any(not np.isfinite(point).all() for point in points.values()):
+            return None
+
+        horizontal = np.linalg.norm(points[corner_indices[0]] - points[corner_indices[1]])
+        if horizontal <= 1e-6:
+            return None
+
+        vertical = np.mean([
+            np.linalg.norm(points[upper_idx] - points[lower_idx])
+            for upper_idx, lower_idx in vertical_pairs
+        ])
+        ear = vertical / horizontal
+        reference = self.config.thresholds.ear_open_reference or 0.25
+        return (ear / reference) * 100.0
     
     def _create_debug_frame(
         self,
@@ -620,8 +630,8 @@ class BlinkTracker:
         text_x = frame.shape[1] - 300
         metrics = [
             f"Frame: {self.frame_count}",
-            f"Left: {openings['left']:.1f}%" if openings['left'] else "Left: --",
-            f"Right: {openings['right']:.1f}%" if openings['right'] else "Right: --"
+            f"Left: {openings['left']:.1f}%" if openings['left'] is not None else "Left: --",
+            f"Right: {openings['right']:.1f}%" if openings['right'] is not None else "Right: --"
         ]
         
         for i, text in enumerate(metrics):

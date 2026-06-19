@@ -105,6 +105,15 @@ export function MainNav() {
               Análise de Coordenadas
             </Button>
           </Link>
+          <Link href="/resultados-drive">
+            <Button
+              variant={pathname === "/resultados-drive" ? "secondary" : "ghost"}
+              className="w-full justify-start hover:bg-accent"
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              Resultados do Drive
+            </Button>
+          </Link>
           {/* Estatísticas unificado com Piscadas */}
           <Link href="/alinhamento">
             <Button
@@ -163,4 +172,4 @@ export default function AlinhamentoPage() {
       {/* Todo o conteúdo da página de alinhamento aqui */}
     </SidebarInset>
   );
-} 
+}

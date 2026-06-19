@@ -131,6 +131,14 @@ export function Sidebar() {
                 <Move className="w-5 h-5" />
                 <span className="font-medium">Estabilidade da Cabeça</span>
               </Link>
+              <Link
+                href="/resultados-drive"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 hover:bg-sidebar-accent group
+                  ${isActive('/resultados-drive') ? 'bg-primary text-primary-foreground shadow-sm' : 'text-sidebar-foreground hover:text-sidebar-accent-foreground'}`}
+              >
+                <BarChart3 className="w-5 h-5" />
+                <span className="font-medium">Resultados do Drive</span>
+              </Link>
             </div>
           </div>
 

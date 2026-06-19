@@ -19,7 +19,7 @@ from blinktracking.filters import (
     KalmanFilter, MovingAverageFilter, 
     LandmarkStabilizer, RotationNormalizer, Point2D
 )
-from blinktracking.metrics import BlinkDetector, MetricsCalculator
+from blinktracking.metrics import BlinkDetector, BlinkEvent, BlinkMetrics, MetricsCalculator
 from blinktracking.tracker import BlinkTracker
 
 
@@ -264,6 +264,52 @@ def test_rotation_normalizer():
     return True
 
 
+def test_blink_detector_adapts_to_individual_baseline():
+    """Detecta piscada parcial quando a abertura basal não chega a 100%."""
+    detector = BlinkDetector(fps=150.0, min_duration_ms=80, max_duration_ms=800)
+
+    opening_pattern = []
+    opening_pattern.extend([68.0] * 120)
+    opening_pattern.extend(np.linspace(68, 45, 12).tolist())
+    opening_pattern.extend([45.0] * 8)
+    opening_pattern.extend(np.linspace(45, 68, 12).tolist())
+    opening_pattern.extend([68.0] * 120)
+
+    blinks = [blink for opening in opening_pattern if (blink := detector.update(opening))]
+    metrics = detector.calculate_metrics()
+
+    assert len(blinks) == 1
+    assert metrics.total_blinks == 1
+    assert 30 <= metrics.mean_completeness <= 40
+
+
+def test_tracker_eye_opening_uses_scale_invariant_ear():
+    """Abertura ocular não deve depender da resolução/tamanho do rosto."""
+    tracker = object.__new__(BlinkTracker)
+    tracker.config = Config()
+    eye = tracker.config.right_eye
+
+    def make_landmarks(width, vertical_gap):
+        landmarks = np.full((478, 2), np.nan, dtype=float)
+        landmarks[eye.lower[0]] = (0.0, 0.0)
+        landmarks[eye.lower[-1]] = (width, 0.0)
+        for upper_idx, lower_idx, x in [
+            (eye.upper[2], eye.lower[3], width * 0.35),
+            (eye.upper[4], eye.lower[5], width * 0.65),
+        ]:
+            landmarks[upper_idx] = (x, -vertical_gap / 2.0)
+            landmarks[lower_idx] = (x, vertical_gap / 2.0)
+        return landmarks
+
+    opening = tracker._calculate_eye_opening(make_landmarks(100.0, 25.0), eye)
+    opening_scaled = tracker._calculate_eye_opening(make_landmarks(200.0, 50.0), eye)
+    opening_closed = tracker._calculate_eye_opening(make_landmarks(100.0, 5.0), eye)
+
+    assert np.isclose(opening, 100.0)
+    assert np.isclose(opening_scaled, opening)
+    assert np.isclose(opening_closed, 20.0)
+
+
 def test_blink_detector():
     """Testa detector de piscadas"""
     print("\n" + "="*60)
@@ -325,7 +371,7 @@ def test_blink_detector():
     
     assert metrics.total_blinks == 3, f"Deveria detectar 3 piscadas, detectou {metrics.total_blinks}"
     assert metrics.complete_blinks == 3, "Todas devem ser completas"
-    assert 250 <= metrics.mean_duration_ms <= 350, "Duração deve ser entre 250-350ms"
+    assert 500 <= metrics.mean_duration_ms <= 650, "Duração adaptativa deve ser entre 500-650ms"
     print("✅ Blink Detector funcionando!")
     return True
 
@@ -430,6 +476,72 @@ def test_metrics_calculator():
     assert metrics['combined'].total_blinks > 0, "Deve ter métricas combinadas"
     print("✅ Metrics Calculator funcionando!")
     return True
+
+
+def test_combined_metrics_counts_bilateral_blinks_once():
+    """Piscadas sincronizadas dos dois olhos devem contar como um evento clínico."""
+    calc = MetricsCalculator(Config())
+    left_metrics = BlinkMetrics(
+        total_blinks=2,
+        blink_events=[
+            BlinkEvent(10, 18, 5.0, 333.0, 600.0, "left", baseline_opening=100.0),
+            BlinkEvent(80, 88, 40.0, 2666.0, 2933.0, "left", baseline_opening=100.0),
+        ],
+        total_frames=120,
+        duration_seconds=4.0,
+        fps=30.0,
+    )
+    right_metrics = BlinkMetrics(
+        total_blinks=1,
+        blink_events=[
+            BlinkEvent(11, 19, 7.0, 366.0, 633.0, "right", baseline_opening=100.0),
+        ],
+        total_frames=120,
+        duration_seconds=4.0,
+        fps=30.0,
+    )
+
+    combined = calc._combine_metrics(left_metrics, right_metrics)
+
+    assert combined.raw_eye_blinks == 3
+    assert combined.total_blinks == 2
+    assert combined.bilateral_blinks == 1
+    assert combined.unilateral_left_blinks == 1
+    assert combined.unilateral_right_blinks == 0
+    assert [blink.eye for blink in combined.blink_events] == ["bilateral", "left"]
+    assert combined.bilateral_symmetric_blinks == 1
+
+
+def test_combined_metrics_classifies_lateral_dominance():
+    """Eventos bilaterais assimétricos preservam o lado dominante."""
+    calc = MetricsCalculator(Config())
+    left_metrics = BlinkMetrics(
+        total_blinks=1,
+        blink_events=[
+            BlinkEvent(10, 18, 20.0, 333.0, 600.0, "left", baseline_opening=100.0),
+        ],
+        total_frames=60,
+        duration_seconds=2.0,
+        fps=30.0,
+    )
+    right_metrics = BlinkMetrics(
+        total_blinks=1,
+        blink_events=[
+            BlinkEvent(11, 19, 55.0, 366.0, 633.0, "right", baseline_opening=100.0),
+        ],
+        total_frames=60,
+        duration_seconds=2.0,
+        fps=30.0,
+    )
+
+    combined = calc._combine_metrics(left_metrics, right_metrics)
+
+    assert combined.total_blinks == 1
+    assert combined.left_dominant_blinks == 1
+    assert combined.right_dominant_blinks == 0
+    assert combined.blink_events[0].lateral_classification == "left_dominant"
+    assert combined.blink_events[0].left_completeness_percent == 80.0
+    assert np.isclose(combined.blink_events[0].right_completeness_percent, 45.0)
 
 
 def test_config_system():

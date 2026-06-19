@@ -1,6 +1,16 @@
 # Status do Projeto
 
 ## Últimas Atualizações
+- **[18/06/2026]** Calibração clínica com anotação manual em vídeos reais do Drive.
+  - Corrigida a métrica `combined`: piscadas bilaterais sincronizadas contam como **um evento clínico**, mantendo `raw_eye_blinks` para auditoria.
+  - Adicionada classificação de lateralidade para eventos bilaterais: `bilateral_symmetric`, `left_dominant`, `right_dominant`.
+  - Passada relaxada de recuperação dos vídeos zerados agora registra candidatos dominantes à esquerda/direita, sempre como **candidatos para revisão manual**, não como desfecho primário.
+  - Paciente 7 / `IMG_3616`: 3 eventos detectados; revisão manual indica fechamento dominante do olho esquerdo.
+  - Paciente 16 / `IMG_4220`: detector principal zerou, mas a passada relaxada encontrou 2 candidatos; revisão manual indica olho direito completo e esquerdo parcial.
+  - Relatório consolidado do Drive atualizado: 71 vídeos, 1.273 piscadas clínicas, 2.397 eventos crus por olho, 1.124 bilaterais sincronizadas.
+  - Lateralidade dos eventos confirmados: 988 bilaterais simétricos, 121 dominantes à esquerda e 15 dominantes à direita.
+  - Recuperação dos 20 vídeos com 0 piscadas: 87 candidatos relaxados em 18 vídeos, incluindo 25 candidatos dominantes à esquerda e 35 à direita.
+  - Próximos vídeos separados para anotação manual: Paciente 30 / `IMG_6086` (10,65 s, baixo não-zero) e Paciente 15 / `IMG_3976` (7,09 s, zero com candidatos).
 - **[04/05/2026]** OTIMIZAÇÃO MAJOR: Scripts Python otimizados com ganhos de 10-50x performance
   - Vetorização completa do cálculo de EAR (numpy arrays 2D)
   - Detecção de piscadas com operações vetorizadas (np.diff)
@@ -176,5 +186,5 @@
 - Adicionada página de alinhamento para calibração do usuário
 - Implementado sistema de feedback visual para posicionamento
 - Integrado com o sistema de navegação do Next.js
-- Adicionado suporte a TypeScript para melhor manutenção 
-- [Em andamento] Otimização da página de análise de coordenadas: será implementado downsampling dos dados e seleção de pontos para o usuário para evitar travamentos e melhorar a performance dos gráficos. Troca de biblioteca gráfica será considerada se necessário. 
+- Adicionado suporte a TypeScript para melhor manutenção
+- [Em andamento] Otimização da página de análise de coordenadas: será implementado downsampling dos dados e seleção de pontos para o usuário para evitar travamentos e melhorar a performance dos gráficos. Troca de biblioteca gráfica será considerada se necessário.

@@ -51,7 +51,10 @@ class BlinkThresholds:
     blink_threshold_percent: float = 30.0
     complete_blink_threshold: float = 90.0
     min_blink_duration_ms: int = 100
-    max_blink_duration_ms: int = 400
+    max_blink_duration_ms: int = 800
+    adaptive_threshold_ratio: float = 0.75
+    baseline_window_frames: int = 300
+    ear_open_reference: float = 0.25
 
 
 @dataclass
@@ -122,6 +125,15 @@ class Config:
         
         if not (0 < self.thresholds.complete_blink_threshold < 100):
             errors.append("complete_blink_threshold deve estar entre 0 e 100")
+
+        if not (0 < self.thresholds.adaptive_threshold_ratio < 1):
+            errors.append("adaptive_threshold_ratio deve estar entre 0 e 1")
+
+        if self.thresholds.baseline_window_frames < 1:
+            errors.append("baseline_window_frames deve ser >= 1")
+
+        if self.thresholds.ear_open_reference <= 0:
+            errors.append("ear_open_reference deve ser > 0")
         
         # Validar confiança
         if not (0 <= self.detection.min_detection_confidence <= 1):
