@@ -97,7 +97,7 @@ def main() -> int:
         default=Path("/Users/iaparamedicos/Documents/Blinktracking_Zero_Blink_Rescue"),
     )
     parser.add_argument("--ratio", type=float, default=0.80)
-    parser.add_argument("--fallback-ratio", type=float, default=0.85)
+    parser.add_argument("--fallback-ratio", type=float, default=0.88)
     parser.add_argument("--min-duration-ms", type=float, default=80.0)
     parser.add_argument("--max-duration-ms", type=float, default=1000.0)
     parser.add_argument("--onset-tolerance-ms", type=float, default=150.0)

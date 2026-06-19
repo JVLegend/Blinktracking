@@ -76,6 +76,18 @@ Comparacao tecnica:
 
 Decisao: candidatos relaxados continuam como revisao manual, nao como desfecho primario automatico.
 
+### Resultado da anotacao manual - Paciente 3 / IMG_2680 (19/06/2026)
+
+Anotacao manual: o olho direito permanece fechado durante praticamente todo o video. Foram percebidas piscadas incompletas bilaterais em 00:04 e 00:09.
+
+Comparacao tecnica:
+
+- Detector principal: 0 eventos.
+- Passada relaxada original: candidato bilateral em 4,401-4,568 s, alinhado ao evento manual de 00:04.
+- O evento de 00:09 aparece como queda sutil no sinal em torno de 8,84 s, com profundidade aproximada de 18-19%, mas exigia fallback mais sensivel.
+
+Decisao: o fallback relaxado dos videos zerados passa a ser aditivo e mais sensivel (`0.88`), para preservar piscadas incompletas sutis como candidatos de revisao. Isto nao altera o desfecho principal.
+
 ## Ambiente de Teste
 
 - **OS:** macOS (Darwin)

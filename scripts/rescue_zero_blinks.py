@@ -260,6 +260,35 @@ def _dominant_eye(lateral_classification: str) -> str:
     return "none"
 
 
+def _candidate_overlap(a: dict, b: dict, tolerance_ms: float) -> float:
+    start = max(float(a["start_time_ms"]), float(b["start_time_ms"]) - tolerance_ms)
+    end = min(float(a["end_time_ms"]), float(b["end_time_ms"]) + tolerance_ms)
+    return max(0.0, end - start)
+
+
+def _combine_candidate_sets(
+    primary: list[dict],
+    fallback: list[dict],
+    *,
+    onset_tolerance_ms: float,
+) -> list[dict]:
+    """Adiciona candidatos do fallback sem duplicar eventos já detectados."""
+    combined = list(primary)
+    for candidate in fallback:
+        is_duplicate = any(
+            abs(float(candidate["start_time_ms"]) - float(existing["start_time_ms"])) <= onset_tolerance_ms
+            or _candidate_overlap(candidate, existing, onset_tolerance_ms) > 0
+            for existing in combined
+        )
+        if not is_duplicate:
+            combined.append(candidate)
+
+    combined = sorted(combined, key=lambda item: float(item["start_time_ms"]))
+    for blink_id, candidate in enumerate(combined, 1):
+        candidate["blink_id"] = blink_id
+    return combined
+
+
 def _run_dict(run: EyeRun) -> dict:
     return {
         "eye": run.eye,
@@ -309,15 +338,16 @@ def rescue_csv(
         max_duration_ms=max_duration_ms,
         baseline_quantile=baseline_quantile,
     )
-    candidates = _merge_candidates(
+    primary_candidates = _merge_candidates(
         left,
         right,
         onset_tolerance_ms=onset_tolerance_ms,
         dominance_margin_percent=dominance_margin_percent,
     )
+    candidates = primary_candidates
     ratio_used = ratio
 
-    if not candidates and fallback_ratio > ratio:
+    if fallback_ratio > ratio:
         left = _runs_for_eye(
             df,
             "left",
@@ -336,11 +366,16 @@ def rescue_csv(
             max_duration_ms=max_duration_ms,
             baseline_quantile=baseline_quantile,
         )
-        candidates = _merge_candidates(
+        fallback_candidates = _merge_candidates(
             left,
             right,
             onset_tolerance_ms=onset_tolerance_ms,
             dominance_margin_percent=dominance_margin_percent,
+        )
+        candidates = _combine_candidate_sets(
+            primary=primary_candidates,
+            fallback=fallback_candidates,
+            onset_tolerance_ms=onset_tolerance_ms,
         )
         ratio_used = fallback_ratio
 
@@ -488,7 +523,7 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-download", action="store_true")
     parser.add_argument("--ratio", type=float, default=0.80)
-    parser.add_argument("--fallback-ratio", type=float, default=0.85)
+    parser.add_argument("--fallback-ratio", type=float, default=0.88)
     parser.add_argument("--min-duration-ms", type=float, default=80.0)
     parser.add_argument("--max-duration-ms", type=float, default=1000.0)
     parser.add_argument("--onset-tolerance-ms", type=float, default=150.0)

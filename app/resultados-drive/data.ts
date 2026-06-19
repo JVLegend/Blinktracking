@@ -32,18 +32,18 @@ export const driveResults = {
     "confirmedByMainDetector": 0,
     "videosWithRescueCandidates": 18,
     "videosWithoutCandidates": 2,
-    "totalCandidates": 87,
-    "bilateralCandidates": 39,
-    "unilateralCandidates": 48,
-    "leftDominantCandidates": 25,
-    "rightDominantCandidates": 35
+    "totalCandidates": 375,
+    "bilateralCandidates": 203,
+    "unilateralCandidates": 172,
+    "leftDominantCandidates": 123,
+    "rightDominantCandidates": 148
   },
   "clinicalCandidateReview": {
     "videosEvaluated": 71,
     "videosWithCandidates": 69,
-    "totalCandidates": 1929,
-    "leftDominantCandidates": 507,
-    "rightDominantCandidates": 210
+    "totalCandidates": 2217,
+    "leftDominantCandidates": 598,
+    "rightDominantCandidates": 315
   },
   "highReviewRows": [
     {

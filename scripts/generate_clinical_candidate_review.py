@@ -19,6 +19,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.rescue_zero_blinks import (
+    _combine_candidate_sets,
     _find_output_csv,
     _fps_from_csv,
     _merge_candidates,
@@ -92,7 +93,8 @@ def _detect_candidates(
         dominance_margin_percent=dominance_margin_percent,
     )
     ratio_used = ratio
-    if not candidates and fallback_ratio > ratio:
+    primary_candidates = candidates
+    if fallback_ratio > ratio:
         left = _runs_for_eye(
             df,
             "left",
@@ -111,11 +113,16 @@ def _detect_candidates(
             max_duration_ms=max_duration_ms,
             baseline_quantile=baseline_quantile,
         )
-        candidates = _merge_candidates(
+        fallback_candidates = _merge_candidates(
             left,
             right,
             onset_tolerance_ms=onset_tolerance_ms,
             dominance_margin_percent=dominance_margin_percent,
+        )
+        candidates = _combine_candidate_sets(
+            primary=primary_candidates,
+            fallback=fallback_candidates,
+            onset_tolerance_ms=onset_tolerance_ms,
         )
         ratio_used = fallback_ratio
     return candidates, ratio_used
@@ -337,7 +344,7 @@ def main() -> int:
     )
     parser.add_argument("--nonzero-ratio", type=float, default=0.78)
     parser.add_argument("--zero-ratio", type=float, default=0.80)
-    parser.add_argument("--zero-fallback-ratio", type=float, default=0.85)
+    parser.add_argument("--zero-fallback-ratio", type=float, default=0.88)
     parser.add_argument("--min-duration-ms", type=float, default=80.0)
     parser.add_argument("--max-duration-ms", type=float, default=1000.0)
     parser.add_argument("--onset-tolerance-ms", type=float, default=150.0)
