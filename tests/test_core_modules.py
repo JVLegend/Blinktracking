@@ -494,7 +494,7 @@ def test_combined_metrics_counts_bilateral_blinks_once():
     right_metrics = BlinkMetrics(
         total_blinks=1,
         blink_events=[
-            BlinkEvent(11, 19, 7.0, 366.0, 633.0, "right", baseline_opening=100.0),
+            BlinkEvent(11, 19, 6.0, 366.0, 633.0, "right", baseline_opening=100.0),
         ],
         total_frames=120,
         duration_seconds=4.0,
@@ -542,6 +542,30 @@ def test_combined_metrics_classifies_lateral_dominance():
     assert combined.blink_events[0].lateral_classification == "left_dominant"
     assert combined.blink_events[0].left_completeness_percent == 80.0
     assert np.isclose(combined.blink_events[0].right_completeness_percent, 45.0)
+
+    borderline_left = BlinkMetrics(
+        total_blinks=1,
+        blink_events=[
+            BlinkEvent(30, 38, 64.0, 1000.0, 1266.0, "left", baseline_opening=100.0),
+        ],
+        total_frames=60,
+        duration_seconds=2.0,
+        fps=30.0,
+    )
+    borderline_right = BlinkMetrics(
+        total_blinks=1,
+        blink_events=[
+            BlinkEvent(30, 38, 61.5, 1000.0, 1266.0, "right", baseline_opening=100.0),
+        ],
+        total_frames=60,
+        duration_seconds=2.0,
+        fps=30.0,
+    )
+
+    borderline = calc._combine_metrics(borderline_left, borderline_right)
+
+    assert borderline.right_dominant_blinks == 1
+    assert borderline.blink_events[0].lateral_classification == "right_dominant"
 
 
 def test_config_system():

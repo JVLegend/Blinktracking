@@ -74,7 +74,7 @@ def _table_rows_rescue(rows: list[dict]) -> str:
     return "\n".join(parts)
 
 
-def build_page(summary_path: Path, rescue_path: Path | None) -> str:
+def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_path: Path | None) -> str:
     payload = json.loads(summary_path.read_text(encoding="utf-8"))
     stats = payload["stats"]
     rows = payload["rows"]
@@ -99,6 +99,10 @@ def build_page(summary_path: Path, rescue_path: Path | None) -> str:
     if rescue_path and rescue_path.exists():
         with rescue_path.open(encoding="utf-8") as handle:
             rescue_rows = list(csv.DictReader(handle))
+    candidate_rows: list[dict] = []
+    if candidate_review_path and candidate_review_path.exists():
+        with candidate_review_path.open(encoding="utf-8") as handle:
+            candidate_rows = list(csv.DictReader(handle))
     rescue_rows = sorted(
         rescue_rows,
         key=lambda row: (
@@ -111,6 +115,10 @@ def build_page(summary_path: Path, rescue_path: Path | None) -> str:
     clinical_ratio = stats["total_blinks"] / stats["raw_eye_blinks"] * 100
     bilateral_ratio = stats["bilateral_blinks"] / stats["total_blinks"] * 100
     nonzero_ratio = stats["nonzero_count"] / stats["videos_with_metrics"] * 100
+    candidate_total = sum(int(row.get("candidate_count") or 0) for row in candidate_rows)
+    candidate_videos = sum(1 for row in candidate_rows if int(row.get("candidate_count") or 0) > 0)
+    candidate_left = sum(int(row.get("left_dominant_candidate_count") or 0) for row in candidate_rows)
+    candidate_right = sum(int(row.get("right_dominant_candidate_count") or 0) for row in candidate_rows)
 
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -179,6 +187,8 @@ def build_page(summary_path: Path, rescue_path: Path | None) -> str:
         <div class="stat"><span class="value" style="color:var(--teal)">{_fmt(stats['median_rate'])}/min</span><span class="label">taxa mediana</span></div>
         <div class="stat"><span class="value" style="color:var(--cardinal)">{_fmt(stats['max_rate'])}/min</span><span class="label">maior taxa clínica</span></div>
         <div class="stat"><span class="value" style="color:var(--blue)">{_num(stats.get('left_dominant_blinks', 0))}/{_num(stats.get('right_dominant_blinks', 0))}</span><span class="label">dominantes E/D</span></div>
+        <div class="stat"><span class="value" style="color:var(--purple)">{_num(candidate_total)}</span><span class="label">candidatos clínicos</span></div>
+        <div class="stat"><span class="value" style="color:var(--teal)">{_num(candidate_left)}/{_num(candidate_right)}</span><span class="label">cand. dominantes E/D</span></div>
       </div>
     </section>
     <section class="two">
@@ -190,7 +200,9 @@ def build_page(summary_path: Path, rescue_path: Path | None) -> str:
       <div class="card" id="validacao"><div class="section-label"><i data-lucide="microscope"></i> Validação manual</div><h2>Casos anotados</h2>
         <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 7</strong>: três eventos detectados batem com a revisão manual; visualmente há dominância do olho esquerdo.</p></div>
         <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 16</strong>: detector principal zerou; a passada relaxada encontrou dois candidatos. Visualmente há dominância do olho direito.</p></div>
-        <div class="finding"><i data-lucide="clipboard-list"></i><p>Próxima etapa: ampliar anotação manual em vídeos zero e casos de alto volume para calibrar micro/incompletas.</p></div>
+        <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 30</strong>: revisão marcou 00:01, 00:04 e 00:06 com dominância direita; a camada sensível recupera os três tempos para revisão.</p></div>
+        <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 15</strong>: revisão marcou 00:07; a passada relaxada encontrou candidato direito em 6,614 s.</p></div>
+        <div class="finding"><i data-lucide="clipboard-list"></i><p>Camada sensível: {_num(candidate_total)} candidatos em {_num(candidate_videos)} vídeos. Estes candidatos não alteram o desfecho principal.</p></div>
       </div>
     </section>
     <section><div class="section-label"><i data-lucide="git-compare"></i> Relação cru × clínico</div><h2>Impacto da sincronização bilateral</h2>
@@ -241,12 +253,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--summary-json", required=True, type=Path)
     parser.add_argument("--rescue-csv", type=Path)
+    parser.add_argument("--candidate-review-csv", type=Path)
     parser.add_argument("--site-dir", required=True, type=Path)
     args = parser.parse_args()
 
     args.site_dir.mkdir(parents=True, exist_ok=True)
     output = args.site_dir / "blinktracking-resultados.html"
-    output.write_text(build_page(args.summary_json, args.rescue_csv), encoding="utf-8")
+    output.write_text(
+        build_page(args.summary_json, args.rescue_csv, args.candidate_review_csv),
+        encoding="utf-8",
+    )
     index_path = args.site_dir / "index.html"
     if index_path.exists():
         ensure_home_link(index_path)

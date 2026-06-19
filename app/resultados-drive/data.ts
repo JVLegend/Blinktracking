@@ -12,9 +12,9 @@ export const driveResults = {
     "bilateralBlinks": 1124,
     "unilateralLeftBlinks": 103,
     "unilateralRightBlinks": 46,
-    "bilateralSymmetricBlinks": 988,
-    "leftDominantBlinks": 121,
-    "rightDominantBlinks": 15,
+    "bilateralSymmetricBlinks": 829,
+    "leftDominantBlinks": 259,
+    "rightDominantBlinks": 36,
     "zeroCount": 20,
     "nonZeroCount": 51,
     "highReviewCount": 2,
@@ -37,6 +37,13 @@ export const driveResults = {
     "unilateralCandidates": 48,
     "leftDominantCandidates": 25,
     "rightDominantCandidates": 35
+  },
+  "clinicalCandidateReview": {
+    "videosEvaluated": 71,
+    "videosWithCandidates": 69,
+    "totalCandidates": 1929,
+    "leftDominantCandidates": 507,
+    "rightDominantCandidates": 210
   },
   "highReviewRows": [
     {
@@ -752,11 +759,14 @@ export const driveResults = {
     "A métrica combinada agora sincroniza eventos esquerdo/direito e conta piscadas clínicas únicas.",
     "O total cru por olho permanece salvo para auditoria e comparação com versões anteriores.",
     "Piscadas longas demais ficam limitadas a 800 ms para reduzir falsos positivos por oclusão, movimento ou perda de rastreamento.",
-    "Os vídeos com zero eventos ganharam uma varredura relaxada separada, sempre marcada como candidato para revisão manual."
+    "Os vídeos com zero eventos ganharam uma varredura relaxada separada, sempre marcada como candidato para revisão manual.",
+    "Todos os vídeos agora podem gerar uma camada sensível de candidatos clínicos, mantida separada do desfecho principal."
   ],
   "clinicalNotes": [
     "A versão anterior somava eventos do olho esquerdo e direito; em piscadas bilaterais isso inflava o total.",
     "Os 87 eventos da recuperação não foram incorporados como piscadas confirmadas; eles são candidatos para auditoria manual.",
+    "Paciente 30 mostrou três piscadas visuais com dominância direita; o detector principal captou duas, e a camada sensível recuperou o vale de 00:04.",
+    "Paciente 15 mostrou uma piscada visual perto de 00:07; a passada relaxada encontrou candidato direito em 6,614 s.",
     "Paciente 23 segue como caso real de alto volume: 141 piscadas clínicas, todas bilaterais sincronizadas, com taxa de 44,6/min.",
     "Paciente 11 permanece com zero no detector principal; suas anotações sugerem piscadas incompletas muito sutis abaixo do limiar atual.",
     "Os vídeos zero e os casos de taxa alta devem formar o primeiro conjunto de anotação manual."

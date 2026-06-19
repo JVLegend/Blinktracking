@@ -50,6 +50,32 @@ Dois videos adicionais foram separados em `/Users/iaparamedicos/Documents/Blinkt
 
 Objetivo: comparar um caso curto com poucos eventos confirmados contra um caso curto dificil/zerado, refinando se a passada relaxada deve virar apenas triagem visual ou se algum criterio pode ser promovido com seguranca.
 
+### Resultado da anotacao manual - Paciente 30 e Paciente 15 (19/06/2026)
+
+**Paciente 30 / IMG_6086**
+
+Anotacao manual: piscadas em 00:01, 00:04 e 00:06 no player; olho direito fecha completamente e olho esquerdo parcialmente.
+
+Comparacao tecnica:
+
+- 00:01: detector principal encontrou evento direito em 1,127-1,232 s; o olho esquerdo teve queda parcial abaixo do limiar principal.
+- 00:04: ha vale tecnico em 3,762 s nos dois olhos, mais forte no direito, mas o detector principal nao confirmou por conservadorismo de limiar/duracao.
+- 00:06: detector principal encontrou evento bilateral em 6,414-6,627 s; a revisao manual indica dominancia direita.
+
+Decisao: manter o total principal conservador e usar uma camada separada de candidatos clinicos para revisao. A margem de dominancia lateral foi reduzida de 3,0% para 2,0% para classificar melhor eventos limítrofes como o de 00:06.
+
+**Paciente 15 / IMG_3976**
+
+Anotacao manual: piscada em 00:07; olho direito fecha aproximadamente 80% e olho esquerdo cerca de 20%.
+
+Comparacao tecnica:
+
+- Detector principal: 0 eventos.
+- Passada relaxada: candidato direito/unilateral em 6,614-6,693 s, alinhado com o tempo manual.
+- O sinal EAR mostrou queda aproximada de 20% no olho direito; isto sugere que, nesta paciente, a medida EAR subestima a impressao visual de fechamento.
+
+Decisao: candidatos relaxados continuam como revisao manual, nao como desfecho primario automatico.
+
 ## Ambiente de Teste
 
 - **OS:** macOS (Darwin)

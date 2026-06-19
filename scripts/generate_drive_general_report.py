@@ -28,18 +28,24 @@ def _fmt(value: Any, digits: int = 2) -> str:
     return f"{number:.{digits}f}"
 
 
-def _load_rescue(path: Path) -> list[dict]:
+def _load_csv(path: Path) -> list[dict]:
     if not path.exists():
         return []
     with path.open(encoding="utf-8") as handle:
         return list(csv.DictReader(handle))
 
 
-def generate_report(summary_json: Path, rescue_csv: Path, output_dir: Path) -> dict[str, Path]:
+def generate_report(
+    summary_json: Path,
+    rescue_csv: Path,
+    candidate_review_csv: Path,
+    output_dir: Path,
+) -> dict[str, Path]:
     payload = json.loads(summary_json.read_text(encoding="utf-8"))
     stats = payload["stats"]
     rows = payload["rows"]
-    rescue_rows = _load_rescue(rescue_csv)
+    rescue_rows = _load_csv(rescue_csv)
+    candidate_rows = _load_csv(candidate_review_csv)
     generated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     high_rows = [
@@ -51,6 +57,13 @@ def generate_report(summary_json: Path, rescue_csv: Path, output_dir: Path) -> d
         row for row in rescue_rows
         if int(_num(row.get("rescue_candidate_count"))) > 0
     ]
+    candidate_with_review = [
+        row for row in candidate_rows
+        if int(_num(row.get("candidate_count"))) > 0
+    ]
+    candidate_total = sum(int(_num(row.get("candidate_count"))) for row in candidate_rows)
+    candidate_left = sum(int(_num(row.get("left_dominant_candidate_count"))) for row in candidate_rows)
+    candidate_right = sum(int(_num(row.get("right_dominant_candidate_count"))) for row in candidate_rows)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     html_path = output_dir / "relatorio_geral_blinktracking_v2_drive.html"
@@ -70,6 +83,14 @@ def generate_report(summary_json: Path, rescue_csv: Path, output_dir: Path) -> d
         f"- Dominantes E/D: {stats.get('left_dominant_blinks', 0)}/{stats.get('right_dominant_blinks', 0)}",
         f"- Zerados: {stats.get('zero_count', len(zero_rows))}",
         f"- Com candidatos relaxados: {len(rescue_with_candidates)}",
+        f"- Candidatos clínicos para revisão em todos os vídeos: {candidate_total}",
+        f"- Candidatos clínicos dominantes E/D: {candidate_left}/{candidate_right}",
+        "",
+        "## Calibração manual recente",
+        "",
+        "- Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06, com dominância clínica do olho direito. A camada de candidatos recupera os três tempos como revisão.",
+        "- Paciente 15 / IMG_3976: revisão manual marcou 00:07, alinhado ao candidato relaxado direito em 6,614 s.",
+        "- Decisão: manter o desfecho principal conservador e usar candidatos clínicos como fila de revisão manual.",
         "",
         "## Vídeos de alta frequência para revisão",
         "",
@@ -151,8 +172,13 @@ th,td{{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left}} th{{ba
 {card("bilaterais sincronizadas", stats.get("bilateral_blinks", 0))}
 {card("dominantes E/D", f"{stats.get('left_dominant_blinks', 0)}/{stats.get('right_dominant_blinks', 0)}")}
 {card("vídeos zerados", stats.get("zero_count", len(zero_rows)))}
+{card("candidatos clínicos", candidate_total)}
+{card("cand. dominantes E/D", f"{candidate_left}/{candidate_right}")}
 </div>
 <div class="note">A recuperação relaxada identificou {sum(int(_num(row.get('rescue_candidate_count'))) for row in rescue_rows)} candidatos em {len(rescue_with_candidates)} vídeos zerados; estes são itens para revisão manual, não substituem o desfecho primário.</div>
+<div class="note">A nova camada de candidatos clínicos avaliou todos os vídeos e encontrou {candidate_total} candidatos em {len(candidate_with_review)} vídeos. É uma fila sensível para revisão manual, não uma nova contagem automática.</div>
+<h2>Calibração Manual Recente</h2>
+<div class="note">Paciente 30 / IMG_6086: 00:01, 00:04 e 00:06 com dominância clínica direita; a camada de candidatos recupera os três tempos. Paciente 15 / IMG_3976: 00:07 alinhado ao candidato direito em 6,614 s.</div>
 <h2>Alta Frequência Para Revisão</h2>
 <table><tr><th>idx</th><th>paciente</th><th>vídeo</th><th>piscadas</th><th>taxa/min</th></tr>{high_table}</table>
 <h2>Vídeos Zerados</h2>
@@ -178,12 +204,17 @@ def main() -> int:
         default=Path("/Users/iaparamedicos/Documents/Blinktracking_Zero_Blink_Rescue/_reports/zero_blink_rescue_report.csv"),
     )
     parser.add_argument(
+        "--candidate-review-csv",
+        type=Path,
+        default=Path("/Users/iaparamedicos/Documents/Blinktracking_Resultados_Drive/_reports/clinical_candidate_review/clinical_candidate_review_report.csv"),
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("/Users/iaparamedicos/Documents/Blinktracking_Resultados_Drive/_reports"),
     )
     args = parser.parse_args()
-    paths = generate_report(args.summary_json, args.rescue_csv, args.output_dir)
+    paths = generate_report(args.summary_json, args.rescue_csv, args.candidate_review_csv, args.output_dir)
     print(f"HTML: {paths['html']}")
     print(f"Markdown: {paths['md']}")
     return 0

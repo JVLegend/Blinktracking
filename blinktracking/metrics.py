@@ -340,7 +340,7 @@ class MetricsCalculator:
     """
 
     CLINICAL_SYNC_TOLERANCE_MS = 150.0
-    LATERAL_DOMINANCE_MARGIN_PERCENT = 3.0
+    LATERAL_DOMINANCE_MARGIN_PERCENT = 2.0
     
     def __init__(self, config):
         self.config = config

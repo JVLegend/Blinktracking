@@ -69,6 +69,23 @@ def _read_rescue(path: Path) -> pd.DataFrame:
     return df
 
 
+def _read_candidate_review(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    if df.empty:
+        return df
+    for col in [
+        "idx",
+        "total_blinks",
+        "candidate_count",
+        "bilateral_candidate_count",
+        "unilateral_candidate_count",
+        "left_dominant_candidate_count",
+        "right_dominant_candidate_count",
+    ]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+    return df
+
+
 def _format_float(value: float, digits: int = 2) -> str:
     if pd.isna(value):
         return ""
@@ -181,7 +198,12 @@ def _html_table(df: pd.DataFrame, columns: list[str]) -> str:
     return df[columns].to_html(index=False, escape=True, classes="data-table")
 
 
-def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Path) -> tuple[str, str]:
+def build_report(
+    main_df: pd.DataFrame,
+    rescue_df: pd.DataFrame,
+    candidate_df: pd.DataFrame,
+    output_dir: Path,
+) -> tuple[str, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     figures = _save_figures(main_df, rescue_df, output_dir)
 
@@ -201,6 +223,10 @@ def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Pat
     group_summary = _group_summary(main_df)
     rescue_candidates = int(rescue_df["rescue_candidate_count"].sum()) if not rescue_df.empty else 0
     rescue_with_candidates = int((rescue_df["rescue_candidate_count"] > 0).sum()) if not rescue_df.empty else 0
+    review_candidates = int(candidate_df["candidate_count"].sum()) if not candidate_df.empty else 0
+    review_with_candidates = int((candidate_df["candidate_count"] > 0).sum()) if not candidate_df.empty else 0
+    review_left_dominant = int(candidate_df["left_dominant_candidate_count"].sum()) if not candidate_df.empty else 0
+    review_right_dominant = int(candidate_df["right_dominant_candidate_count"].sum()) if not candidate_df.empty else 0
 
     group_table = group_summary.copy()
     for col in ["median_rate", "mean_rate", "median_duration_ms", "median_completeness", "median_detection_ratio", "video_hours"]:
@@ -246,6 +272,9 @@ def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Pat
             f"- Vídeos com zero eventos: {zero_count}",
             f"- Vídeos zero com candidatos relaxados: {rescue_with_candidates}",
             f"- Candidatos relaxados totais: {rescue_candidates}",
+            f"- Candidatos clínicos para revisão em todos os vídeos: {review_candidates}",
+            f"- Vídeos com candidatos clínicos: {review_with_candidates}",
+            f"- Candidatos clínicos dominantes E/D: {review_left_dominant}/{review_right_dominant}",
             f"- Taxa mediana: {_format_float(main_df['blink_rate_per_minute'].median(), 2)} piscadas/min",
             f"- Taxa média: {_format_float(main_df['blink_rate_per_minute'].mean(), 2)} piscadas/min",
             "",
@@ -267,6 +296,8 @@ def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Pat
             "",
             "- Paciente 7 / IMG_3616: três piscadas percebidas no player como 00:10, 00:20 e 00:31 correspondem aos eventos técnicos em 3,998 s, 6,612 s e 9,447 s. A revisão visual sugere fechamento dominante do olho esquerdo.",
             "- Paciente 16 / IMG_4220: o detector principal permaneceu em zero, mas a passada relaxada encontrou dois candidatos técnicos em 3,392 s e 10,265 s. A revisão visual sugere olho direito completo e esquerdo parcial.",
+            "- Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06 com dominância clínica direita. O detector principal captou 00:01 e 00:06; a camada sensível recupera também o vale de 00:04.",
+            "- Paciente 15 / IMG_3976: revisão manual marcou 00:07 com dominância direita; a passada relaxada encontrou candidato direito em 6,614 s.",
             "- Interpretação: manter o desfecho primário conservador e usar candidatos relaxados com lateralidade para revisão manual/calibração.",
             "",
             "## Figuras",
@@ -320,6 +351,7 @@ def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Pat
   <div class="metric"><span>Dominantes E/D</span><strong>{left_dominant}/{right_dominant}</strong></div>
   <div class="metric"><span>Zeros</span><strong>{zero_count}</strong></div>
   <div class="metric"><span>Candidatos relaxados</span><strong>{rescue_candidates}</strong></div>
+  <div class="metric"><span>Candidatos clínicos</span><strong>{review_candidates}</strong></div>
 </section>
 <section>
 <h2>Síntese por grupo</h2>
@@ -339,6 +371,8 @@ def build_report(main_df: pd.DataFrame, rescue_df: pd.DataFrame, output_dir: Pat
 <ul>
   <li>Paciente 7 / IMG_3616: três piscadas percebidas no player como 00:10, 00:20 e 00:31 correspondem aos eventos técnicos em 3,998 s, 6,612 s e 9,447 s. A revisão visual sugere fechamento dominante do olho esquerdo.</li>
   <li>Paciente 16 / IMG_4220: o detector principal permaneceu em zero, mas a passada relaxada encontrou dois candidatos técnicos em 3,392 s e 10,265 s. A revisão visual sugere olho direito completo e esquerdo parcial.</li>
+  <li>Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06 com dominância clínica direita. O detector principal captou 00:01 e 00:06; a camada sensível recupera também o vale de 00:04.</li>
+  <li>Paciente 15 / IMG_3976: revisão manual marcou 00:07 com dominância direita; a passada relaxada encontrou candidato direito em 6,614 s.</li>
   <li>Interpretação: manter o desfecho primário conservador e usar candidatos relaxados com lateralidade para revisão manual/calibração.</li>
 </ul>
 </section>
@@ -376,6 +410,11 @@ def main() -> int:
         default=Path("/Users/iaparamedicos/Documents/Blinktracking_Zero_Blink_Rescue/_reports/zero_blink_rescue_report.csv"),
     )
     parser.add_argument(
+        "--candidate-review-csv",
+        type=Path,
+        default=Path("/Users/iaparamedicos/Documents/Blinktracking_Resultados_Drive/_reports/clinical_candidate_review/clinical_candidate_review_report.csv"),
+    )
+    parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("/Users/iaparamedicos/Documents/Blinktracking_Resultados_Drive/_reports/scientific"),
@@ -384,7 +423,8 @@ def main() -> int:
 
     main_df = _read_main(args.main_json)
     rescue_df = _read_rescue(args.rescue_csv) if args.rescue_csv.exists() else pd.DataFrame()
-    md, html_text = build_report(main_df, rescue_df, args.output_dir)
+    candidate_df = _read_candidate_review(args.candidate_review_csv) if args.candidate_review_csv.exists() else pd.DataFrame()
+    md, html_text = build_report(main_df, rescue_df, candidate_df, args.output_dir)
 
     md_path = args.output_dir / "relatorio_cientifico_drive.md"
     html_path = args.output_dir / "relatorio_cientifico_drive.html"

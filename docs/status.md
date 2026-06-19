@@ -8,9 +8,14 @@
   - Paciente 7 / `IMG_3616`: 3 eventos detectados; revisão manual indica fechamento dominante do olho esquerdo.
   - Paciente 16 / `IMG_4220`: detector principal zerou, mas a passada relaxada encontrou 2 candidatos; revisão manual indica olho direito completo e esquerdo parcial.
   - Relatório consolidado do Drive atualizado: 71 vídeos, 1.273 piscadas clínicas, 2.397 eventos crus por olho, 1.124 bilaterais sincronizadas.
-  - Lateralidade dos eventos confirmados: 988 bilaterais simétricos, 121 dominantes à esquerda e 15 dominantes à direita.
+  - Lateralidade dos eventos confirmados após margem de 2,0%: 829 bilaterais simétricos, 259 dominantes à esquerda e 36 dominantes à direita.
   - Recuperação dos 20 vídeos com 0 piscadas: 87 candidatos relaxados em 18 vídeos, incluindo 25 candidatos dominantes à esquerda e 35 à direita.
   - Próximos vídeos separados para anotação manual: Paciente 30 / `IMG_6086` (10,65 s, baixo não-zero) e Paciente 15 / `IMG_3976` (7,09 s, zero com candidatos).
+- **[19/06/2026]** Nova rodada de calibração manual com Paciente 30 e Paciente 15.
+  - Paciente 30 / `IMG_6086`: revisão manual marcou eventos em 00:01, 00:04 e 00:06, todos com dominância clínica do olho direito. O detector principal captou 00:01 e 00:06, mas perdeu o vale técnico de 00:04.
+  - Paciente 15 / `IMG_3976`: revisão manual marcou evento em 00:07 com olho direito predominante; a passada relaxada já havia encontrado candidato direito em 6,614-6,693 s.
+  - Mantido o desfecho principal conservador; criada uma camada separada de candidatos clínicos para revisão em todos os vídeos.
+  - Margem de dominância lateral dos eventos confirmados ajustada de 3,0% para 2,0%.
 - **[04/05/2026]** OTIMIZAÇÃO MAJOR: Scripts Python otimizados com ganhos de 10-50x performance
   - Vetorização completa do cálculo de EAR (numpy arrays 2D)
   - Detecção de piscadas com operações vetorizadas (np.diff)

@@ -68,6 +68,7 @@ export default function DriveResultsPage() {
   const {
     summary,
     rescueSummary,
+    clinicalCandidateReview,
     highReviewRows,
     zeroRows,
     rescueRows,
@@ -101,7 +102,7 @@ export default function DriveResultsPage() {
             </div>
           </header>
 
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <StatCard
               label="Vídeos processados"
               value={summary.videosWithMetrics}
@@ -125,6 +126,12 @@ export default function DriveResultsPage() {
               value={rescueSummary.totalCandidates}
               detail={`${rescueSummary.leftDominantCandidates}/${rescueSummary.rightDominantCandidates} dominantes E/D`}
               tone="warning"
+            />
+            <StatCard
+              label="Candidatos clínicos"
+              value={clinicalCandidateReview.totalCandidates}
+              detail={`${clinicalCandidateReview.videosWithCandidates} vídeos; ${clinicalCandidateReview.leftDominantCandidates}/${clinicalCandidateReview.rightDominantCandidates} E/D`}
+              tone="info"
             />
           </section>
 
