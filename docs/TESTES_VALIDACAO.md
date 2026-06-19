@@ -88,6 +88,19 @@ Comparacao tecnica:
 
 Decisao: o fallback relaxado dos videos zerados passa a ser aditivo e mais sensivel (`0.88`), para preservar piscadas incompletas sutis como candidatos de revisao. Isto nao altera o desfecho principal.
 
+### Resultado da anotacao manual - Paciente 10 / IMG_3745 (19/06/2026)
+
+Anotacao manual: piscadas bilaterais em 00:03, 00:11 e 00:13. Depois de 00:17 a camera sacode e sai do lugar, devendo ser tratado como trecho de baixa qualidade para revisao.
+
+Comparacao tecnica:
+
+- Detector principal: 1 evento bilateral confirmado em 11,196-11,432 s.
+- Camada sensivel: candidatos em 2,704 s, 11,183 s e 13,261 s.
+- O evento de 00:03 aparece como candidato unilateral esquerdo no limiar `0.78`, mas a inspeção do sinal mostra queda simultanea menor no olho direito; com limiar `0.80`, ele vira bilateral, mas tambem surge candidato espurio apos 00:17 por movimento de camera.
+- A camada atual nao gerou candidato apos 00:17, alinhando-se a anotacao manual de artefato.
+
+Decisao: manter o limiar `0.78` para videos nao-zero na camada sensivel. Ele preserva os tres tempos manuais sem incorporar automaticamente o trecho de camera instavel.
+
 ## Ambiente de Teste
 
 - **OS:** macOS (Darwin)

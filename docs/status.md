@@ -21,6 +21,10 @@
   - A passada relaxada já captava 00:04 em 4,401-4,568 s; 00:09 exigia fallback mais sensível.
   - O fallback relaxado dos vídeos zerados foi ajustado para ser aditivo e usar `0.88`, preservando piscadas incompletas sutis como candidatos de revisão.
   - Após o ajuste, o Paciente 3 apresenta candidatos em 4,401 s e 8,765 s, alinhados aos tempos manuais.
+- **[19/06/2026]** Validação do Paciente 10 / `IMG_3745`.
+  - Revisão manual: piscadas bilaterais em 00:03, 00:11 e 00:13; após 00:17 a câmera sacode e sai do lugar.
+  - Camada sensível: candidatos em 2,704 s, 11,183 s e 13,261 s; o detector principal confirmou apenas o evento de 00:11.
+  - O limiar atual para vídeos não-zero (`0.78`) preserva os três tempos manuais sem criar candidato no trecho instável após 00:17.
 - **[04/05/2026]** OTIMIZAÇÃO MAJOR: Scripts Python otimizados com ganhos de 10-50x performance
   - Vetorização completa do cálculo de EAR (numpy arrays 2D)
   - Detecção de piscadas com operações vetorizadas (np.diff)

@@ -767,6 +767,7 @@ export const driveResults = {
     "Os 87 eventos da recuperação não foram incorporados como piscadas confirmadas; eles são candidatos para auditoria manual.",
     "Paciente 30 mostrou três piscadas visuais com dominância direita; o detector principal captou duas, e a camada sensível recuperou o vale de 00:04.",
     "Paciente 15 mostrou uma piscada visual perto de 00:07; a passada relaxada encontrou candidato direito em 6,614 s.",
+    "Paciente 10 mostrou piscadas em 00:03, 00:11 e 00:13; a camada sensível encontrou 2,704 s, 11,183 s e 13,261 s, e o trecho após 00:17 foi anotado como artefato de câmera.",
     "Paciente 23 segue como caso real de alto volume: 141 piscadas clínicas, todas bilaterais sincronizadas, com taxa de 44,6/min.",
     "Paciente 11 permanece com zero no detector principal; suas anotações sugerem piscadas incompletas muito sutis abaixo do limiar atual.",
     "Os vídeos zero e os casos de taxa alta devem formar o primeiro conjunto de anotação manual."

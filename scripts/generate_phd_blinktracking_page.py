@@ -202,6 +202,7 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
         <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 16</strong>: detector principal zerou; a passada relaxada encontrou dois candidatos. Visualmente há dominância do olho direito.</p></div>
         <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 30</strong>: revisão marcou 00:01, 00:04 e 00:06 com dominância direita; a camada sensível recupera os três tempos para revisão.</p></div>
         <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 15</strong>: revisão marcou 00:07; a passada relaxada encontrou candidato direito em 6,614 s.</p></div>
+        <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 10</strong>: revisão marcou 00:03, 00:11 e 00:13; a camada sensível aponta 2,704 s, 11,183 s e 13,261 s, sem promover o artefato após 00:17.</p></div>
         <div class="finding"><i data-lucide="clipboard-list"></i><p>Camada sensível: {_num(candidate_total)} candidatos em {_num(candidate_videos)} vídeos. Estes candidatos não alteram o desfecho principal.</p></div>
       </div>
     </section>

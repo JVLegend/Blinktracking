@@ -90,6 +90,7 @@ def generate_report(
         "",
         "- Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06, com dominância clínica do olho direito. A camada de candidatos recupera os três tempos como revisão.",
         "- Paciente 15 / IMG_3976: revisão manual marcou 00:07, alinhado ao candidato relaxado direito em 6,614 s.",
+        "- Paciente 10 / IMG_3745: revisão manual marcou 00:03, 00:11 e 00:13. A camada sensível aponta 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.",
         "- Decisão: manter o desfecho principal conservador e usar candidatos clínicos como fila de revisão manual.",
         "",
         "## Vídeos de alta frequência para revisão",
@@ -178,7 +179,7 @@ th,td{{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left}} th{{ba
 <div class="note">A recuperação relaxada identificou {sum(int(_num(row.get('rescue_candidate_count'))) for row in rescue_rows)} candidatos em {len(rescue_with_candidates)} vídeos zerados; estes são itens para revisão manual, não substituem o desfecho primário.</div>
 <div class="note">A nova camada de candidatos clínicos avaliou todos os vídeos e encontrou {candidate_total} candidatos em {len(candidate_with_review)} vídeos. É uma fila sensível para revisão manual, não uma nova contagem automática.</div>
 <h2>Calibração Manual Recente</h2>
-<div class="note">Paciente 30 / IMG_6086: 00:01, 00:04 e 00:06 com dominância clínica direita; a camada de candidatos recupera os três tempos. Paciente 15 / IMG_3976: 00:07 alinhado ao candidato direito em 6,614 s.</div>
+<div class="note">Paciente 30 / IMG_6086: 00:01, 00:04 e 00:06 com dominância clínica direita; a camada de candidatos recupera os três tempos. Paciente 15 / IMG_3976: 00:07 alinhado ao candidato direito em 6,614 s. Paciente 10 / IMG_3745: 00:03, 00:11 e 00:13 alinhados a 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.</div>
 <h2>Alta Frequência Para Revisão</h2>
 <table><tr><th>idx</th><th>paciente</th><th>vídeo</th><th>piscadas</th><th>taxa/min</th></tr>{high_table}</table>
 <h2>Vídeos Zerados</h2>

@@ -298,6 +298,7 @@ def build_report(
             "- Paciente 16 / IMG_4220: o detector principal permaneceu em zero, mas a passada relaxada encontrou dois candidatos técnicos em 3,392 s e 10,265 s. A revisão visual sugere olho direito completo e esquerdo parcial.",
             "- Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06 com dominância clínica direita. O detector principal captou 00:01 e 00:06; a camada sensível recupera também o vale de 00:04.",
             "- Paciente 15 / IMG_3976: revisão manual marcou 00:07 com dominância direita; a passada relaxada encontrou candidato direito em 6,614 s.",
+            "- Paciente 10 / IMG_3745: revisão manual marcou 00:03, 00:11 e 00:13. A camada sensível encontrou 2,704 s, 11,183 s e 13,261 s; o detector principal confirmou o evento de 00:11. Após 00:17 há artefato por movimento de câmera.",
             "- Interpretação: manter o desfecho primário conservador e usar candidatos relaxados com lateralidade para revisão manual/calibração.",
             "",
             "## Figuras",
@@ -373,6 +374,7 @@ def build_report(
   <li>Paciente 16 / IMG_4220: o detector principal permaneceu em zero, mas a passada relaxada encontrou dois candidatos técnicos em 3,392 s e 10,265 s. A revisão visual sugere olho direito completo e esquerdo parcial.</li>
   <li>Paciente 30 / IMG_6086: revisão manual marcou 00:01, 00:04 e 00:06 com dominância clínica direita. O detector principal captou 00:01 e 00:06; a camada sensível recupera também o vale de 00:04.</li>
   <li>Paciente 15 / IMG_3976: revisão manual marcou 00:07 com dominância direita; a passada relaxada encontrou candidato direito em 6,614 s.</li>
+  <li>Paciente 10 / IMG_3745: revisão manual marcou 00:03, 00:11 e 00:13. A camada sensível encontrou 2,704 s, 11,183 s e 13,261 s; o detector principal confirmou o evento de 00:11. Após 00:17 há artefato por movimento de câmera.</li>
   <li>Interpretação: manter o desfecho primário conservador e usar candidatos relaxados com lateralidade para revisão manual/calibração.</li>
 </ul>
 </section>
