@@ -163,10 +163,12 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
     .muted {{ color:var(--muted2); font-weight:650; }}
     .bar-grid {{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }}
     .bar-title {{ font-size:13px; font-weight:800; margin-bottom:10px; }}
+    .priority-grid {{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }}
     .track {{ height:10px; background:var(--surface2); border-radius:999px; overflow:hidden; border:1px solid var(--border); }}
     .fill {{ height:100%; background:var(--cardinal); }} .fill.green {{ background:var(--green); }} .fill.blue {{ background:var(--blue); }}
     footer {{ border-top:1px solid var(--border); padding:24px 20px; color:var(--muted); font-size:12px; text-align:center; }}
     @media(max-width:850px) {{ .stat-grid,.two,.bar-grid {{ grid-template-columns:1fr; }} .hero {{ padding:30px 18px; }} main {{ padding:24px 14px 56px; }} }}
+    @media(max-width:850px) {{ .priority-grid {{ grid-template-columns:1fr; }} }}
   </style>
 </head>
 <body>
@@ -216,6 +218,16 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
     <section id="tabelas"><div class="section-label"><i data-lucide="alert-triangle"></i> Revisão prioritária</div><h2>Casos de alto volume clínico</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Clínicas</th><th class="num">Cru por olho</th><th class="num">Taxa/min</th><th class="num">Bilaterais</th><th class="num">Dom. E/D</th></tr></thead><tbody>{_table_rows_high(high)}</tbody></table></div></section>
     <section><div class="section-label"><i data-lucide="circle-dot-dashed"></i> Zeros</div><h2>Vídeos sem eventos no detector principal</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Duração (s)</th><th class="num">Frames detectados</th></tr></thead><tbody>{_table_rows_zero(zeros)}</tbody></table></div></section>
     <section><div class="section-label"><i data-lucide="search-check"></i> Recuperação relaxada</div><h2>Candidatos nos vídeos zero</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Candidatos</th><th class="num">Bilaterais</th><th class="num">Dom. E/D</th></tr></thead><tbody>{_table_rows_rescue(rescue_rows)}</tbody></table></div></section>
+    <section><div class="section-label"><i data-lucide="list-checks"></i> Próximas melhorias</div><h2>Como aumentar acerto sem inflar falso positivo</h2>
+      <div class="priority-grid">
+        <div class="card"><h3>1. Candidatos com escore clínico</h3><p>Transformar a camada sensível em ranking: tempo, duração, queda bilateral, simetria, dominância e distância de artefatos. O total principal continua conservador.</p></div>
+        <div class="card"><h3>2. Filtro de qualidade do vídeo</h3><p>Marcar trechos com sacudida, rosto saindo do quadro, perda de rastreamento ou mudança brusca de escala. Paciente 10 mostrou que isto evita promover artefato após 00:17.</p></div>
+        <div class="card"><h3>3. Baseline para olho cronicamente fechado</h3><p>Quando um olho fica fechado ou semi-fechado durante todo o vídeo, usar variação local/prominência, não apenas abertura absoluta. Paciente 3 revelou este padrão.</p></div>
+        <div class="card"><h3>4. Detector por mínimos locais</h3><p>Além de threshold por run, detectar vales com proeminência temporal. Isso captura piscadas incompletas curtas que aparecem como queda real no sinal.</p></div>
+        <div class="card"><h3>5. Aprendizado com anotações manuais</h3><p>Salvar cada anotação como ground truth e calcular precisão/recall por paciente. Depois calibrar limiares por padrão: zero, baixo não-zero, alto volume e artefato.</p></div>
+        <div class="card"><h3>6. JSON de eventos detalhados</h3><p>Persistir os eventos confirmados e candidatos no relatório por vídeo, com timestamps, profundidade por olho e razão do aceite/rejeição.</p></div>
+      </div>
+    </section>
   </main>
   <footer>SmartBlinking · HC-FMUSP · Página gerada em {datetime.now().strftime('%d/%m/%Y %H:%M')}</footer>
   <script>lucide.createIcons();</script>

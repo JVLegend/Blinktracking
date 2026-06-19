@@ -93,6 +93,15 @@ def generate_report(
         "- Paciente 10 / IMG_3745: revisão manual marcou 00:03, 00:11 e 00:13. A camada sensível aponta 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.",
         "- Decisão: manter o desfecho principal conservador e usar candidatos clínicos como fila de revisão manual.",
         "",
+        "## Próximas melhorias recomendadas",
+        "",
+        "1. Ranking de candidatos clínicos com escore de confiança, sem somar automaticamente ao total principal.",
+        "2. Filtro de qualidade por trecho para sacudida de câmera, rosto saindo do quadro e perda de rastreamento.",
+        "3. Baseline especial para olhos cronicamente fechados/semi-fechados, usando variação local e proeminência temporal.",
+        "4. Detector complementar por mínimos locais para piscadas incompletas sutis.",
+        "5. Persistência de eventos detalhados por vídeo, incluindo timestamps, profundidade por olho e motivo de aceite/rejeição.",
+        "6. Métricas de precisão/recall contra suas anotações manuais para calibrar por padrão de paciente.",
+        "",
         "## Vídeos de alta frequência para revisão",
         "",
         "|idx|paciente|vídeo|piscadas|taxa/min|",
@@ -162,6 +171,7 @@ h1{{font-size:34px;margin:0 0 8px}} h2{{margin-top:34px}}
 table{{width:100%;border-collapse:collapse;background:#fff;border:1px solid #dfe3dc;border-radius:8px;overflow:hidden}}
 th,td{{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left}} th{{background:#eef1eb;font-size:13px}} td:nth-child(1),td:nth-child(4),td:nth-child(5),td:nth-child(6){{text-align:right}}
 .note{{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 16px}}
+.priority{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:12px}} .priority div{{background:#fff;border:1px solid #dfe3dc;border-radius:8px;padding:14px}} .priority b{{display:block;margin-bottom:4px}}
 </style>
 <main>
 <h1>Relatório Geral BlinkTracking Drive v2</h1>
@@ -180,6 +190,15 @@ th,td{{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left}} th{{ba
 <div class="note">A nova camada de candidatos clínicos avaliou todos os vídeos e encontrou {candidate_total} candidatos em {len(candidate_with_review)} vídeos. É uma fila sensível para revisão manual, não uma nova contagem automática.</div>
 <h2>Calibração Manual Recente</h2>
 <div class="note">Paciente 30 / IMG_6086: 00:01, 00:04 e 00:06 com dominância clínica direita; a camada de candidatos recupera os três tempos. Paciente 15 / IMG_3976: 00:07 alinhado ao candidato direito em 6,614 s. Paciente 10 / IMG_3745: 00:03, 00:11 e 00:13 alinhados a 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.</div>
+<h2>Próximas Melhorias Recomendadas</h2>
+<div class="priority">
+<div><b>Ranking de candidatos</b>Escorar cada candidato por duração, queda bilateral, dominância e distância de artefatos.</div>
+<div><b>Filtro de qualidade</b>Marcar sacudida de câmera, rosto fora do quadro e perda de rastreamento antes de promover eventos.</div>
+<div><b>Olho fechado crônico</b>Usar variação local e proeminência quando o baseline absoluto não representa olho aberto.</div>
+<div><b>Mínimos locais</b>Adicionar detector complementar por vales para piscadas incompletas sutis.</div>
+<div><b>Ground truth manual</b>Calcular precisão/recall por paciente a partir das suas anotações.</div>
+<div><b>Eventos detalhados</b>Salvar timestamps, profundidade por olho e motivo de aceite/rejeição no JSON por vídeo.</div>
+</div>
 <h2>Alta Frequência Para Revisão</h2>
 <table><tr><th>idx</th><th>paciente</th><th>vídeo</th><th>piscadas</th><th>taxa/min</th></tr>{high_table}</table>
 <h2>Vídeos Zerados</h2>

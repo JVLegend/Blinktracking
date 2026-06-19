@@ -313,6 +313,15 @@ def build_report(
             "- Os zeros sem candidato e os outliers de taxa devem formar o primeiro conjunto de anotação manual.",
             "- A comparação manual deve orientar o uso de `frame_skip`/FPS-alvo em vídeos de 150-240 fps.",
             "",
+            "## Próximas melhorias técnicas",
+            "",
+            "- Criar escore de confiança para candidatos clínicos, mantendo o desfecho principal conservador.",
+            "- Adicionar filtro de qualidade temporal para trechos com sacudida de câmera, rosto saindo do quadro ou perda de rastreamento.",
+            "- Implementar modo especial para olho cronicamente fechado/semi-fechado, baseado em variação local e proeminência, não apenas abertura absoluta.",
+            "- Adicionar detector complementar por mínimos locais para piscadas incompletas sutis.",
+            "- Persistir eventos confirmados e candidatos com timestamps, profundidade por olho e razão de aceite/rejeição.",
+            "- Calcular precisão, recall e F1 contra as anotações manuais por padrão clínico de paciente.",
+            "",
         ]
     )
 
@@ -390,6 +399,17 @@ def build_report(
   <li>Eventos bilaterais carregam classificação de lateralidade: simétrico, dominante esquerdo ou dominante direito.</li>
   <li>Os zeros sem candidato e os outliers de taxa devem formar o primeiro conjunto de anotação manual.</li>
   <li>A comparação manual deve orientar o uso de frame_skip/FPS-alvo em vídeos de 150-240 fps.</li>
+</ul>
+</section>
+<section>
+<h2>Próximas melhorias técnicas</h2>
+<ul>
+  <li>Criar escore de confiança para candidatos clínicos, mantendo o desfecho principal conservador.</li>
+  <li>Adicionar filtro de qualidade temporal para trechos com sacudida de câmera, rosto saindo do quadro ou perda de rastreamento.</li>
+  <li>Implementar modo especial para olho cronicamente fechado/semi-fechado, baseado em variação local e proeminência, não apenas abertura absoluta.</li>
+  <li>Adicionar detector complementar por mínimos locais para piscadas incompletas sutis.</li>
+  <li>Persistir eventos confirmados e candidatos com timestamps, profundidade por olho e razão de aceite/rejeição.</li>
+  <li>Calcular precisão, recall e F1 contra as anotações manuais por padrão clínico de paciente.</li>
 </ul>
 </section>
 </main>
