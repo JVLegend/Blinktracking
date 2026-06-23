@@ -1,17 +1,14 @@
-import { NextRequest, NextResponse } from "next/server"
-import { readdir } from "fs/promises"
-import path from "path"
+import { NextResponse } from "next/server"
+import { listLocalUploads } from "@/lib/server/local-upload"
 
 export const runtime = "nodejs"
 
 export async function GET() {
-  const uploadDir = path.join(process.cwd(), "public/uploads")
   try {
-    const files = await readdir(uploadDir)
-    // Filtrar apenas arquivos de vídeo comuns
-    const videoFiles = files.filter(f => f.match(/\.(mp4|avi|mov|mkv)$/i))
+    const files = await listLocalUploads()
+    const videoFiles = files.filter((file) => file.category === "video").map((file) => file.filename)
     return NextResponse.json({ videos: videoFiles })
-  } catch (err) {
+  } catch {
     return NextResponse.json({ videos: [] })
   }
-} 
+}

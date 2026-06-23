@@ -12,7 +12,7 @@ export default function PaperPage() {
         <div className="space-y-3">
           <h1 className="text-4xl font-bold">Artigo: O que é uma piscada?</h1>
           <p className="text-lg opacity-70">
-            Resumo do artigo "What is a blink? Classifying and characterizing blinks in eye openness signals"
+            Resumo do artigo &quot;What is a blink? Classifying and characterizing blinks in eye openness signals&quot;
           </p>
         </div>
 
@@ -165,4 +165,4 @@ export default function PaperPage() {
       </div>
     </SidebarInset>
   )
-} 
+}

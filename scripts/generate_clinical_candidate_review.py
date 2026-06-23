@@ -19,11 +19,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.rescue_zero_blinks import (
-    _combine_candidate_sets,
+    _candidate_counts,
     _find_output_csv,
     _fps_from_csv,
-    _merge_candidates,
-    _runs_for_eye,
+    detect_relaxed_candidates,
 )
 
 
@@ -34,24 +33,6 @@ def _num(value: Any, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
-
-
-def _candidate_counts(candidates: list[dict]) -> dict[str, int]:
-    return {
-        "candidate_count": len(candidates),
-        "bilateral_candidate_count": sum(
-            1 for item in candidates if item["classification"] == "bilateral_candidate"
-        ),
-        "unilateral_candidate_count": sum(
-            1 for item in candidates if item["classification"] == "unilateral_candidate"
-        ),
-        "left_dominant_candidate_count": sum(
-            1 for item in candidates if item.get("dominant_eye") == "left"
-        ),
-        "right_dominant_candidate_count": sum(
-            1 for item in candidates if item.get("dominant_eye") == "right"
-        ),
-    }
 
 
 def _detect_candidates(
@@ -65,67 +46,26 @@ def _detect_candidates(
     onset_tolerance_ms: float,
     baseline_quantile: float,
     dominance_margin_percent: float,
-) -> tuple[list[dict], float]:
+) -> tuple[list[dict], float, dict]:
     df = pd.read_csv(csv_path, comment="#")
     fps = _fps_from_csv(df, fps_fallback)
-    left = _runs_for_eye(
+    candidates, ratio_used, quality = detect_relaxed_candidates(
         df,
-        "left",
         fps,
         ratio=ratio,
+        fallback_ratio=fallback_ratio,
         min_duration_ms=min_duration_ms,
         max_duration_ms=max_duration_ms,
-        baseline_quantile=baseline_quantile,
-    )
-    right = _runs_for_eye(
-        df,
-        "right",
-        fps,
-        ratio=ratio,
-        min_duration_ms=min_duration_ms,
-        max_duration_ms=max_duration_ms,
-        baseline_quantile=baseline_quantile,
-    )
-    candidates = _merge_candidates(
-        left,
-        right,
         onset_tolerance_ms=onset_tolerance_ms,
+        baseline_quantile=baseline_quantile,
         dominance_margin_percent=dominance_margin_percent,
     )
-    ratio_used = ratio
-    primary_candidates = candidates
-    if fallback_ratio > ratio:
-        left = _runs_for_eye(
-            df,
-            "left",
-            fps,
-            ratio=fallback_ratio,
-            min_duration_ms=min_duration_ms,
-            max_duration_ms=max_duration_ms,
-            baseline_quantile=baseline_quantile,
-        )
-        right = _runs_for_eye(
-            df,
-            "right",
-            fps,
-            ratio=fallback_ratio,
-            min_duration_ms=min_duration_ms,
-            max_duration_ms=max_duration_ms,
-            baseline_quantile=baseline_quantile,
-        )
-        fallback_candidates = _merge_candidates(
-            left,
-            right,
-            onset_tolerance_ms=onset_tolerance_ms,
-            dominance_margin_percent=dominance_margin_percent,
-        )
-        candidates = _combine_candidate_sets(
-            primary=primary_candidates,
-            fallback=fallback_candidates,
-            onset_tolerance_ms=onset_tolerance_ms,
-        )
-        ratio_used = fallback_ratio
-    return candidates, ratio_used
+    quality_summary = {
+        "quality_event_count": len(quality.events),
+        "tracking_loss_ratio": round(quality.tracking_loss_ratio, 4),
+        "chronic_closed_eyes": quality.chronic_closed_eyes,
+    }
+    return candidates, ratio_used, quality_summary
 
 
 def build_review(
@@ -165,7 +105,7 @@ def build_review(
         }
         if csv_path is not None:
             try:
-                candidates, ratio_used = _detect_candidates(
+                candidates, ratio_used, quality_summary = _detect_candidates(
                     csv_path,
                     fps_fallback=_num(row.get("fps"), 30.0),
                     ratio=ratio,
@@ -181,6 +121,7 @@ def build_review(
                         "status": "success",
                         "ratio_used": ratio_used,
                         "candidates": candidates,
+                        **quality_summary,
                         **_candidate_counts(candidates),
                     }
                 )
@@ -211,6 +152,12 @@ def _write_reports(results: list[dict], output_dir: Path) -> dict[str, Path]:
         "unilateral_candidate_count",
         "left_dominant_candidate_count",
         "right_dominant_candidate_count",
+        "high_confidence_candidate_count",
+        "artifact_risk_candidate_count",
+        "max_confidence_score",
+        "mean_confidence_score",
+        "quality_event_count",
+        "chronic_closed_eyes",
         "first_candidate_seconds",
         "output_dir",
         "error",
@@ -223,7 +170,7 @@ def _write_reports(results: list[dict], output_dir: Path) -> dict[str, Path]:
             first_seconds = ""
             if candidates:
                 first_seconds = "; ".join(
-                    f"{float(candidate['start_time_ms']) / 1000.0:.3f}"
+                    f"{float(candidate['start_time_ms']) / 1000.0:.3f}({candidate.get('confidence_score', 0)})"
                     for candidate in candidates[:8]
                 )
             writer.writerow(
@@ -251,10 +198,16 @@ def _write_reports(results: list[dict], output_dir: Path) -> dict[str, Path]:
     nonzero_candidates = total_candidates - zero_candidates
     left_dom = sum(int(item.get("left_dominant_candidate_count", 0)) for item in results)
     right_dom = sum(int(item.get("right_dominant_candidate_count", 0)) for item in results)
+    high_confidence = sum(int(item.get("high_confidence_candidate_count", 0)) for item in results)
+    artifact_risk = sum(int(item.get("artifact_risk_candidate_count", 0)) for item in results)
 
     top = sorted(
         results,
-        key=lambda item: (int(item.get("candidate_count", 0)), int(item.get("total_blinks", 0))),
+        key=lambda item: (
+            int(item.get("high_confidence_candidate_count", 0)),
+            float(item.get("max_confidence_score", 0)),
+            int(item.get("candidate_count", 0)),
+        ),
         reverse=True,
     )[:25]
     md_lines = [
@@ -268,29 +221,32 @@ def _write_reports(results: list[dict], output_dir: Path) -> dict[str, Path]:
         f"- Candidatos totais: **{total_candidates}**",
         f"- Candidatos em vídeos zero/não-zero: **{zero_candidates}/{nonzero_candidates}**",
         f"- Candidatos dominantes E/D: **{left_dom}/{right_dom}**",
+        f"- Candidatos de alta confiança: **{high_confidence}**",
+        f"- Candidatos próximos a artefato: **{artifact_risk}**",
         "",
-        "## Top 25 para revisão",
+        "## Top 25 para revisão por confiança",
         "",
-        "|idx|perfil|vídeo|principal|candidatos|dom E|dom D|primeiros tempos (s)|",
-        "|---:|---|---|---:|---:|---:|---:|---|",
+        "|idx|perfil|vídeo|principal|candidatos|alta conf.|score máx.|artefatos|primeiros tempos (s)|",
+        "|---:|---|---|---:|---:|---:|---:|---:|---|",
     ]
     for item in top:
         first_seconds = "; ".join(
-            f"{float(candidate['start_time_ms']) / 1000.0:.3f}"
+            f"{float(candidate['start_time_ms']) / 1000.0:.3f}({candidate.get('confidence_score', 0)})"
             for candidate in (item.get("candidates") or [])[:8]
         )
         md_lines.append(
             f"|{item.get('idx')}|{item.get('profile')}|{str(item.get('remote_path', '')).replace('|', '/')}|"
             f"{item.get('total_blinks', 0)}|{item.get('candidate_count', 0)}|"
-            f"{item.get('left_dominant_candidate_count', 0)}|"
-            f"{item.get('right_dominant_candidate_count', 0)}|{first_seconds}|"
+            f"{item.get('high_confidence_candidate_count', 0)}|"
+            f"{item.get('max_confidence_score', 0)}|"
+            f"{item.get('artifact_risk_candidate_count', 0)}|{first_seconds}|"
         )
     md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")
 
     rows = []
     for item in top:
         first_seconds = "; ".join(
-            f"{float(candidate['start_time_ms']) / 1000.0:.3f}"
+            f"{float(candidate['start_time_ms']) / 1000.0:.3f}({candidate.get('confidence_score', 0)})"
             for candidate in (item.get("candidates") or [])[:8]
         )
         rows.append(
@@ -300,8 +256,9 @@ def _write_reports(results: list[dict], output_dir: Path) -> dict[str, Path]:
             f"<td>{html.escape(str(item.get('remote_path')))}</td>"
             f"<td>{int(item.get('total_blinks', 0))}</td>"
             f"<td>{int(item.get('candidate_count', 0))}</td>"
-            f"<td>{int(item.get('left_dominant_candidate_count', 0))}</td>"
-            f"<td>{int(item.get('right_dominant_candidate_count', 0))}</td>"
+            f"<td>{int(item.get('high_confidence_candidate_count', 0))}</td>"
+            f"<td>{float(item.get('max_confidence_score', 0)):.1f}</td>"
+            f"<td>{int(item.get('artifact_risk_candidate_count', 0))}</td>"
             f"<td>{html.escape(first_seconds)}</td>"
             "</tr>"
         )
@@ -315,15 +272,16 @@ body{{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;margin:32
 table{{border-collapse:collapse;width:100%;background:white;border:1px solid #d8dee9}}td,th{{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}}th{{background:#edf2f7}}
 </style>
 <h1>Clinical Candidate Review</h1>
-<p>Camada relaxada para revisão manual. Estes candidatos não substituem o desfecho principal.</p>
+<p>Camada relaxada para revisão manual. Estes candidatos não substituem o desfecho principal; agora são ranqueados por confiança e penalizados quando aparecem perto de artefatos de qualidade.</p>
 <div class="grid">
 <div class="card"><b>{len(results)}</b>vídeos</div>
 <div class="card"><b>{with_candidates}</b>com candidatos</div>
 <div class="card"><b>{total_candidates}</b>candidatos</div>
-<div class="card"><b>{left_dom}/{right_dom}</b>dominantes E/D</div>
+<div class="card"><b>{high_confidence}</b>alta confiança</div>
+<div class="card"><b>{artifact_risk}</b>com risco de artefato</div>
 </div>
-<h2>Top 25 para revisão</h2>
-<table><tr><th>idx</th><th>perfil</th><th>vídeo</th><th>principal</th><th>candidatos</th><th>dom E</th><th>dom D</th><th>primeiros tempos (s)</th></tr>{''.join(rows)}</table>
+<h2>Top 25 para revisão por confiança</h2>
+<table><tr><th>idx</th><th>perfil</th><th>vídeo</th><th>principal</th><th>candidatos</th><th>alta conf.</th><th>score máx.</th><th>artefatos</th><th>tempos top (s)</th></tr>{''.join(rows)}</table>
 """,
         encoding="utf-8",
     )

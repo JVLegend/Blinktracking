@@ -9,8 +9,7 @@ def run_command(command, description):
     """Executa um comando no shell e trata erros basicos."""
     print(f"\n🚀 Iniciando: {description}...")
     try:
-        # Usamos shell=True para garantir que funcione bem no Windows com paths
-        result = subprocess.run(command, shell=True, check=True)
+        result = subprocess.run(command, check=True)
         if result.returncode == 0:
             print(f"✅ Sucesso: {description}")
             return True
@@ -56,19 +55,19 @@ def process_folder(folder_path):
         print("=" * 50)
         
         # 1. Extrair pontos simplificados (CSV)
-        cmd1 = f'python "{script_extract_points}" "{video}"'
+        cmd1 = [sys.executable, str(script_extract_points), str(video)]
         if not run_command(cmd1, "Extração de Pontos Simplificados"):
             continue
 
         # 2. Processar vídeo visual (Desenhar landmarks)
         # O script original pede um diretório de saída temporário como 2º argumento
         # Vamos salvar na mesma pasta do vídeo original por padrão
-        cmd2 = f'python "{script_process_video}" "{video}" "{folder}"'
+        cmd2 = [sys.executable, str(script_process_video), str(video), str(folder)]
         if not run_command(cmd2, "Geração de Vídeo Visual (Landmarks)"):
             continue
 
         # 3. Extrair TODOS os pontos (CSV Completo - 478 pts)
-        cmd3 = f'python "{script_extract_all}" "{video}"'
+        cmd3 = [sys.executable, str(script_extract_all), str(video)]
         if not run_command(cmd3, "Extração Completa (478 pontos)"):
             continue
 

@@ -5,8 +5,8 @@ Configuração centralizada do BlinkTracking
 import yaml
 import json
 from pathlib import Path
-from dataclasses import dataclass, field, asdict
-from typing import List, Dict, Optional, Tuple
+from dataclasses import dataclass, field, asdict, fields, is_dataclass
+from typing import Any, List, Dict, Optional, Tuple
 
 
 @dataclass
@@ -95,15 +95,39 @@ class Config:
     def from_yaml(cls, path: str) -> "Config":
         """Carrega configuração de arquivo YAML"""
         with open(path, 'r') as f:
-            data = yaml.safe_load(f)
-        return cls(**data)
+            data = yaml.safe_load(f) or {}
+        return cls._from_mapping(data)
     
     @classmethod
     def from_json(cls, path: str) -> "Config":
         """Carrega configuração de arquivo JSON"""
         with open(path, 'r') as f:
             data = json.load(f)
-        return cls(**data)
+        return cls._from_mapping(data)
+
+    @classmethod
+    def _from_mapping(cls, data: Dict[str, Any]) -> "Config":
+        """Cria Config convertendo seções aninhadas em dataclasses."""
+        return cls(**cls._hydrate_dataclass(cls, data))
+
+    @staticmethod
+    def _hydrate_dataclass(dataclass_type, data: Dict[str, Any]) -> Dict[str, Any]:
+        if not isinstance(data, dict):
+            raise TypeError("Config data deve ser um dicionário")
+
+        hydrated = {}
+        valid_fields = {item.name: item for item in fields(dataclass_type)}
+        for key, value in data.items():
+            if key not in valid_fields:
+                hydrated[key] = value
+                continue
+
+            field_type = valid_fields[key].type
+            if is_dataclass(field_type) and isinstance(value, dict):
+                hydrated[key] = field_type(**Config._hydrate_dataclass(field_type, value))
+            else:
+                hydrated[key] = value
+        return hydrated
     
     def to_yaml(self, path: str):
         """Salva configuração em YAML"""

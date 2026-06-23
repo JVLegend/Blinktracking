@@ -7,4 +7,11 @@ export const DEFAULT_HEADERS = {
 };
 
 // Timeout padrão para requisições longas (processamento de vídeo)
-export const REQUEST_TIMEOUT = 10 * 60 * 1000; // 10 minutos 
+export const REQUEST_TIMEOUT = 10 * 60 * 1000; // 10 minutos
+
+export const REMOTE_VIDEO_ALLOWED_HOSTS = (process.env.REMOTE_VIDEO_ALLOWED_HOSTS || 'blob.vercel-storage.com')
+  .split(',')
+  .map((host) => host.trim().toLowerCase())
+  .filter(Boolean);
+
+export const REMOTE_VIDEO_MAX_BYTES = Number(process.env.REMOTE_VIDEO_MAX_BYTES || 100 * 1024 * 1024);

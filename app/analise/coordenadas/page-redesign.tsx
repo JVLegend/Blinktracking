@@ -11,12 +11,15 @@ import { Slider } from "@/components/ui/slider"
 import { Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
+type EyePointGroup = 'right_upper' | 'right_lower' | 'left_upper' | 'left_lower';
+type PointGroup = EyePointGroup | 'all_points';
+
 interface MediaPipePoint {
   x: number;
   y: number;
   z?: number;
   label: string;
-  group: 'right_upper' | 'right_lower' | 'left_upper' | 'left_lower' | 'all_points';
+  group: PointGroup;
 }
 
 interface FrameData {
@@ -26,6 +29,15 @@ interface FrameData {
 }
 
 type CSVType = 'eyes_only' | 'all_points' | 'unknown';
+
+const pointsConfig: Record<EyePointGroup, { count: number; color: string; label: string }> = {
+  right_upper: { count: 7, color: '#00F0FF', label: 'RU' },
+  right_lower: { count: 9, color: '#FF006E', label: 'RL' },
+  left_upper: { count: 7, color: '#FFB800', label: 'LU' },
+  left_lower: { count: 9, color: '#8B5CF6', label: 'LL' }
+};
+
+const allPointsConfig = { color: '#94a3b8', label: 'P' };
 
 export default function CoordenadasPageRedesign() {
   const [data, setData] = useState<FrameData[]>([]);
@@ -38,13 +50,6 @@ export default function CoordenadasPageRedesign() {
   const [isStabilized, setIsStabilized] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const pointsConfig = {
-    right_upper: { count: 7, color: '#00F0FF', label: 'RU' },
-    right_lower: { count: 9, color: '#FF006E', label: 'RL' },
-    left_upper: { count: 7, color: '#FFB800', label: 'LU' },
-    left_lower: { count: 9, color: '#8B5CF6', label: 'LL' }
-  };
 
   const detectCSVType = (headers: string[]): CSVType => {
     const hasEyePoints = headers.some(h =>
@@ -125,7 +130,7 @@ export default function CoordenadasPageRedesign() {
               x: frame[xKey],
               y: frame[yKey],
               label: `${config.label}${i}`,
-              group: group as any
+              group: group as EyePointGroup
             });
           }
         }
@@ -583,7 +588,7 @@ export default function CoordenadasPageRedesign() {
 
                       {/* Points */}
                       {visualizationData.normalizedPoints.map((point, idx) => {
-                        const config = pointsConfig[point.group];
+                        const config = point.group === 'all_points' ? allPointsConfig : pointsConfig[point.group];
                         return (
                           <g key={idx}>
                             <circle

@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { BACKEND_URL, REQUEST_TIMEOUT } from '@/lib/config'
+import { RequestValidationError, requireFrameNumber, sanitizeUploadFilename } from "@/lib/server/api-validation"
+import { RemoteVideoError, fetchRemoteVideoBlob } from '@/lib/server/remote-video'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,21 +21,14 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    // Buscar o vídeo do blob storage
-    const videoResponse = await fetch(videoUrl)
-    if (!videoResponse.ok) {
-      return NextResponse.json(
-        { error: "Erro ao baixar vídeo do storage" },
-        { status: 500 }
-      )
-    }
-
-    const videoBlob = await videoResponse.blob()
+    const safeFilename = sanitizeUploadFilename(videoFilename)
+    const safeFrame = requireFrameNumber(frame)
+    const videoBlob = await fetchRemoteVideoBlob(videoUrl)
 
     // Criar FormData para o backend
     const backendFormData = new FormData()
-    backendFormData.append('video', videoBlob, videoFilename)
-    backendFormData.append('frame_number', frame)
+    backendFormData.append('video', videoBlob, safeFilename)
+    backendFormData.append('frame_number', safeFrame)
 
     // Enviar para o backend Flask
     const backendResponse = await fetch(`${BACKEND_URL}/extract-frame`, {
@@ -43,9 +38,9 @@ export async function POST(request: Request): Promise<Response> {
     })
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text()
+      await backendResponse.text().catch(() => '')
       return NextResponse.json(
-        { error: `Erro no backend: ${errorText}` },
+        { error: "Erro ao extrair frame" },
         { status: backendResponse.status }
       )
     }
@@ -64,22 +59,35 @@ export async function POST(request: Request): Promise<Response> {
     } else {
       // Tentar processar como JSON (para erros)
       try {
-        const result = await backendResponse.json()
-        return NextResponse.json(
-          { error: result.error || "Erro ao extrair frame" },
-          { status: 500 }
-        )
+        await backendResponse.json()
       } catch {
         return NextResponse.json(
           { error: "Resposta inválida do servidor" },
           { status: 500 }
         )
       }
+
+      return NextResponse.json(
+        { error: "Erro ao extrair frame" },
+        { status: 500 }
+      )
     }
 
   } catch (error) {
-    console.error("Erro na API extract-frame:", error)
-    
+    if (error instanceof RequestValidationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      )
+    }
+
+    if (error instanceof RemoteVideoError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status }
+      )
+    }
+
     if (error instanceof Error && error.name === 'TimeoutError') {
       return NextResponse.json(
         { error: "Timeout: processamento demorou mais que o esperado" },
@@ -92,4 +100,4 @@ export async function POST(request: Request): Promise<Response> {
       { status: 500 }
     )
   }
-} 
+}

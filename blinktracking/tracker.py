@@ -159,6 +159,7 @@ class BlinkTracker:
         self.stabilizer.reset()
         self.metrics_calc.reset()
         self.rotation_normalizer.baseline_caruncula = None
+        self.rotation_normalizer.baseline_landmarks = None
         
         # Abrir vídeo
         cap = cv2.VideoCapture(str(video_path))
@@ -170,7 +171,7 @@ class BlinkTracker:
         if fps is None or fps <= 0:
             warnings.warn("FPS inválido no vídeo; usando fallback de 30 FPS.", RuntimeWarning)
             fps = 30.0
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        total_frames = max(0, int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         
@@ -225,8 +226,7 @@ class BlinkTracker:
                     self.progress_callback(self.frame_count, total_frames)
                 
                 if self.frame_count % 30 == 0:
-                    progress = (self.frame_count / total_frames) * 100
-                    self.logger.info(f"Progresso: {progress:.1f}%")
+                    self._log_progress(total_frames)
 
                 should_run_inference = (self.frame_count - 1) % frame_skip == 0
                 if not should_run_inference:
@@ -300,7 +300,7 @@ class BlinkTracker:
                 'total_frames': total_frames,
                 'width': width,
                 'height': height,
-                'duration_seconds': total_frames / fps
+                'duration_seconds': (total_frames if total_frames > 0 else self.frame_count) / fps
             },
             'metrics': {
                 'left': metrics['left'].to_dict(),
@@ -330,6 +330,14 @@ class BlinkTracker:
         
         self.is_processing = False
         return results
+
+    def _log_progress(self, total_frames: int):
+        """Registra progresso sem assumir que o total de frames é conhecido."""
+        if total_frames > 0:
+            progress = (self.frame_count / total_frames) * 100
+            self.logger.info(f"Progresso: {progress:.1f}%")
+        else:
+            self.logger.info(f"Progresso: {self.frame_count} frames")
 
     def _process_openings(self, openings: Dict, fps: float):
         """Envia aberturas de um frame ao calculador de métricas."""
@@ -716,3 +724,4 @@ class BlinkTracker:
         self.stabilizer.reset()
         self.metrics_calc.reset()
         self.rotation_normalizer.baseline_caruncula = None
+        self.rotation_normalizer.baseline_landmarks = None

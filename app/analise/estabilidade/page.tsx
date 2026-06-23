@@ -415,10 +415,7 @@ export default function EstabilidadePage() {
                                                 autosize: true,
                                                 hovermode: 'closest',
                                                 margin: { t: 40, r: 40, b: 60, l: 60 },
-                                                title: {
-                                                    text: isNormalized ? 'Dispersão Relativa (Centralizada)' : 'Dispersão Absoluta (Original)',
-                                                    font: { family: 'Inter, sans-serif', size: 14, color: '#64748b' }
-                                                },
+                                                title: isNormalized ? 'Dispersão Relativa (Centralizada)' : 'Dispersão Absoluta (Original)',
                                                 xaxis: {
                                                     title: 'Coordenada Horizontal (X)',
                                                     zeroline: true,

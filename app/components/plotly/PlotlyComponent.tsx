@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { CSSProperties, useEffect, useRef } from 'react';
 import Script from 'next/script';
 
 interface PlotlyProps {
   data: any[];
   layout: any;
   config?: any;
+  style?: CSSProperties;
 }
 
-export default function PlotlyComponent({ data, layout, config = {} }: PlotlyProps) {
+export default function PlotlyComponent({ data, layout, config = {}, style }: PlotlyProps) {
   const plotRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function PlotlyComponent({ data, layout, config = {} }: PlotlyPro
         src="https://cdn.plot.ly/plotly-2.27.0.min.js"
         strategy="afterInteractive"
       />
-      <div ref={plotRef} />
+      <div ref={plotRef} style={style} />
     </>
   );
-} 
+}

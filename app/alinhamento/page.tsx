@@ -3,8 +3,33 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
-// Declaração das variáveis globais do MediaPipe para evitar erros de linter
-/* global drawConnectors, FACEMESH_RIGHT_EYE, FACEMESH_LEFT_EYE, FACEMESH_RIGHT_IRIS, FACEMESH_LEFT_IRIS */
+type Landmark = { x: number; y: number; z?: number };
+type Connector = readonly [number, number];
+
+declare global {
+    interface Window {
+        FaceMesh: new (options: { locateFile: (file: string) => string }) => {
+            setOptions: (options: Record<string, unknown>) => void;
+            onResults: (callback: (results: { multiFaceLandmarks?: Landmark[][] }) => void) => void;
+            send: (input: { image: HTMLVideoElement | null }) => Promise<void>;
+        };
+        Camera: new (
+            video: HTMLVideoElement | null,
+            options: { onFrame: () => Promise<void>; width: number; height: number }
+        ) => { start: () => void };
+    }
+
+    const drawConnectors: (
+        ctx: CanvasRenderingContext2D,
+        landmarks: Landmark[],
+        connectors: Connector[],
+        style?: { color?: string; lineWidth?: number }
+    ) => void;
+    const FACEMESH_RIGHT_EYE: Connector[];
+    const FACEMESH_LEFT_EYE: Connector[];
+    const FACEMESH_RIGHT_IRIS: Connector[];
+    const FACEMESH_LEFT_IRIS: Connector[];
+}
 
 export default function AlinhamentoPage() {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -17,6 +42,7 @@ export default function AlinhamentoPage() {
     const [alignMessageColor, setAlignMessageColor] = useState('#FFA500');
 
     useEffect(() => {
+        let activeVideo: HTMLVideoElement | null = null;
         let lastRightBlink = 0;
         let lastLeftBlink = 0;
         const blinkCooldown = 400; // ms
@@ -46,14 +72,15 @@ export default function AlinhamentoPage() {
                     video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
                 });
                 if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
+                    activeVideo = videoRef.current;
+                    activeVideo.srcObject = stream;
                 }
             } catch (error) {
                 setStatus(`Erro ao acessar webcam: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
             }
         };
 
-        const eyeAspectRatio = (landmarks: any, top: number, bottom: number, left: number, right: number) => {
+        const eyeAspectRatio = (landmarks: Landmark[], top: number, bottom: number, left: number, right: number) => {
             const vDist = Math.hypot(
                 landmarks[top].x - landmarks[bottom].x,
                 landmarks[top].y - landmarks[bottom].y
@@ -68,7 +95,7 @@ export default function AlinhamentoPage() {
         const LEFT = { l: 263, r: 362, t: 386, b: 374 };
         const RIGHT = { l: 133, r: 33, t: 159, b: 145 };
 
-        const onResults = (results: any) => {
+        const onResults = (results: { multiFaceLandmarks?: Landmark[][] }) => {
             const canvas = canvasRef.current;
             if (!canvas) return;
             const ctx = canvas.getContext('2d');
@@ -116,7 +143,7 @@ export default function AlinhamentoPage() {
 
                 const rect = centerRect.getBoundingClientRect();
 
-                const normToPixel = (landmark: any) => ({
+                const normToPixel = (landmark: Landmark) => ({
                     x: landmark.x * window.innerWidth,
                     y: landmark.y * window.innerHeight
                 });
@@ -170,7 +197,7 @@ export default function AlinhamentoPage() {
             await loadMediaPipeScripts();
             await initWebcam();
 
-            const faceMesh = new (window as any).FaceMesh({
+            const faceMesh = new window.FaceMesh({
                 locateFile: (file: string) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
                 }
@@ -185,7 +212,7 @@ export default function AlinhamentoPage() {
 
             faceMesh.onResults(onResults);
 
-            const camera = new (window as any).Camera(videoRef.current, {
+            const camera = new window.Camera(videoRef.current, {
                 onFrame: async () => {
                     await faceMesh.send({ image: videoRef.current });
                 },
@@ -199,8 +226,8 @@ export default function AlinhamentoPage() {
         startTracking();
 
         return () => {
-            if (videoRef.current?.srcObject) {
-                const stream = videoRef.current.srcObject as MediaStream;
+            if (activeVideo?.srcObject) {
+                const stream = activeVideo.srcObject as MediaStream;
                 stream.getTracks().forEach(track => track.stop());
             }
         };
@@ -264,4 +291,4 @@ export default function AlinhamentoPage() {
             </div>
         </div>
     );
-} 
+}

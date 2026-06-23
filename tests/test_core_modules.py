@@ -7,6 +7,8 @@ import sys
 import os
 import csv
 import io
+import json
+import threading
 import warnings
 import numpy as np
 from pathlib import Path
@@ -14,7 +16,7 @@ from pathlib import Path
 # Adicionar ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from blinktracking import Config
+from blinktracking import Config, BatchProcessor
 from blinktracking.filters import (
     KalmanFilter, MovingAverageFilter, 
     LandmarkStabilizer, RotationNormalizer, Point2D
@@ -262,6 +264,50 @@ def test_rotation_normalizer():
     assert distance < 1.0, "Carúncula deve voltar para posição de referência"
     print("✅ Rotation Normalizer funcionando!")
     return True
+
+
+def test_rotation_normalizer_aligns_real_rotation():
+    """Normalizador deve desfazer rotação, escala e translação contra a referência."""
+    num_landmarks = 50
+    caruncula_idx = 39
+    reference = np.array([
+        (100.0 + np.cos(i) * 20.0 + i, 80.0 + np.sin(i * 0.7) * 15.0)
+        for i in range(num_landmarks)
+    ])
+    reference[caruncula_idx] = (150.0, 95.0)
+
+    angle = np.deg2rad(18.0)
+    rotation = np.array([
+        [np.cos(angle), -np.sin(angle)],
+        [np.sin(angle), np.cos(angle)],
+    ])
+    center = reference.mean(axis=0)
+    transformed = ((reference - center) @ rotation.T) * 1.2 + np.array([35.0, -22.0])
+
+    normalizer = RotationNormalizer(caruncula_idx=caruncula_idx)
+    normalized = np.asarray(normalizer.normalize(transformed, reference))
+
+    np.testing.assert_allclose(normalized, reference, atol=1e-6)
+
+
+def test_tracker_progress_does_not_divide_by_zero():
+    """Progresso deve ser registrado por frames quando total_frames é desconhecido."""
+    class Logger:
+        def __init__(self):
+            self.messages = []
+
+        def info(self, message):
+            self.messages.append(message)
+
+    tracker = object.__new__(BlinkTracker)
+    tracker.frame_count = 30
+    tracker.logger = Logger()
+
+    tracker._log_progress(0)
+    tracker._log_progress(60)
+
+    assert tracker.logger.messages[0] == "Progresso: 30 frames"
+    assert tracker.logger.messages[1] == "Progresso: 50.0%"
 
 
 def test_blink_detector_adapts_to_individual_baseline():
@@ -566,6 +612,72 @@ def test_combined_metrics_classifies_lateral_dominance():
 
     assert borderline.right_dominant_blinks == 1
     assert borderline.blink_events[0].lateral_classification == "right_dominant"
+
+
+def test_config_loaders_hydrate_nested_dataclasses(tmp_path):
+    """from_yaml/from_json devem recriar dataclasses aninhadas, não dicts."""
+    config = Config()
+    config.detection.frame_skip = 3
+    config.filters.moving_average_window = 9
+    config.thresholds.blink_threshold_percent = 22.5
+
+    yaml_path = tmp_path / "config.yaml"
+    json_path = tmp_path / "config.json"
+    config.to_yaml(yaml_path)
+    config.to_json(json_path)
+
+    yaml_config = Config.from_yaml(yaml_path)
+    json_config = Config.from_json(json_path)
+
+    for loaded in (yaml_config, json_config):
+        assert isinstance(loaded.right_eye, type(config.right_eye))
+        assert isinstance(loaded.detection, type(config.detection))
+        assert isinstance(loaded.filters, type(config.filters))
+        assert isinstance(loaded.thresholds, type(config.thresholds))
+        assert loaded.detection.frame_skip == 3
+        assert loaded.filters.moving_average_window == 9
+        assert loaded.thresholds.blink_threshold_percent == 22.5
+        valid, errors = loaded.validate()
+        assert valid, errors
+
+
+def test_batch_checkpoint_preserves_concurrent_updates(tmp_path):
+    """Checkpoint deve mesclar updates concorrentes sem perder vídeos."""
+    processor = BatchProcessor(max_workers=1)
+    checkpoint_file = tmp_path / "checkpoint.json"
+    video_paths = [f"/videos/video_{i}.mp4" for i in range(12)]
+
+    threads = [
+        threading.Thread(target=processor._save_checkpoint, args=(checkpoint_file, video_path))
+        for video_path in video_paths
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    data = json.loads(checkpoint_file.read_text())
+    assert set(data["processed"]) == set(video_paths)
+
+
+def test_batch_recursive_output_names_avoid_stem_collisions(tmp_path):
+    """Vídeos com mesmo stem em subpastas diferentes devem ter saídas distintas."""
+    input_folder = tmp_path / "input"
+    output_folder = tmp_path / "output"
+    video_a = input_folder / "exam_a" / "sample.mp4"
+    video_b = input_folder / "exam_b" / "sample.mp4"
+    video_a.parent.mkdir(parents=True)
+    video_b.parent.mkdir(parents=True)
+    video_a.touch()
+    video_b.touch()
+
+    processor = BatchProcessor(max_workers=1)
+    output_a = processor._get_video_output_folder(video_a, output_folder, input_folder)
+    output_b = processor._get_video_output_folder(video_b, output_folder, input_folder)
+
+    assert output_a != output_b
+    assert output_a.name == "exam_a__sample"
+    assert output_b.name == "exam_b__sample"
 
 
 def test_config_system():

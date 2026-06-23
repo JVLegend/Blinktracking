@@ -64,6 +64,8 @@ def generate_report(
     candidate_total = sum(int(_num(row.get("candidate_count"))) for row in candidate_rows)
     candidate_left = sum(int(_num(row.get("left_dominant_candidate_count"))) for row in candidate_rows)
     candidate_right = sum(int(_num(row.get("right_dominant_candidate_count"))) for row in candidate_rows)
+    candidate_high = sum(int(_num(row.get("high_confidence_candidate_count"))) for row in candidate_rows)
+    candidate_artifact = sum(int(_num(row.get("artifact_risk_candidate_count"))) for row in candidate_rows)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     html_path = output_dir / "relatorio_geral_blinktracking_v2_drive.html"
@@ -84,6 +86,8 @@ def generate_report(
         f"- Zerados: {stats.get('zero_count', len(zero_rows))}",
         f"- Com candidatos relaxados: {len(rescue_with_candidates)}",
         f"- Candidatos clínicos para revisão em todos os vídeos: {candidate_total}",
+        f"- Candidatos de alta confiança: {candidate_high}",
+        f"- Candidatos próximos a artefato: {candidate_artifact}",
         f"- Candidatos clínicos dominantes E/D: {candidate_left}/{candidate_right}",
         "",
         "## Calibração manual recente",
@@ -93,14 +97,13 @@ def generate_report(
         "- Paciente 10 / IMG_3745: revisão manual marcou 00:03, 00:11 e 00:13. A camada sensível aponta 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.",
         "- Decisão: manter o desfecho principal conservador e usar candidatos clínicos como fila de revisão manual.",
         "",
-        "## Próximas melhorias recomendadas",
+        "## Camadas implementadas nesta versão",
         "",
         "1. Ranking de candidatos clínicos com escore de confiança, sem somar automaticamente ao total principal.",
-        "2. Filtro de qualidade por trecho para sacudida de câmera, rosto saindo do quadro e perda de rastreamento.",
-        "3. Baseline especial para olhos cronicamente fechados/semi-fechados, usando variação local e proeminência temporal.",
+        "2. Filtro de qualidade por trecho para sacudida de câmera, salto de escala, gap de tracking e salto abrupto de abertura.",
+        "3. Contexto especial para olhos cronicamente fechados/semi-fechados, usando variação local e proeminência temporal.",
         "4. Detector complementar por mínimos locais para piscadas incompletas sutis.",
-        "5. Persistência de eventos detalhados por vídeo, incluindo timestamps, profundidade por olho e motivo de aceite/rejeição.",
-        "6. Métricas de precisão/recall contra suas anotações manuais para calibrar por padrão de paciente.",
+        "5. Próximo passo: persistir eventos detalhados por vídeo no painel web e calcular precisão/recall contra anotações manuais.",
         "",
         "## Vídeos de alta frequência para revisão",
         "",
@@ -184,18 +187,20 @@ th,td{{padding:9px 10px;border-bottom:1px solid #e5e7eb;text-align:left}} th{{ba
 {card("dominantes E/D", f"{stats.get('left_dominant_blinks', 0)}/{stats.get('right_dominant_blinks', 0)}")}
 {card("vídeos zerados", stats.get("zero_count", len(zero_rows)))}
 {card("candidatos clínicos", candidate_total)}
+{card("alta confiança", candidate_high)}
+{card("com risco de artefato", candidate_artifact)}
 {card("cand. dominantes E/D", f"{candidate_left}/{candidate_right}")}
 </div>
 <div class="note">A recuperação relaxada identificou {sum(int(_num(row.get('rescue_candidate_count'))) for row in rescue_rows)} candidatos em {len(rescue_with_candidates)} vídeos zerados; estes são itens para revisão manual, não substituem o desfecho primário.</div>
-<div class="note">A nova camada de candidatos clínicos avaliou todos os vídeos e encontrou {candidate_total} candidatos em {len(candidate_with_review)} vídeos. É uma fila sensível para revisão manual, não uma nova contagem automática.</div>
+<div class="note">A nova camada de candidatos clínicos avaliou todos os vídeos e encontrou {candidate_total} candidatos em {len(candidate_with_review)} vídeos, sendo {candidate_high} de alta confiança. É uma fila sensível para revisão manual, não uma nova contagem automática.</div>
 <h2>Calibração Manual Recente</h2>
 <div class="note">Paciente 30 / IMG_6086: 00:01, 00:04 e 00:06 com dominância clínica direita; a camada de candidatos recupera os três tempos. Paciente 15 / IMG_3976: 00:07 alinhado ao candidato direito em 6,614 s. Paciente 10 / IMG_3745: 00:03, 00:11 e 00:13 alinhados a 2,704 s, 11,183 s e 13,261 s; após 00:17 há artefato de câmera.</div>
-<h2>Próximas Melhorias Recomendadas</h2>
+<h2>Camadas Implementadas e Próximos Passos</h2>
 <div class="priority">
-<div><b>Ranking de candidatos</b>Escorar cada candidato por duração, queda bilateral, dominância e distância de artefatos.</div>
-<div><b>Filtro de qualidade</b>Marcar sacudida de câmera, rosto fora do quadro e perda de rastreamento antes de promover eventos.</div>
-<div><b>Olho fechado crônico</b>Usar variação local e proeminência quando o baseline absoluto não representa olho aberto.</div>
-<div><b>Mínimos locais</b>Adicionar detector complementar por vales para piscadas incompletas sutis.</div>
+<div><b>Ranking de candidatos</b>Implementado por duração, profundidade, bilateralidade, dominância, simetria e distância de artefatos.</div>
+<div><b>Filtro de qualidade</b>Implementado para sacudida, salto de escala, gap de tracking e salto abrupto de abertura.</div>
+<div><b>Olho fechado crônico</b>Implementado como contexto para usar variação local/proeminência quando o baseline absoluto engana.</div>
+<div><b>Mínimos locais</b>Implementado como detector complementar por vales para piscadas incompletas sutis.</div>
 <div><b>Ground truth manual</b>Calcular precisão/recall por paciente a partir das suas anotações.</div>
 <div><b>Eventos detalhados</b>Salvar timestamps, profundidade por olho e motivo de aceite/rejeição no JSON por vídeo.</div>
 </div>

@@ -298,12 +298,15 @@ class RotationNormalizer:
     """
     Normaliza landmarks compensando rotação da cabeça
     
-    Usa a carúncula como ponto de referência fixo
+    Alinha os landmarks ao frame de referência por transformação de similaridade
+    2D (escala, rotação e translação). Quando não há pontos suficientes para
+    estimar rotação, usa a carúncula como ponto de referência translacional.
     """
     
     def __init__(self, caruncula_idx: int = 39):
         self.caruncula_idx = caruncula_idx
         self.baseline_caruncula: Optional[Point2D] = None
+        self.baseline_landmarks: Optional[List[Tuple[float, float]]] = None
     
     def normalize(
         self,
@@ -311,7 +314,7 @@ class RotationNormalizer:
         reference_landmarks: Optional[List[Tuple[float, float]]] = None
     ) -> List[Tuple[float, float]]:
         """
-        Normaliza landmarks subtraindo posição da carúncula
+        Normaliza landmarks alinhando-os ao frame de referência
         
         Args:
             landmarks: Lista de (x, y)
@@ -320,8 +323,72 @@ class RotationNormalizer:
         Returns:
             Landmarks normalizados
         """
-        if len(landmarks) <= self.caruncula_idx or np.isnan(landmarks[self.caruncula_idx]).any():
-            return landmarks
+        landmarks_array = np.asarray(landmarks, dtype=float)
+        reference = reference_landmarks if reference_landmarks is not None else self.baseline_landmarks
+
+        if reference is not None:
+            aligned = self._align_to_reference(landmarks_array, np.asarray(reference, dtype=float))
+            if aligned is not None:
+                return [(float(x), float(y)) for x, y in aligned]
+
+        return self._translate_by_caruncula(landmarks_array, reference)
+
+    def _align_to_reference(
+        self,
+        landmarks: np.ndarray,
+        reference: np.ndarray
+    ) -> Optional[np.ndarray]:
+        """Estima uma transformação de similaridade 2D sem reflexão."""
+        if landmarks.ndim != 2 or reference.ndim != 2 or landmarks.shape[1] != 2 or reference.shape[1] != 2:
+            return None
+
+        count = min(len(landmarks), len(reference))
+        if count < 2:
+            return None
+
+        current = landmarks[:count]
+        target = reference[:count]
+        valid = np.isfinite(current).all(axis=1) & np.isfinite(target).all(axis=1)
+        if valid.sum() < 2:
+            return None
+
+        source_points = current[valid]
+        target_points = target[valid]
+        source_centroid = source_points.mean(axis=0)
+        target_centroid = target_points.mean(axis=0)
+
+        source_complex = (
+            (source_points[:, 0] - source_centroid[0])
+            + 1j * (source_points[:, 1] - source_centroid[1])
+        )
+        target_complex = (
+            (target_points[:, 0] - target_centroid[0])
+            + 1j * (target_points[:, 1] - target_centroid[1])
+        )
+        denominator = np.sum(np.abs(source_complex) ** 2)
+        if denominator <= 1e-12:
+            return None
+
+        transform = np.sum(target_complex * np.conj(source_complex)) / denominator
+        aligned = landmarks.copy()
+        valid_landmarks = np.isfinite(aligned).all(axis=1)
+        points_complex = (
+            (aligned[valid_landmarks, 0] - source_centroid[0])
+            + 1j * (aligned[valid_landmarks, 1] - source_centroid[1])
+        )
+        transformed = transform * points_complex
+        aligned[valid_landmarks, 0] = transformed.real + target_centroid[0]
+        aligned[valid_landmarks, 1] = transformed.imag + target_centroid[1]
+        return aligned
+
+    def _translate_by_caruncula(
+        self,
+        landmarks: np.ndarray,
+        reference_landmarks: Optional[List[Tuple[float, float]]]
+    ) -> List[Tuple[float, float]]:
+        """Fallback translacional quando rotação não pode ser estimada."""
+        if len(landmarks) <= self.caruncula_idx or not np.isfinite(landmarks[self.caruncula_idx]).all():
+            return [(float(x), float(y)) for x, y in landmarks]
         
         # Obter posição atual da carúncula
         caruncula = Point2D(
@@ -333,7 +400,7 @@ class RotationNormalizer:
         if (
             reference_landmarks is not None
             and len(reference_landmarks) > self.caruncula_idx
-            and not np.isnan(reference_landmarks[self.caruncula_idx]).any()
+            and np.isfinite(reference_landmarks[self.caruncula_idx]).all()
         ):
             ref_caruncula = Point2D(
                 reference_landmarks[self.caruncula_idx][0],
@@ -355,6 +422,7 @@ class RotationNormalizer:
     
     def set_baseline(self, landmarks: List[Tuple[float, float]]):
         """Define baseline para normalização futura"""
+        self.baseline_landmarks = list(landmarks)
         if len(landmarks) > self.caruncula_idx:
             self.baseline_caruncula = Point2D(
                 landmarks[self.caruncula_idx][0],

@@ -1,6 +1,37 @@
 # Status do Projeto
 
 ## Últimas Atualizações
+- **[21/06/2026]** Hardening técnico pós-revisão crítica, executado com subagents paralelos.
+  - Frente API/segurança:
+    - Removido CORS global aberto com credenciais em `next.config.js`.
+    - Substituído `fetch(videoUrl)` direto por validação SSRF-safe em `lib/server/remote-video.ts`: exige HTTPS, hostname allowlisted, sem credenciais na URL, sem redirects, valida `content-type`, `content-length` e limite durante streaming.
+    - Adicionada validação de parâmetros em `lib/server/api-validation.ts`: allowlist de métodos, sanitização de filename e validação de frame.
+    - `/api/generate-video`, `/api/extract-points` e `/api/extract-frame` deixam de expor erros brutos do backend e passam a validar `videoUrl`, `videoFilename`, `method` e/ou `frame`.
+    - `/api/process-video` deixou de chamar script inexistente (`process_video_dlib.py`) e agora retorna `501` explícito até haver implementação segura.
+    - `/api/upload` deixou de retornar sucesso fake com `url: "#"`.
+    - Upload local unificado em `lib/server/local-upload.ts`: grava incrementalmente, limita vídeo a 100 MB e CSV a 25 MB, usa UUID em vez do filename do usuário e lista arquivos reais via `/api/files`.
+  - Frente build/frontend:
+    - Removidos `ignoreDuringBuilds` e `ignoreBuildErrors`; build volta a falhar em erro real de lint/TypeScript.
+    - Adicionado `eslint-config-next`.
+    - Corrigidos erros TypeScript em `app/alinhamento/page.tsx`, `app/components/main-nav.tsx`, `app/components/plotly/PlotlyComponent.tsx`, `app/analise/coordenadas/page-redesign.tsx`, `app/analise/estabilidade/page.tsx` e tipos locais de Plotly.
+    - Corrigidos bloqueios de lint em `app/documentacao/paper/page.tsx` e `app/visao-projeto/page.tsx`.
+  - Frente Python/core:
+    - `Config.from_yaml/from_json` agora hidrata dataclasses aninhadas corretamente.
+    - `BlinkTracker` não divide por zero quando OpenCV retorna `total_frames=0`.
+    - `BatchProcessor` usa checkpoint com lock e escrita atômica, e evita colisão de saída por `stem` em processamento recursivo.
+    - `RotationNormalizer` agora faz alinhamento 2D por escala/rotação/translação, com fallback por carúncula.
+    - `scripts/gerar_tudo.py` removeu `shell=True`.
+    - Adicionados testes focados para os novos comportamentos.
+  - Validação executada:
+    - `npm run lint`: passou, com avisos não bloqueantes já conhecidos.
+    - `npx tsc --noEmit --pretty false`: passou.
+    - `npm run build`: passou com lint/typecheck ativos.
+    - `pytest -q tests/test_core_modules.py tests/test_blinktracking.py`: 23 passed, 1 skipped; ainda há warnings antigos de testes que retornam `True`.
+  - Pendências deliberadas:
+    - Autenticação real ainda não está implementada: login/Google/registro continuam sem provedor/sessão. Antes de expor dados de pacientes, definir provedor e proteger upload/listagem/processamento por sessão ou token.
+    - Armazenamento local em `public/uploads` foi endurecido, mas a decisão correta para produção é migrar para Blob/object storage privado com URLs assinadas.
+    - `npm audit --omit=dev` ainda deve ser tratado em rodada própria, especialmente `next`, `xlsx`, `@vercel/blob/undici`.
+    - Faltam testes de API para auth negativa, CORS, SSRF, upload inválido, limite de tamanho e parsing de arquivos.
 - **[18/06/2026]** Calibração clínica com anotação manual em vídeos reais do Drive.
   - Corrigida a métrica `combined`: piscadas bilaterais sincronizadas contam como **um evento clínico**, mantendo `raw_eye_blinks` para auditoria.
   - Adicionada classificação de lateralidade para eventos bilaterais: `bilateral_symmetric`, `left_dominant`, `right_dominant`.

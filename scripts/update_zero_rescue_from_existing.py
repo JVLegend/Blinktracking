@@ -60,6 +60,10 @@ def update_from_existing(
                     "unilateral_candidate_count": rescue["unilateral_candidate_count"],
                     "left_dominant_candidate_count": rescue["left_dominant_candidate_count"],
                     "right_dominant_candidate_count": rescue["right_dominant_candidate_count"],
+                    "high_confidence_candidate_count": rescue["high_confidence_candidate_count"],
+                    "artifact_risk_candidate_count": rescue["artifact_risk_candidate_count"],
+                    "max_confidence_score": rescue["max_confidence_score"],
+                    "mean_confidence_score": rescue["mean_confidence_score"],
                     "requires_manual_review": rescue["candidate_count"] > 0,
                     "output_dir": str(output_dir),
                     "error": "",
@@ -78,6 +82,10 @@ def update_from_existing(
                     "unilateral_candidate_count": 0,
                     "left_dominant_candidate_count": 0,
                     "right_dominant_candidate_count": 0,
+                    "high_confidence_candidate_count": 0,
+                    "artifact_risk_candidate_count": 0,
+                    "max_confidence_score": 0,
+                    "mean_confidence_score": 0,
                     "requires_manual_review": False,
                     "output_dir": str(output_dir),
                     "error": str(exc),
@@ -118,10 +126,12 @@ def main() -> int:
     )
     success = sum(1 for item in results if item["status"] == "success")
     candidates = sum(int(item["rescue_candidate_count"]) for item in results)
+    high_confidence = sum(int(item["high_confidence_candidate_count"]) for item in results)
     left_dom = sum(int(item["left_dominant_candidate_count"]) for item in results)
     right_dom = sum(int(item["right_dominant_candidate_count"]) for item in results)
     print(f"Zerados atualizados: {success}/{len(results)}")
     print(f"Candidatos relaxados: {candidates}")
+    print(f"Candidatos de alta confiança: {high_confidence}")
     print(f"Candidatos dominantes E/D: {left_dom}/{right_dom}")
     return 0
 

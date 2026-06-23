@@ -67,8 +67,9 @@ def _table_rows_rescue(rows: list[dict]) -> str:
           <td>{_esc(row.get('idx'))}</td>
           <td>{_esc(patient)}<span>{_esc(video)}</span></td>
           <td class="num">{_num(row.get('rescue_candidate_count') or 0)}</td>
-          <td class="num">{_num(row.get('bilateral_candidate_count') or 0)}</td>
-          <td class="num">{_num(row.get('left_dominant_candidate_count') or 0)}/{_num(row.get('right_dominant_candidate_count') or 0)}</td>
+          <td class="num">{_num(row.get('high_confidence_candidate_count') or 0)}</td>
+          <td class="num">{_fmt(row.get('max_confidence_score') or 0, 1)}</td>
+          <td class="num">{_num(row.get('artifact_risk_candidate_count') or 0)}</td>
         </tr>"""
         )
     return "\n".join(parts)
@@ -106,8 +107,9 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
     rescue_rows = sorted(
         rescue_rows,
         key=lambda row: (
+            int(row.get("high_confidence_candidate_count") or 0),
+            float(row.get("max_confidence_score") or 0),
             int(row.get("rescue_candidate_count") or 0),
-            int(row.get("bilateral_candidate_count") or 0),
         ),
         reverse=True,
     )
@@ -119,6 +121,8 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
     candidate_videos = sum(1 for row in candidate_rows if int(row.get("candidate_count") or 0) > 0)
     candidate_left = sum(int(row.get("left_dominant_candidate_count") or 0) for row in candidate_rows)
     candidate_right = sum(int(row.get("right_dominant_candidate_count") or 0) for row in candidate_rows)
+    candidate_high = sum(int(row.get("high_confidence_candidate_count") or 0) for row in candidate_rows)
+    candidate_artifact = sum(int(row.get("artifact_risk_candidate_count") or 0) for row in candidate_rows)
 
     return f"""<!DOCTYPE html>
 <html lang="pt-BR">
@@ -190,6 +194,8 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
         <div class="stat"><span class="value" style="color:var(--cardinal)">{_fmt(stats['max_rate'])}/min</span><span class="label">maior taxa clínica</span></div>
         <div class="stat"><span class="value" style="color:var(--blue)">{_num(stats.get('left_dominant_blinks', 0))}/{_num(stats.get('right_dominant_blinks', 0))}</span><span class="label">dominantes E/D</span></div>
         <div class="stat"><span class="value" style="color:var(--purple)">{_num(candidate_total)}</span><span class="label">candidatos clínicos</span></div>
+        <div class="stat"><span class="value" style="color:var(--green)">{_num(candidate_high)}</span><span class="label">alta confiança</span></div>
+        <div class="stat"><span class="value" style="color:var(--orange)">{_num(candidate_artifact)}</span><span class="label">com risco de artefato</span></div>
         <div class="stat"><span class="value" style="color:var(--teal)">{_num(candidate_left)}/{_num(candidate_right)}</span><span class="label">cand. dominantes E/D</span></div>
       </div>
     </section>
@@ -204,8 +210,8 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
         <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 16</strong>: detector principal zerou; a passada relaxada encontrou dois candidatos. Visualmente há dominância do olho direito.</p></div>
         <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 30</strong>: revisão marcou 00:01, 00:04 e 00:06 com dominância direita; a camada sensível recupera os três tempos para revisão.</p></div>
         <div class="finding"><i data-lucide="eye-off"></i><p><strong>Paciente 15</strong>: revisão marcou 00:07; a passada relaxada encontrou candidato direito em 6,614 s.</p></div>
-        <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 10</strong>: revisão marcou 00:03, 00:11 e 00:13; a camada sensível aponta 2,704 s, 11,183 s e 13,261 s, sem promover o artefato após 00:17.</p></div>
-        <div class="finding"><i data-lucide="clipboard-list"></i><p>Camada sensível: {_num(candidate_total)} candidatos em {_num(candidate_videos)} vídeos. Estes candidatos não alteram o desfecho principal.</p></div>
+        <div class="finding"><i data-lucide="eye"></i><p><strong>Paciente 10</strong>: revisão marcou 00:03, 00:11 e 00:13; a camada sensível aponta 2,704 s, 11,183 s e 13,261 s. O trecho pós-00:17 fica em baixa prioridade por artefato de tracking.</p></div>
+        <div class="finding"><i data-lucide="clipboard-list"></i><p>Camada sensível: {_num(candidate_total)} candidatos em {_num(candidate_videos)} vídeos, com {_num(candidate_high)} de alta confiança. Estes candidatos não alteram o desfecho principal.</p></div>
       </div>
     </section>
     <section><div class="section-label"><i data-lucide="git-compare"></i> Relação cru × clínico</div><h2>Impacto da sincronização bilateral</h2>
@@ -217,13 +223,13 @@ def build_page(summary_path: Path, rescue_path: Path | None, candidate_review_pa
     </section>
     <section id="tabelas"><div class="section-label"><i data-lucide="alert-triangle"></i> Revisão prioritária</div><h2>Casos de alto volume clínico</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Clínicas</th><th class="num">Cru por olho</th><th class="num">Taxa/min</th><th class="num">Bilaterais</th><th class="num">Dom. E/D</th></tr></thead><tbody>{_table_rows_high(high)}</tbody></table></div></section>
     <section><div class="section-label"><i data-lucide="circle-dot-dashed"></i> Zeros</div><h2>Vídeos sem eventos no detector principal</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Duração (s)</th><th class="num">Frames detectados</th></tr></thead><tbody>{_table_rows_zero(zeros)}</tbody></table></div></section>
-    <section><div class="section-label"><i data-lucide="search-check"></i> Recuperação relaxada</div><h2>Candidatos nos vídeos zero</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Candidatos</th><th class="num">Bilaterais</th><th class="num">Dom. E/D</th></tr></thead><tbody>{_table_rows_rescue(rescue_rows)}</tbody></table></div></section>
-    <section><div class="section-label"><i data-lucide="list-checks"></i> Próximas melhorias</div><h2>Como aumentar acerto sem inflar falso positivo</h2>
+    <section><div class="section-label"><i data-lucide="search-check"></i> Recuperação relaxada</div><h2>Candidatos nos vídeos zero</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Paciente / vídeo</th><th class="num">Candidatos</th><th class="num">Alta conf.</th><th class="num">Score máx.</th><th class="num">Artefatos</th></tr></thead><tbody>{_table_rows_rescue(rescue_rows)}</tbody></table></div></section>
+    <section><div class="section-label"><i data-lucide="list-checks"></i> Camadas implementadas</div><h2>Como aumentar acerto sem inflar falso positivo</h2>
       <div class="priority-grid">
-        <div class="card"><h3>1. Candidatos com escore clínico</h3><p>Transformar a camada sensível em ranking: tempo, duração, queda bilateral, simetria, dominância e distância de artefatos. O total principal continua conservador.</p></div>
-        <div class="card"><h3>2. Filtro de qualidade do vídeo</h3><p>Marcar trechos com sacudida, rosto saindo do quadro, perda de rastreamento ou mudança brusca de escala. Paciente 10 mostrou que isto evita promover artefato após 00:17.</p></div>
-        <div class="card"><h3>3. Baseline para olho cronicamente fechado</h3><p>Quando um olho fica fechado ou semi-fechado durante todo o vídeo, usar variação local/prominência, não apenas abertura absoluta. Paciente 3 revelou este padrão.</p></div>
-        <div class="card"><h3>4. Detector por mínimos locais</h3><p>Além de threshold por run, detectar vales com proeminência temporal. Isso captura piscadas incompletas curtas que aparecem como queda real no sinal.</p></div>
+        <div class="card"><h3>1. Candidatos com escore clínico</h3><p>Implementado: ranking por duração, profundidade, bilateralidade, simetria, dominância e distância de artefatos. O total principal continua conservador.</p></div>
+        <div class="card"><h3>2. Filtro de qualidade do vídeo</h3><p>Implementado: flags para sacudida, gap de tracking, salto de escala e salto abrupto de abertura. Trechos ruins caem para baixa prioridade.</p></div>
+        <div class="card"><h3>3. Olho cronicamente fechado</h3><p>Implementado: quando um olho tem baseline persistentemente menor, o candidato por proeminência local ganha contexto próprio.</p></div>
+        <div class="card"><h3>4. Detector por mínimos locais</h3><p>Implementado: além do threshold por run, a camada sensível detecta vales com proeminência temporal para piscadas incompletas sutis.</p></div>
         <div class="card"><h3>5. Aprendizado com anotações manuais</h3><p>Salvar cada anotação como ground truth e calcular precisão/recall por paciente. Depois calibrar limiares por padrão: zero, baixo não-zero, alto volume e artefato.</p></div>
         <div class="card"><h3>6. JSON de eventos detalhados</h3><p>Persistir os eventos confirmados e candidatos no relatório por vídeo, com timestamps, profundidade por olho e razão do aceite/rejeição.</p></div>
       </div>

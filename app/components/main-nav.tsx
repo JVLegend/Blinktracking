@@ -21,6 +21,7 @@ import {
   BookOpen,
   LineChart,
   BarChart,
+  BarChart3,
   Timer
 } from "lucide-react";
 import { SidebarInset } from "@/components/ui/sidebar";

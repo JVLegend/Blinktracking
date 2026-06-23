@@ -15,24 +15,7 @@ declare module 'react-plotly.js' {
         size: number;
       };
     }>;
-    layout: {
-      title: string;
-      xaxis: {
-        title: string;
-        gridcolor?: string;
-        zerolinecolor?: string;
-      };
-      yaxis: {
-        title: string;
-        gridcolor?: string;
-        zerolinecolor?: string;
-      };
-      height: number;
-      showlegend: boolean;
-      hovermode?: string;
-      plot_bgcolor?: string;
-      paper_bgcolor?: string;
-    };
+    layout: Record<string, any>;
     config?: {
       responsive: boolean;
       displayModeBar?: boolean;
@@ -46,4 +29,4 @@ declare module 'react-plotly.js' {
   }
 
   export default class Plot extends Component<PlotParams> {}
-} 
+}

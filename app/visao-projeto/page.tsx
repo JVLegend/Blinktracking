@@ -161,7 +161,7 @@ export default function VisionPage() {
                   desordens sistêmicas ou neurológicas.
                 </p>
                 <p className="p-3 bg-slate-50 rounded-lg border border-slate-100 italic text-slate-700">
-                  "O propósito é investigar a dinâmica do piscar comparando olhos saudáveis, patologias e estados pós-cirúrgicos."
+                  &quot;O propósito é investigar a dinâmica do piscar comparando olhos saudáveis, patologias e estados pós-cirúrgicos.&quot;
                 </p>
               </div>
             </section>

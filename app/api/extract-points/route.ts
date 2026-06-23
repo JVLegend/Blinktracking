@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { BACKEND_URL, REQUEST_TIMEOUT } from '@/lib/config'
+import { RequestValidationError, requireAllowedMethod, sanitizeUploadFilename } from '@/lib/server/api-validation'
+import { RemoteVideoError, fetchRemoteVideoBlob } from '@/lib/server/remote-video'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,27 +15,20 @@ export async function POST(request: Request) {
     const method = formData.get("method") as string
 
     if (!videoUrl || !videoFilename || !method) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "URL do vídeo, nome do arquivo e método são obrigatórios" 
+      return NextResponse.json({
+        success: false,
+        error: "URL do vídeo, nome do arquivo e método são obrigatórios"
       }, { status: 400 })
     }
 
-    // Buscar o vídeo do blob storage
-    const videoResponse = await fetch(videoUrl)
-    if (!videoResponse.ok) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Erro ao baixar vídeo do storage" 
-      }, { status: 500 })
-    }
+    const safeFilename = sanitizeUploadFilename(videoFilename)
+    const safeMethod = requireAllowedMethod(method, ["normal", "potente"])
+    const videoBlob = await fetchRemoteVideoBlob(videoUrl)
 
-    const videoBlob = await videoResponse.blob()
-    
     // Criar FormData para o backend
     const backendFormData = new FormData()
-    backendFormData.append('video', videoBlob, videoFilename)
-    backendFormData.append('method', method)
+    backendFormData.append('video', videoBlob, safeFilename)
+    backendFormData.append('method', safeMethod)
 
     // Enviar para o backend Flask
     const backendResponse = await fetch(`${BACKEND_URL}/extract-points`, {
@@ -43,10 +38,10 @@ export async function POST(request: Request) {
     })
 
     if (!backendResponse.ok) {
-      const errorText = await backendResponse.text()
-      return NextResponse.json({ 
-        success: false, 
-        error: `Erro no backend: ${errorText}` 
+      await backendResponse.text().catch(() => '')
+      return NextResponse.json({
+        success: false,
+        error: "Erro ao extrair pontos"
       }, { status: backendResponse.status })
     }
 
@@ -54,18 +49,30 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
 
   } catch (error) {
-    console.error("Erro na API extract-points:", error)
-    
+    if (error instanceof RequestValidationError) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: error.status })
+    }
+
+    if (error instanceof RemoteVideoError) {
+      return NextResponse.json({
+        success: false,
+        error: error.message
+      }, { status: error.status })
+    }
+
     if (error instanceof Error && error.name === 'TimeoutError') {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Timeout: processamento demorou mais que o esperado" 
+      return NextResponse.json({
+        success: false,
+        error: "Timeout: processamento demorou mais que o esperado"
       }, { status: 408 })
     }
 
-    return NextResponse.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erro ao processar o vídeo'
+    return NextResponse.json({
+      success: false,
+      error: 'Erro ao processar o vídeo'
     }, { status: 500 })
   }
-} 
+}

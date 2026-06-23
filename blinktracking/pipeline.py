@@ -9,6 +9,11 @@ Processa múltiplos vídeos automaticamente com:
 
 import json
 import logging
+import os
+import re
+import tempfile
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Dict, Optional, Callable
 from dataclasses import dataclass, field
@@ -18,6 +23,14 @@ import multiprocessing as mp
 
 from .tracker import BlinkTracker
 from .config import Config
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback
+    fcntl = None
+
+
+_CHECKPOINT_THREAD_LOCK = threading.Lock()
 
 
 @dataclass
@@ -132,9 +145,9 @@ class BatchProcessor:
         total = len(videos_to_process)
         
         if parallel and total > 1:
-            self._process_parallel(videos_to_process, output_folder, checkpoint_file)
+            self._process_parallel(videos_to_process, output_folder, checkpoint_file, input_folder if recursive else None)
         else:
-            self._process_sequential(videos_to_process, output_folder, checkpoint_file)
+            self._process_sequential(videos_to_process, output_folder, checkpoint_file, input_folder if recursive else None)
         
         # Gerar relatório
         self._generate_report(output_folder)
@@ -145,7 +158,8 @@ class BatchProcessor:
         self,
         videos: List[Path],
         output_folder: Path,
-        checkpoint_file: Path
+        checkpoint_file: Path,
+        input_folder: Optional[Path] = None
     ):
         """Processa vídeos sequencialmente"""
         for i, video_path in enumerate(videos):
@@ -154,7 +168,7 @@ class BatchProcessor:
             if self.progress_callback:
                 self.progress_callback(i + 1, len(videos), str(video_path))
             
-            result = self._process_single_video(video_path, output_folder)
+            result = self._process_single_video(video_path, output_folder, input_folder)
             self.results.append(result)
             
             # Salvar checkpoint
@@ -165,7 +179,8 @@ class BatchProcessor:
         self,
         videos: List[Path],
         output_folder: Path,
-        checkpoint_file: Path
+        checkpoint_file: Path,
+        input_folder: Optional[Path] = None
     ):
         """Processa vídeos em paralelo"""
         self.logger.info(f"Processando em paralelo com {self.max_workers} workers")
@@ -173,7 +188,7 @@ class BatchProcessor:
         completed = 0
         with ProcessPoolExecutor(max_workers=self.max_workers) as executor:
             future_to_video = {
-                executor.submit(self._process_single_video, v, output_folder): v
+                executor.submit(self._process_single_video, v, output_folder, input_folder): v
                 for v in videos
             }
             
@@ -206,7 +221,8 @@ class BatchProcessor:
     def _process_single_video(
         self,
         video_path: Path,
-        output_folder: Path
+        output_folder: Path,
+        input_folder: Optional[Path] = None
     ) -> ProcessingResult:
         """Processa um único vídeo"""
         import time
@@ -215,7 +231,7 @@ class BatchProcessor:
         
         try:
             # Criar subpasta para este vídeo
-            video_output = output_folder / video_path.stem
+            video_output = self._get_video_output_folder(video_path, output_folder, input_folder)
             video_output.mkdir(exist_ok=True)
             
             # Processar
@@ -255,6 +271,28 @@ class BatchProcessor:
                 processing_time=processing_time
             )
     
+    def _get_video_output_folder(
+        self,
+        video_path: Path,
+        output_folder: Path,
+        input_folder: Optional[Path] = None
+    ) -> Path:
+        """Gera subpasta de saída única, preservando contexto em modo recursivo."""
+        if input_folder is None:
+            return output_folder / video_path.stem
+
+        try:
+            relative = video_path.relative_to(input_folder).with_suffix('')
+            parts = relative.parts
+        except ValueError:
+            parts = video_path.with_suffix('').parts
+
+        safe_parts = [
+            re.sub(r'[^A-Za-z0-9._-]+', '_', part).strip('._') or 'video'
+            for part in parts
+        ]
+        return output_folder / "__".join(safe_parts)
+
     def _load_checkpoint(self, checkpoint_file: Path) -> set:
         """Carrega vídeos já processados"""
         if not checkpoint_file.exists():
@@ -267,16 +305,45 @@ class BatchProcessor:
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
             return set()
     
+    @contextmanager
+    def _checkpoint_file_lock(self, checkpoint_file: Path):
+        """Serializa alterações no checkpoint entre threads e processos."""
+        lock_path = checkpoint_file.with_suffix(checkpoint_file.suffix + '.lock')
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with _CHECKPOINT_THREAD_LOCK:
+            with open(lock_path, 'a+') as lock_file:
+                if fcntl is not None:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    if fcntl is not None:
+                        fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
     def _save_checkpoint(self, checkpoint_file: Path, video_path: str):
         """Salva checkpoint"""
-        processed = self._load_checkpoint(checkpoint_file)
-        processed.add(video_path)
-        
-        with open(checkpoint_file, 'w') as f:
-            json.dump({
-                'processed': list(processed),
+        with self._checkpoint_file_lock(checkpoint_file):
+            processed = self._load_checkpoint(checkpoint_file)
+            processed.add(video_path)
+            payload = {
+                'processed': sorted(processed),
                 'last_update': datetime.now().isoformat()
-            }, f, indent=2)
+            }
+
+            checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp_name = tempfile.mkstemp(
+                prefix=f'.{checkpoint_file.name}.',
+                suffix='.tmp',
+                dir=str(checkpoint_file.parent)
+            )
+            try:
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(payload, f, indent=2)
+                    f.write('\n')
+                os.replace(tmp_name, checkpoint_file)
+            finally:
+                if os.path.exists(tmp_name):
+                    os.unlink(tmp_name)
     
     def _generate_report(self, output_folder: Path):
         """Gera relatório consolidado"""
